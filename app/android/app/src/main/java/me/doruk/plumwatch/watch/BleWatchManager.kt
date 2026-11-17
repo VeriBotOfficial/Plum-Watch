@@ -153,6 +153,8 @@ class BleWatchManager(context: Context) {
                 }
                 handler.removeCallbacks(reconnectTask)
                 reconnectAttempts = 0
+                val connectedDevice = mutableState.value.pendingDevice ?: mutableState.value.savedDevice
+                connectedDevice?.let(::persistSavedDevice)
                 mutableState.update { old ->
                     val device = old.pendingDevice ?: old.savedDevice
                     old.copy(
@@ -184,7 +186,7 @@ class BleWatchManager(context: Context) {
                 if (bluetoothGatt === gatt) {
                     bluetoothGatt = null
                     val current = mutableState.value
-                    val saved = current.savedDevice ?: current.connectedDevice ?: current.pendingDevice
+                    val saved = current.savedDevice ?: current.connectedDevice
                     val shouldReconnect = autoReconnectEnabled &&
                         saved != null &&
                         (!companionPresenceMonitoring || companionDevicePresent)
@@ -332,7 +334,6 @@ class BleWatchManager(context: Context) {
 
     @SuppressLint("MissingPermission")
     fun connect(device: WatchDevice) {
-        saveDevice(device)
         autoReconnectEnabled = true
         reconnectAttempts = 0
         companionDevicePresent = true
@@ -376,7 +377,7 @@ class BleWatchManager(context: Context) {
                 isConnecting = true,
                 isReconnecting = reconnecting,
                 connectedDevice = null,
-                savedDevice = device,
+                savedDevice = it.savedDevice,
                 pendingDevice = device,
                 connectionMessage = if (reconnecting) {
                     "Reconnecting to ${device.name}…"
@@ -549,12 +550,11 @@ class BleWatchManager(context: Context) {
         }
     }
 
-    private fun saveDevice(device: WatchDevice) {
+    private fun persistSavedDevice(device: WatchDevice) {
         preferences.edit()
             .putString(KEY_DEVICE_NAME, device.name)
             .putString(KEY_DEVICE_ADDRESS, device.address)
             .apply()
-        mutableState.update { it.copy(savedDevice = device) }
     }
 
     private fun readSavedDevice(): WatchDevice? {

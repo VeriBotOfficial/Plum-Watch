@@ -253,7 +253,7 @@ fun MyWatchScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Remove this watch?")
                     Text(
-                        "This removes the saved watch from Plum Watch and turns off automatic reconnection.",
+                        "This will unpair the watch from Plum Watch, remove its saved connection, and stop automatic reconnection. You can connect it again later.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp,
                         lineHeight = 18.sp
