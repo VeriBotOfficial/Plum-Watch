@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -39,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.border
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -49,14 +47,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.wexpa.liquidglass.Glass
-import com.wexpa.liquidglass.glassEffect
+import com.wexpa.liquidglass.material3.NavigationBar as GlassNavigationBar
+import com.wexpa.liquidglass.material3.NavigationBarItem as GlassNavigationBarItem
 import kotlinx.coroutines.launch
 import me.doruk.plumwatch.data.AppUpdateCheckResult
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.data.AppUpdateRepository
 import me.doruk.plumwatch.watch.BleWatchManager
-import androidx.compose.ui.semantics.Role
 
 private enum class AppPage(val label: String) {
     WATCH("My Watch"),
@@ -148,15 +145,12 @@ fun PlumWatchApp(
                         Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                     )
                 }
-            } else {
-                val denied = results.values.any { !it }
-                if (denied) {
-                    Toast.makeText(
-                        context,
-                        "Nearby devices permission is needed to find your watch.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+            } else if (results.values.any { !it }) {
+                Toast.makeText(
+                    context,
+                    "Nearby devices permission is needed to find your watch.",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
 
@@ -178,7 +172,7 @@ fun PlumWatchApp(
         LiquidGlassHost(
             enabled = uiStyle == "glass",
             content = {
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize()) {
                     when (page) {
                         AppPage.WATCH -> MyWatchScreen(
                             state = watchState,
@@ -209,8 +203,7 @@ fun PlumWatchApp(
                     useGlass = uiStyle == "glass",
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 12.dp)
+                        .padding(bottom = 8.dp)
                 )
             }
         )
@@ -225,70 +218,53 @@ private fun FloatingNavigationBar(
     modifier: Modifier = Modifier
 ) {
     val pages = AppPage.values()
+
     if (useGlass) {
-        Row(
+        // Shayann07's Material 3 NavigationBar owns the iOS-style floating capsule,
+        // selector lens, tap/hold/drag gestures and fling behavior.
+        GlassNavigationBar(modifier = modifier.fillMaxWidth()) {
+            pages.forEach { page ->
+                GlassNavigationBarItem(
+                    selected = selectedPage == page,
+                    onClick = { onSelect(page) },
+                    icon = {
+                        Icon(
+                            imageVector = IconsForPage(page),
+                            contentDescription = null
+                        )
+                    },
+                    label = { Text(page.label) },
+                    alwaysShowLabel = true
+                )
+            }
+        }
+    } else {
+        Box(
             modifier = modifier
+                .navigationBarsPadding()
                 .widthIn(max = 360.dp)
                 .fillMaxWidth(0.88f)
                 .height(64.dp)
-                .clip(RoundedCornerShape(50))
-                .glassEffect(Glass.Regular.interactive(), RoundedCornerShape(50))
-                .padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .clip(RoundedCornerShape(32.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 5.dp)
         ) {
-            pages.forEach { page ->
-                val isSelected = selectedPage == page
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .glassEffect(Glass.Regular.interactive(), RoundedCornerShape(50))
-                        .clickable(
-                            interactionSource = null,
-                            indication = null,
-                            role = Role.Tab,
-                            onClick = { onSelect(page) }
-                        )
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(2f.dp, Alignment.CenterVertically),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    NavigationItemContent(page, selectedPage, IconsForPage(page))
-                }
-            }
-        }
-        return
-    }
-
-    Box(
-        modifier = modifier
-            .widthIn(max = 360.dp)
-            .fillMaxWidth(0.88f)
-            .height(64.dp)
-            .clip(RoundedCornerShape(32.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
-                RoundedCornerShape(32.dp)
-            )
-            .padding(horizontal = 5.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            pages.forEach { page ->
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(60.dp)
-                        .clickable { onSelect(page) },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    NavigationItemContent(page, selectedPage, IconsForPage(page))
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                pages.forEach { page ->
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(60.dp)
+                            .clickable { onSelect(page) },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        NavigationItemContent(page, selectedPage, IconsForPage(page))
+                    }
                 }
             }
         }
@@ -339,4 +315,5 @@ private fun missingBluetoothPermissions(context: android.content.Context): Array
     }.toTypedArray()
 }
 
-private fun hasBluetoothPermissions(context: android.content.Context): Boolean = missingBluetoothPermissions(context).isEmpty()
+private fun hasBluetoothPermissions(context: android.content.Context): Boolean =
+    missingBluetoothPermissions(context).isEmpty()
