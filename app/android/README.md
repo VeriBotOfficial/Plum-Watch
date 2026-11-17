@@ -7,6 +7,7 @@ A lightweight Android companion app for HK-series watches. This project is the a
 ### Requirements
 
 - A current Android Studio release compatible with Android Gradle Plugin 9.1.1
+- Internet access for Gradle and Maven Central dependency downloads
 - JDK 17
 - Android SDK Platform 36 (Android 16)
 - Android SDK Build-Tools 36.0.0
@@ -43,7 +44,7 @@ app/build/outputs/apk/debug/app-debug.apk
 - **Watchfaces** — reads the Git tree under `/watchfaces/`, finds each folder's ZIP archive and preview image, and downloads the archive to `Downloads/Plum Watchfaces/`.
 - **Settings** — System / Light / Dark theme selection, Bluetooth status, app version, and developer credits for Doruk Çavdar and Troy Mitchell.
 
-The bottom navigation is a floating, translucent glass-style pill inspired by the supplied Apple Watch companion screenshots. The UI is built with native Kotlin and Jetpack Compose.
+The UI uses Kyant’s AndroidLiquidGlass Backdrop library (Apache-2.0) for sampled backdrop blur, vibrancy, lens refraction, highlights and inner/outer shadows. The same reusable glass material is applied to navigation, cards and controls.
 
 ## Connecting an HK watch
 
