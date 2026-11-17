@@ -24,6 +24,7 @@ android {
         minSdk = 26
         targetSdk = 37
         versionCode = System.getenv("PLUM_VERSION_CODE")?.toIntOrNull() ?: 1
+        // The workflow computes this from the latest published manifest before each build.
         versionName = System.getenv("PLUM_VERSION_NAME") ?: "${Year.now().value % 100}.0.1"
     }
 
