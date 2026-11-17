@@ -44,12 +44,13 @@ jobs:
         run: sh ./gradlew --no-daemon assembleDebug
 
       - name: Publish latest APK to repository
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           mkdir -p app/android/build
           cp app/android/app/build/outputs/apk/debug/app-debug.apk app/android/build/plum-watch-debug.apk
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/android/build/plum-watch-debug.apk
+          git add -f app/android/build/plum-watch-debug.apk
           if git diff --cached --quiet; then
             echo "APK is unchanged; no repository update needed."
           else
