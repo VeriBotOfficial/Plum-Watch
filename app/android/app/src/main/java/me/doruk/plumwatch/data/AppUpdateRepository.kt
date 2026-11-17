@@ -31,11 +31,17 @@ object AppUpdateRepository {
         "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/app/android/build/update.json"
 
     suspend fun check(currentVersionCode: Int): AppUpdateCheckResult = withContext(Dispatchers.IO) {
-        val connection = URL(MANIFEST_URL).openConnection() as HttpURLConnection
+        // The manifest is overwritten in-place by GitHub Actions. A unique query
+        // parameter prevents GitHub's raw-content CDN from serving an older manifest.
+        val manifestUrl = "$MANIFEST_URL?v=${System.currentTimeMillis()}"
+        val connection = URL(manifestUrl).openConnection() as HttpURLConnection
         connection.connectTimeout = 10_000
         connection.readTimeout = 15_000
         connection.requestMethod = "GET"
-        connection.setRequestProperty("Cache-Control", "no-cache")
+        connection.useCaches = false
+        connection.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0")
+        connection.setRequestProperty("Pragma", "no-cache")
+        connection.setRequestProperty("Accept", "application/json")
 
         try {
             val status = connection.responseCode
