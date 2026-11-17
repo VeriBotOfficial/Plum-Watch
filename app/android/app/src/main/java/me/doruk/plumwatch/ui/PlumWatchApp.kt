@@ -110,7 +110,7 @@ fun PlumWatchApp(
     LaunchedEffect(currentVersionCode) {
         checkingUpdates = true
         try {
-            when (val result = AppUpdateRepository.check(currentVersionCode)) {
+            when (val result = AppUpdateRepository.check(currentVersionName, currentVersionCode)) {
                 is AppUpdateCheckResult.UpToDate -> {
                     availableUpdate = null
                     updateMessage = null
