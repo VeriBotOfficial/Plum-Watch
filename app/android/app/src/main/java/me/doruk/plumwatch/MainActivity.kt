@@ -111,12 +111,12 @@ class MainActivity : ComponentActivity() {
                 themeMode = themeMode,
                 onThemeModeChange = { mode ->
                     themeMode = mode
-                    preferences.edit().putString("theme-mode", mode).apply()
+                    preferences.edit().putString("theme-mode", mode).commit()
                 },
                 uiStyle = uiStyle,
                 onUiStyleChange = { style ->
                     uiStyle = style
-                    preferences.edit().putString("ui-style", style).apply()
+                    preferences.edit().putString("ui-style", style).commit()
                 },
                 updateDownloadState = updateDownloadState.value,
                 onInstallUpdate = ::downloadAndInstallUpdate,
