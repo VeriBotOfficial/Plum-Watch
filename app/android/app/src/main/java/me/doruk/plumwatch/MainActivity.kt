@@ -207,6 +207,24 @@ class MainActivity : ComponentActivity() {
                 watchManager.onCompanionDeviceAppeared()
                 return
             }
+        } else {
+            @Suppress("DEPRECATION")
+            val alreadyAssociated = runCatching {
+                companionManager.associations.any {
+                    it.equals(device.address, ignoreCase = true)
+                }
+            }.getOrDefault(false)
+            if (alreadyAssociated) {
+                companionPreferences.edit()
+                    .putString(KEY_COMPANION_ADDRESS, device.address)
+                    .putString(KEY_COMPANION_NAME, device.name)
+                    .apply()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    beginPresenceObservation(device.address)
+                    watchManager.onCompanionDeviceAppeared()
+                }
+                return
+            }
         }
 
         pendingAssociationDevice = device
