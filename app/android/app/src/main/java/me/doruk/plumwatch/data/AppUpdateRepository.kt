@@ -33,7 +33,7 @@ object AppUpdateRepository {
     private const val API_MANIFEST_URL =
         "https://api.github.com/repos/VeriBotOfficial/Plum-Watch/contents/app/android/build/update.json"
 
-    suspend fun check(currentVersionCode: Int): AppUpdateCheckResult = withContext(Dispatchers.IO) {
+    suspend fun check(currentVersionName: String, currentVersionCode: Int): AppUpdateCheckResult = withContext(Dispatchers.IO) {
         val manifests = mutableListOf<AppUpdateInfo>()
         var lastError: String? = null
 
@@ -96,5 +96,19 @@ object AppUpdateRepository {
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun isNewerVersion(remote: String, installed: String): Boolean {
+        fun parts(value: String): List<Int>? {
+            val match = Regex("^(\\d+)\\.(\\d+)\\.(\\d+)$").matchEntire(value) ?: return null
+            return match.groupValues.drop(1).map { it.toIntOrNull() ?: return null }
+        }
+        val remoteParts = parts(remote)
+        val installedParts = parts(installed)
+        if (remoteParts == null || installedParts == null) return false
+        for (index in 0..2) {
+            if (remoteParts[index] != installedParts[index]) return remoteParts[index] > installedParts[index]
+        }
+        return false
     }
 }
