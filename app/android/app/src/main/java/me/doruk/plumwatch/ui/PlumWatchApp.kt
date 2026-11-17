@@ -40,8 +40,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.foundation.border
+import androidx.compose.foundation.border
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -236,7 +237,7 @@ private fun FloatingNavigationBar(
                 .glassEffect(Glass.Regular.interactive(), CapsuleShape)
                 .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Alignment.CenterVertically
         ) {
             pages.forEach { page ->
                 val isSelected = selectedPage == page
@@ -340,5 +341,4 @@ private fun missingBluetoothPermissions(context: android.content.Context): Array
     }.toTypedArray()
 }
 
-private fun hasBluetoothPermissions(context: android.content.Context): Boolean =
-    missingBluetoothPermissions(context).isEmpty()
+private fun hasBluetoothPermissions(context: android.content.Context): Boolean = missingBluetoothPermissions(context).isEmpty()
