@@ -197,8 +197,7 @@ class BleWatchManager(context: Context) {
                     val current = mutableState.value
                     val saved = current.savedDevice ?: current.connectedDevice
                     val shouldReconnect = autoReconnectEnabled &&
-                        saved != null &&
-
+                        saved != null
                     mutableState.update { old ->
                         old.copy(
                             isConnecting = false,
