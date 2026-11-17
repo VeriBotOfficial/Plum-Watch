@@ -9,8 +9,8 @@ A lightweight Android companion app for HK-series watches. This project is the a
 - A current Android Studio release compatible with Android Gradle Plugin 9.1.1
 - Internet access for Gradle and Maven Central dependency downloads
 - JDK 17
-- Android SDK Platform 36 (Android 16)
-- Android SDK Build-Tools 36.0.0
+- Android SDK Platform 37 (Android 17)
+- Android SDK Build-Tools 37.0.0
 
 Open **this folder** in Android Studio:
 
@@ -42,9 +42,9 @@ app/build/outputs/apk/debug/app-debug.apk
 
 - **My Watch** — scans nearby BLE devices, lets you select a watch, opens a real Bluetooth GATT connection, discovers its GATT services, and can disconnect/remove the current connection.
 - **Watchfaces** — reads the Git tree under `/watchfaces/`, finds each folder's ZIP archive and preview image, and downloads the archive to `Downloads/Plum Watchfaces/`.
-- **Settings** — System / Light / Dark theme selection, Bluetooth status, app version, and developer credits for Doruk Çavdar and Troy Mitchell.
+- **Settings** — separate System / Light / Dark theme and Classic / Liquid Glass interface preferences, app version, update check, and developer credits for Doruk Çavdar and Troy Mitchell.
 
-The UI uses Kyant’s AndroidLiquidGlass Backdrop library (Apache-2.0) for sampled backdrop blur, vibrancy, lens refraction, highlights and inner/outer shadows. The same reusable glass material is applied to navigation, cards and controls.
+The UI uses [Shayann07/LiquidGlass](https://github.com/shayann07/liquidglass) (Apache-2.0). Glass mode uses its Material 3 components: the iOS-style floating NavigationBar with its draggable lens selector, prominent glass buttons, frosted surfaces and glass dialogs. The Classic/Liquid Glass appearance switch always uses the library's iOS-style Switch. A single root LiquidGlassTheme records the actual light or dark app background for correct refraction.
 
 ## Connecting an HK watch
 
@@ -75,14 +75,12 @@ No watchfaces are included yet.
 
 ## GitHub visibility note
 
-The Plum-Watch repository is currently private. A normal Android app cannot read a private GitHub repository without authenticating users. A personal access token must **never** be embedded in the APK, because users could extract it.
-
-The catalogue code is ready for the repository's public GitHub Git Trees API. It displays a clear private/unavailable state until the catalogue is served publicly or a secure sign-in/backend flow is added. The repository's visibility has not been changed.
+The watchface catalogue and update manifest are read from the public GitHub repository. Do not embed a personal access token in the APK.
 
 ## Package
 
 - Application ID: `me.doruk.plumwatch`
 - Minimum Android version: Android 8.0 (API 26)
-- Compile SDK: 36
-- Target SDK: 36
+- Compile SDK: 37
+- Target SDK: 37
 - Version: 0.1.0

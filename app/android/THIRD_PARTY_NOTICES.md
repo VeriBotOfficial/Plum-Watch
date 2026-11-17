@@ -1,18 +1,11 @@
 # Third-party notices
 
-The Liquid Glass composables and their supporting gesture/animation utilities under
-`app/src/main/java/me/doruk/plumwatch/ui/liquid/` are copied from
-[Kyant0/AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass),
-specifically its `kmp` branch catalog components.
+Plum Watch uses **Shayann07/LiquidGlass** for Jetpack Compose / Material 3 Liquid Glass rendering and components.
 
-Source files:
-- `LiquidBottomTabs.kt`
-- `LiquidBottomTab.kt`
-- `LiquidButton.kt`
-- `LiquidToggle.kt`
-- `DampedDragAnimation.kt`
-- `InteractiveHighlight.kt`
-- `DragGestureInspector.kt`
+- Upstream: https://github.com/shayann07/liquidglass
+- Maven artifacts: `dev.shayxo.liquidglass:liquidglass` and `dev.shayxo.liquidglass:liquidglass-material3`
+- Version: `1.0.0`
+- License: Apache License 2.0
+- The upstream license text is included as `LICENSE-shayann07-LiquidGlass.txt`.
 
-The source project is licensed under Apache License 2.0. A copy of that license
-is included in this directory as `LICENSE-Kyant0-AndroidLiquidGlass.txt`.
+The app consumes the published library; it does not carry a fork or copied component implementations.

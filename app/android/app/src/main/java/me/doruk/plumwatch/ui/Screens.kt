@@ -36,15 +36,12 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog as MaterialAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,9 +56,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wexpa.liquidglass.material3.AlertDialog as GlassAlertDialog
+import com.wexpa.liquidglass.material3.Switch as GlassSwitch
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.WatchDevice
-import me.doruk.plumwatch.ui.liquid.LiquidToggle
 
 @Composable
 fun PageTitle(title: String) {
@@ -182,7 +180,7 @@ fun MyWatchScreen(
     }
 
     if (showRemoveDialog) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showRemoveDialog = false },
             title = { Text("Remove this watch?") },
             confirmButton = {
@@ -433,10 +431,9 @@ private fun FeatureTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    AppSurface(
-        modifier = modifier
-            .height(96.dp)
-            .clickable(onClick = onClick),
+    AppClickableSurface(
+        onClick = onClick,
+        modifier = modifier.height(96.dp),
         shape = RoundedCornerShape(22.dp),
     ) {
         Column(
@@ -639,24 +636,15 @@ private fun InterfaceStyleChoice(
             fontWeight = if (uiStyle == "classic") FontWeight.SemiBold else FontWeight.Medium
         )
         Spacer(Modifier.weight(1f))
-        Box(
-            modifier = Modifier.weight(1f)
-        ) {
-            if (LocalLiquidGlassEnabled.current) {
-                LiquidToggle(
-                    selected = { uiStyle == "glass" },
-                    onSelect = { enabled -> onUiStyleChange(if (enabled) "glass" else "classic") },
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else {
-                Switch(
-                    checked = uiStyle == "glass",
-                    onCheckedChange = { enabled ->
-                        onUiStyleChange(if (enabled) "glass" else "classic")
-                    },
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
+        Box(modifier = Modifier.weight(1f)) {
+            // This selector remains liquid glass even when the rest of the UI is Classic.
+            GlassSwitch(
+                checked = uiStyle == "glass",
+                onCheckedChange = { enabled ->
+                    onUiStyleChange(if (enabled) "glass" else "classic")
+                },
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
         Spacer(Modifier.weight(1f))
         Text(
@@ -677,10 +665,9 @@ private fun ThemeChoice(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    AppSurface(
-        modifier = modifier
-            .height(76.dp)
-            .clickable(onClick = onClick),
+    AppClickableSurface(
+        onClick = onClick,
+        modifier = modifier.height(76.dp),
         shape = RoundedCornerShape(18.dp)
     ) {
         Column(
@@ -730,6 +717,31 @@ private fun DeveloperRow(name: String) {
             color = MaterialTheme.colorScheme.onSurface,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+
+@Composable
+private fun AppAlertDialog(
+    onDismissRequest: () -> Unit,
+    title: @Composable () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    dismissButton: (@Composable () -> Unit)? = null
+) {
+    if (LocalLiquidGlassEnabled.current) {
+        GlassAlertDialog(
+            onDismissRequest = onDismissRequest,
+            title = title,
+            confirmButton = confirmButton,
+            dismissButton = dismissButton
+        )
+    } else {
+        MaterialAlertDialog(
+            onDismissRequest = onDismissRequest,
+            title = title,
+            confirmButton = confirmButton,
+            dismissButton = dismissButton
         )
     }
 }
