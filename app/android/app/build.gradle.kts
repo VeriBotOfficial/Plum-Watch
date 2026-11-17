@@ -11,8 +11,8 @@ android {
         applicationId = "me.doruk.plumwatch"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = System.getenv("PLUM_VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("PLUM_VERSION_NAME") ?: "0.1.0"
     }
 
     buildFeatures {
