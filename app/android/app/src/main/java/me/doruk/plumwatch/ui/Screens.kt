@@ -688,7 +688,10 @@ fun SettingsScreen(
                         }
                     }
 
-                    val visibleMessage = downloadState.errorMessage ?: updateMessage
+                    val visibleMessage = downloadState.errorMessage
+                        ?: updateMessage.takeUnless {
+                            downloadState.isDownloading || downloadState.isOpeningInstaller
+                        }
                     if (visibleMessage != null) {
                         Text(
                             text = visibleMessage,
