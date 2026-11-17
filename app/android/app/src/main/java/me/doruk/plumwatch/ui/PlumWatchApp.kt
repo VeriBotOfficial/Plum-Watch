@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -133,7 +134,7 @@ fun PlumWatchApp(
 
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
             color = MaterialTheme.colorScheme.background
         ) {
