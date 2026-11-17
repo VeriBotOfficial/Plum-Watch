@@ -44,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,8 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.WatchDevice
-import me.doruk.plumwatch.ui.liquid.LiquidBottomTab
-import me.doruk.plumwatch.ui.liquid.LiquidBottomTabs
+import me.doruk.plumwatch.ui.liquid.LiquidToggle
 
 @Composable
 fun PageTitle(title: String) {
@@ -625,66 +625,40 @@ private fun InterfaceStyleChoice(
     onUiStyleChange: (String) -> Unit
 ) {
     val backdrop = LocalLiquidBackdrop.current
-    if (backdrop != null) {
-        LiquidBottomTabs(
-            selectedTabIndex = { if (uiStyle == "glass") 0 else 1 },
-            onTabSelected = { index -> onUiStyleChange(if (index == 0) "glass" else "classic") },
-            backdrop = backdrop,
-            tabsCount = 2,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            LiquidBottomTab(onClick = { onUiStyleChange("glass") }) {
-                Text(
-                    "Liquid Glass",
-                    color = if (uiStyle == "glass") MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            LiquidBottomTab(onClick = { onUiStyleChange("classic") }) {
-                Text(
-                    "Classic",
-                    color = if (uiStyle == "classic") MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-    } else {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            listOf("glass" to "Liquid Glass", "classic" to "Classic").forEach { (value, label) ->
-                val selected = uiStyle == value
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(
-                            if (selected) MaterialTheme.colorScheme.surface
-                            else Color.Transparent
-                        )
-                        .clickable { onUiStyleChange(value) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        label,
-                        color = if (selected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 13.sp,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
-                    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "Classic",
+            color = if (uiStyle == "classic") MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 13.sp,
+            fontWeight = if (uiStyle == "classic") FontWeight.SemiBold else FontWeight.Medium
+        )
+        Spacer(Modifier.weight(1f))
+        if (backdrop != null) {
+            LiquidToggle(
+                selected = { uiStyle == "glass" },
+                onSelect = { enabled -> onUiStyleChange(if (enabled) "glass" else "classic") },
+                backdrop = backdrop
+            )
+        } else {
+            Switch(
+                checked = uiStyle == "glass",
+                onCheckedChange = { enabled ->
+                    onUiStyleChange(if (enabled) "glass" else "classic")
                 }
-            }
+            )
         }
+        Spacer(Modifier.weight(1f))
+        Text(
+            "Liquid Glass",
+            color = if (uiStyle == "glass") MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 13.sp,
+            fontWeight = if (uiStyle == "glass") FontWeight.SemiBold else FontWeight.Medium
+        )
     }
 }
 
