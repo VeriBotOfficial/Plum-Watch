@@ -31,7 +31,6 @@ import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.ui.PlumWatchApp
 import me.doruk.plumwatch.watch.BleWatchManager
-import me.doruk.plumwatch.watch.WatchDevice
 import java.security.MessageDigest
 
 class MainActivity : ComponentActivity() {
