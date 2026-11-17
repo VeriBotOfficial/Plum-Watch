@@ -171,9 +171,6 @@ fun PlumWatchApp(
         }
 
         val watchState by watchManager.state.collectAsState()
-        LaunchedEffect(watchState.connectedDevice?.address) {
-            watchState.connectedDevice?.let(onAssociateWatch)
-        }
         var page by remember { mutableStateOf(AppPage.WATCH) }
         LaunchedEffect(settingsOpenRequest) {
             if (settingsOpenRequest > 0) page = AppPage.SETTINGS
@@ -252,7 +249,13 @@ fun PlumWatchApp(
                                 state = watchState,
                                 onStartScan = startScan,
                                 onStopScan = watchManager::stopScan,
-                                onConnect = watchManager::connect,
+                                onConnect = { device ->
+                                    // Start Android's companion association while the watch is
+                                    // still advertising; doing this after GATT connection made
+                                    // the system picker search for a device that had stopped advertising.
+                                    onAssociateWatch(device)
+                                    watchManager.connect(device)
+                                },
                                 onReconnect = watchManager::reconnectSavedDevice,
                                 onRemoveWatch = onRemoveWatch,
                                 onOpenWatchfaces = { page = AppPage.WATCHFACES }
