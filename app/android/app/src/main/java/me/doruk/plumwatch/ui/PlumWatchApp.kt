@@ -224,25 +224,23 @@ private fun FloatingNavigationBar(
 ) {
     val pages = AppPage.values()
     if (useGlass) {
-        val backdrop = LocalLiquidBackdrop.current
-        if (backdrop != null) {
-            LiquidBottomTabs(
-                selectedTabIndex = { selectedPage.ordinal },
-                onTabSelected = { index -> onSelect(pages[index.coerceIn(pages.indices)]) },
-                backdrop = backdrop,
-                tabsCount = pages.size,
-                modifier = modifier
-                    .widthIn(max = 360.dp)
-                    .fillMaxWidth(0.88f)
+        LiquidBottomTabs(
+            selectedTabIndex = { selectedPage.ordinal },
+            onTabSelected = { index -> onSelect(pages[index.coerceIn(pages.indices)]) },
+            tabsCount = pages.size,
+            modifier = modifier
+                .widthIn(max = 360.dp)
+                .fillMaxWidth(0.88f)
+        ) { index, isSelected ->
+            val page = pages[index.coerceIn(pages.indices)]
+            LiquidBottomTab(
+                selected = isSelected,
+                modifier = Modifier.weight(1f)
             ) {
-                pages.forEach { page ->
-                    LiquidBottomTab(onClick = { onSelect(page) }) {
-                        NavigationItemContent(page, selectedPage, IconsForPage(page))
-                    }
-                }
+                NavigationItemContent(page, selectedPage, IconsForPage(page))
             }
-            return
         }
+        return
     }
 
     Box(

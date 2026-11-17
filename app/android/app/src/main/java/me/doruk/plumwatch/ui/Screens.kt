@@ -624,7 +624,6 @@ private fun InterfaceStyleChoice(
     uiStyle: String,
     onUiStyleChange: (String) -> Unit
 ) {
-    val backdrop = LocalLiquidBackdrop.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -646,7 +645,6 @@ private fun InterfaceStyleChoice(
             LiquidToggle(
                 selected = { uiStyle == "glass" },
                 onSelect = { enabled -> onUiStyleChange(if (enabled) "glass" else "classic") },
-                backdrop = backdrop!!,
                 modifier = Modifier.align(Alignment.Center)
             )
         }
