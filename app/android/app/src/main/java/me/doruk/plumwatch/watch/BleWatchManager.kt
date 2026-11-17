@@ -489,6 +489,13 @@ class BleWatchManager(context: Context) {
         scheduleReconnect(250L)
     }
 
+    fun resumeConnection() {
+        if (!autoReconnectEnabled || mutableState.value.savedDevice == null) return
+        if (!mutableState.value.isConnected && !mutableState.value.isConnecting) {
+            scheduleReconnect(250L)
+        }
+    }
+
     private fun persistSavedDevice(device: WatchDevice) {
         preferences.edit()
             .putString(KEY_DEVICE_NAME, device.name)
