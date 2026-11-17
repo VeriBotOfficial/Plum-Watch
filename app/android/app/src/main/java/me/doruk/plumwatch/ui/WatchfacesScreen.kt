@@ -85,7 +85,7 @@ fun WatchfacesScreen() {
         PageTitle("Watchfaces")
 
         when {
-            loading -> Box(
+            loading && result == null -> Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp),
@@ -118,11 +118,22 @@ fun WatchfacesScreen() {
                 } else {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = { scope.launch { refreshLibrary() } }) {
-                            Icon(Icons.Outlined.Refresh, contentDescription = null)
-                            Text("Refresh", modifier = Modifier.padding(start = 5.dp))
+                        TextButton(
+                            onClick = { scope.launch { refreshLibrary() } },
+                            enabled = !loading
+                        ) {
+                            if (loading) {
+                                PlumProgressLabel(
+                                    label = "Refreshing",
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            } else {
+                                Icon(Icons.Outlined.Refresh, contentDescription = null)
+                                Text("Refresh", modifier = Modifier.padding(start = 5.dp))
+                            }
                         }
                     }
 
