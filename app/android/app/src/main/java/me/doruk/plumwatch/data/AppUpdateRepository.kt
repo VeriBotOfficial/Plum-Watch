@@ -46,7 +46,7 @@ object AppUpdateRepository {
             val api = fetchManifest(API_MANIFEST_URL, "api")
             if (api != null) manifests += api else lastError = "GitHub's update service is temporarily unavailable."
 
-            if (manifests.any { it.versionCode > currentVersionCode }) {
+            if (manifests.any { it.versionCode > currentVersionCode || isNewerVersion(it.versionName, currentVersionName) }) {
                 val newest = manifests.maxBy { it.versionCode }
                 return@withContext AppUpdateCheckResult.UpdateAvailable(newest)
             }
@@ -71,7 +71,7 @@ object AppUpdateRepository {
                     useCaches = false
                     setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0")
                     setRequestProperty("Pragma", "no-cache")
-                    setRequestProperty("Accept", if (source == "api") "application/vnd.github.raw+json" else "application/json")
+                    setRequestProperty("Accept", if (source == "api") "application/vnd.github.raw" else "application/json")
                     setRequestProperty("User-Agent", "Plum-Watch-Android")
                 }
         }.getOrNull() ?: return null
