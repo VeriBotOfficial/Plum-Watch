@@ -41,8 +41,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,36 +61,15 @@ import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.WatchDevice
 
 @Composable
-fun PageHeader(
-    eyebrow: String,
-    title: String,
-    subtitle: String? = null
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text(
-            text = eyebrow,
-            color = MaterialTheme.colorScheme.primary,
-            fontSize = 10.sp,
-            letterSpacing = 2.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Text(
-            text = title,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontSize = 34.sp,
-            lineHeight = 39.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-1.1).sp
-        )
-        if (subtitle != null) {
-            Text(
-                text = subtitle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
-            )
-        }
-    }
+private fun PageTitle(title: String) {
+    Text(
+        text = title,
+        color = MaterialTheme.colorScheme.onBackground,
+        fontSize = 34.sp,
+        lineHeight = 40.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = (-1.15).sp
+    )
 }
 
 @Composable
@@ -112,43 +89,23 @@ fun MyWatchScreen(
             .fillMaxSize()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 23.dp)
-            .padding(top = 30.dp, bottom = 126.dp),
-        verticalArrangement = Arrangement.spacedBy(21.dp)
+            .padding(horizontal = 22.dp)
+            .padding(top = 27.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        PageHeader(
-            eyebrow = "YOUR WATCH, WITHOUT THE NOISE",
-            title = "My Watch",
-            subtitle = "One simple place for your Plum-compatible watch."
-        )
+        PageTitle("My Watch")
 
         when {
             state.isConnected && state.connectedDevice != null -> {
                 ConnectedWatchCard(
                     device = state.connectedDevice,
-                    serviceCount = state.discoveredServiceCount,
-                    message = state.connectionMessage
+                    onRemove = { showRemoveDialog = true }
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = { showRemoveDialog = true }) {
-                        Icon(
-                            Icons.Outlined.DeleteOutline,
-                            contentDescription = null,
-                            modifier = Modifier.size(17.dp)
-                        )
-                        Text("Remove current device", modifier = Modifier.padding(start = 6.dp))
-                    }
-                }
             }
 
             state.isConnecting -> {
                 ConnectingWatchCard(
-                    deviceName = state.pendingDevice?.name ?: "Your watch",
-                    message = state.connectionMessage
+                    deviceName = state.pendingDevice?.name ?: "Your watch"
                 )
             }
 
@@ -161,41 +118,31 @@ fun MyWatchScreen(
         }
 
         if (state.errorMessage != null) {
-            Surface(
+            LiquidGlassSurface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(18.dp)
+                shape = RoundedCornerShape(18.dp),
+                fillAlpha = 0.12f
             ) {
                 Text(
                     text = state.errorMessage,
                     modifier = Modifier.padding(15.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
                 )
             }
         }
 
-        if (state.isScanning || state.discoveredDevices.isNotEmpty()) {
+        if (state.discoveredDevices.isNotEmpty()) {
             NearbyDevicesSection(
                 devices = state.discoveredDevices,
-                scanning = state.isScanning,
                 pendingDevice = state.pendingDevice,
                 onConnect = onConnect
             )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SectionHeading(
-                title = "Quick controls",
-                trailing = "IN DEVELOPMENT"
-            )
-            Text(
-                text = "The Bluetooth link comes first. These watch actions will be connected after the HK communication protocol is mapped.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp,
-                lineHeight = 19.sp
-            )
+            SectionHeading("Quick controls")
 
             val features = listOf(
                 FeatureItem("Notifications", Icons.Outlined.Notifications),
@@ -221,11 +168,7 @@ fun MyWatchScreen(
                                 if (feature.title == "Watchfaces") {
                                     onOpenWatchfaces()
                                 } else {
-                                    Toast.makeText(
-                                        context,
-                                        "This control will be enabled in a later update.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    Toast.makeText(context, "Not available yet", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         )
@@ -234,23 +177,12 @@ fun MyWatchScreen(
                 }
             }
         }
-
-        Text(
-            text = "PLUM WATCH  ·  EARLY BUILD",
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-            fontSize = 9.sp,
-            letterSpacing = 1.7.sp,
-            fontWeight = FontWeight.Medium
-        )
     }
 
     if (showRemoveDialog) {
         AlertDialog(
             onDismissRequest = { showRemoveDialog = false },
             title = { Text("Remove this watch?") },
-            text = {
-                Text("The current Bluetooth connection will be closed. You can connect it again at any time.")
-            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -275,55 +207,48 @@ private fun DisconnectedWatchCard(
     scanning: Boolean,
     onClick: () -> Unit
 ) {
-    Surface(
+    LiquidGlassSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(30.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+        fillAlpha = 0.10f
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 25.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 22.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(13.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(88.dp)
+            Box(
+                modifier = Modifier
+                    .size(78.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.68f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.Watch,
-                        contentDescription = null,
-                        modifier = Modifier.size(43.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Outlined.Watch,
+                    contentDescription = null,
+                    modifier = Modifier.size(39.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
 
             Text(
-                text = if (scanning) "Looking nearby" else "No watch connected",
+                text = if (scanning) "Searching…" else "No watch connected",
                 color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 21.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = if (scanning) {
-                    "Keep your watch awake and close to your phone. Nearby Bluetooth devices will appear below."
-                } else {
-                    "Switch on your HK watch and bring it close to your phone to get started."
-                },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp,
-                lineHeight = 19.sp
             )
 
             Button(
                 onClick = onClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(18.dp),
+                    .height(52.dp),
+                shape = RoundedCornerShape(17.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -335,51 +260,42 @@ private fun DisconnectedWatchCard(
                         color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp
                     )
-                    Text("Stop searching", modifier = Modifier.padding(start = 9.dp))
+                    Text("Stop scanning", modifier = Modifier.padding(start = 9.dp))
                 } else {
                     Icon(Icons.Outlined.Bluetooth, contentDescription = null)
                     Text("Connect a watch", modifier = Modifier.padding(start = 8.dp))
                 }
             }
-
-            Text(
-                text = "Bluetooth Low Energy · HK watch discovery",
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                fontSize = 10.sp
-            )
         }
     }
 }
 
 @Composable
-private fun ConnectingWatchCard(
-    deviceName: String,
-    message: String
-) {
-    Surface(
+private fun ConnectingWatchCard(deviceName: String) {
+    LiquidGlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surface
+        shape = RoundedCornerShape(27.dp),
+        fillAlpha = 0.10f
     ) {
         Row(
             modifier = Modifier.padding(22.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircularProgressIndicator(
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(28.dp),
                 color = MaterialTheme.colorScheme.primary,
                 strokeWidth = 2.5.dp
             )
-            Spacer(modifier = Modifier.width(17.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Connecting",
+                    "Connecting",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "$deviceName · $message",
+                    deviceName,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
@@ -391,111 +307,76 @@ private fun ConnectingWatchCard(
 @Composable
 private fun ConnectedWatchCard(
     device: WatchDevice,
-    serviceCount: Int,
-    message: String
+    onRemove: () -> Unit
 ) {
-    Surface(
+    LiquidGlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(30.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+        shape = RoundedCornerShape(29.dp),
+        fillAlpha = 0.11f
     ) {
         Column(
-            modifier = Modifier.padding(21.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(19.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = RoundedCornerShape(23.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.size(76.dp)
+                Box(
+                    modifier = Modifier
+                        .size(66.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+                            RoundedCornerShape(21.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Outlined.Watch,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(39.dp)
-                        )
-                    }
+                    Icon(
+                        Icons.Outlined.Watch,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(34.dp)
+                    )
                 }
-                Spacer(modifier = Modifier.width(15.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "CONNECTED",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.7.sp
-                    )
-                    Text(
-                        text = device.name,
+                        device.name,
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 19.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(7.dp)
+                                .background(Color(0xFF69C58E), CircleShape)
+                        )
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            "Connected",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
 
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(17.dp)
+            TextButton(
+                onClick = onRemove,
+                modifier = Modifier.align(Alignment.End)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            "GATT SERVICES",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 9.sp,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            if (serviceCount > 0) serviceCount.toString() else "Discovering…",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            "SIGNAL",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 9.sp,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            "${device.rssi} dBm",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
+                Icon(
+                    Icons.Outlined.DeleteOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(17.dp)
+                )
+                Text("Remove device", modifier = Modifier.padding(start = 6.dp))
             }
-
-            Text(
-                text = device.address,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 10.sp,
-                letterSpacing = 0.7.sp
-            )
         }
     }
 }
@@ -503,74 +384,54 @@ private fun ConnectedWatchCard(
 @Composable
 private fun NearbyDevicesSection(
     devices: List<WatchDevice>,
-    scanning: Boolean,
     pendingDevice: WatchDevice?,
     onConnect: (WatchDevice) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-        SectionHeading(
-            title = "Nearby devices",
-            trailing = if (scanning) "SCANNING" else "${devices.size} FOUND"
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Nearby devices")
 
-        if (devices.isEmpty()) {
-            Surface(
+        devices.forEach { device ->
+            LiquidGlassSurface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(19.dp)
+                shape = RoundedCornerShape(21.dp),
+                fillAlpha = 0.09f
             ) {
-                Text(
-                    text = "No devices found yet. Keep the watch awake and wait a moment.",
-                    modifier = Modifier.padding(17.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp
-                )
-            }
-        } else {
-            devices.forEach { device ->
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface
+                Row(
+                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Icon(
+                        Icons.Outlined.Bluetooth,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        Icon(
-                            Icons.Outlined.Bluetooth,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+                        Text(
+                            device.name,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            Text(
-                                device.name,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                "${device.address} · ${device.rssi} dBm",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 9.sp
-                            )
-                        }
-                        TextButton(
-                            onClick = { onConnect(device) },
-                            enabled = pendingDevice?.address != device.address
-                        ) {
-                            Text(
-                                if (pendingDevice?.address == device.address) "Connecting" else "Connect",
-                                fontSize = 12.sp
-                            )
-                        }
+                        Text(
+                            "${device.rssi} dBm",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 10.sp
+                        )
+                    }
+                    TextButton(
+                        onClick = { onConnect(device) },
+                        enabled = pendingDevice?.address != device.address
+                    ) {
+                        Text(
+                            if (pendingDevice?.address == device.address) "Connecting" else "Connect",
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
@@ -589,15 +450,17 @@ private fun FeatureTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Surface(
+    LiquidGlassSurface(
         modifier = modifier
-            .height(112.dp)
+            .height(96.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(21.dp),
-        color = MaterialTheme.colorScheme.surface
+        shape = RoundedCornerShape(22.dp),
+        fillAlpha = 0.09f
     ) {
         Column(
-            modifier = Modifier.padding(15.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(15.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Icon(
@@ -606,49 +469,24 @@ private fun FeatureTile(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(22.dp)
             )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    feature.title,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    "Coming soon",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp
-                )
-            }
+            Text(
+                feature.title,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
 
 @Composable
-private fun SectionHeading(
-    title: String,
-    trailing: String? = null
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            title,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        if (trailing != null) {
-            Text(
-                trailing,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 9.sp,
-                letterSpacing = 1.1.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
+private fun SectionHeading(title: String) {
+    Text(
+        title,
+        color = MaterialTheme.colorScheme.onBackground,
+        fontSize = 17.sp,
+        fontWeight = FontWeight.SemiBold
+    )
 }
 
 @Composable
@@ -664,31 +502,29 @@ fun SettingsScreen(
             .fillMaxSize()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 23.dp)
-            .padding(top = 30.dp, bottom = 126.dp),
-        verticalArrangement = Arrangement.spacedBy(21.dp)
+            .padding(horizontal = 22.dp)
+            .padding(top = 27.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        PageHeader(
-            eyebrow = "MAKE IT YOURS",
-            title = "Settings",
-            subtitle = "A few thoughtful options. Nothing extra."
-        )
+        PageTitle("Settings")
 
         Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            SectionHeading("APPEARANCE")
-            Surface(
+            SectionHeading("Appearance")
+            LiquidGlassSurface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(25.dp),
-                color = MaterialTheme.colorScheme.surface
+                fillAlpha = 0.09f
             ) {
                 Column(
-                    modifier = Modifier.padding(17.dp),
-                    verticalArrangement = Arrangement.spacedBy(15.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(13.dp)
                 ) {
                     Text(
                         "Theme",
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -719,11 +555,11 @@ fun SettingsScreen(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            SectionHeading("DEVICE")
-            Surface(
+            SectionHeading("Device")
+            LiquidGlassSurface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(23.dp),
-                color = MaterialTheme.colorScheme.surface
+                fillAlpha = 0.09f
             ) {
                 Row(
                     modifier = Modifier.padding(18.dp),
@@ -745,10 +581,10 @@ fun SettingsScreen(
                         )
                         Text(
                             when {
-                                !bluetoothSupported -> "Not supported on this phone"
+                                !bluetoothSupported -> "Not supported"
                                 !bluetoothEnabled -> "Turned off"
                                 isConnected -> "Watch connected"
-                                else -> "Ready to connect"
+                                else -> "On"
                             },
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp
@@ -761,7 +597,7 @@ fun SettingsScreen(
                             isConnected -> "Connected"
                             else -> "On"
                         },
-                        color = if (isConnected) MaterialTheme.colorScheme.primary
+                        color = if (isConnected) Color(0xFF69C58E)
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
@@ -770,72 +606,36 @@ fun SettingsScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            SectionHeading("ABOUT")
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(25.dp),
-                color = MaterialTheme.colorScheme.surface
+        LiquidGlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(25.dp),
+            fillAlpha = 0.09f
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(19.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(19.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Outlined.Code,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(23.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                "Developers",
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                "Doruk Çavdar · Troy Mitchell",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Outlined.Code,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Plum Watch for Android",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp
-                        )
-                        Text(
-                            "0.1.0",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp
-                        )
-                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Developers",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
+                DeveloperRow("Doruk Çavdar")
+                DeveloperRow("Troy Mitchell")
             }
         }
-
-        Text(
-            text = "PLUM WATCH  ·  MADE FOR HK WATCHES",
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-            fontSize = 9.sp,
-            letterSpacing = 1.5.sp,
-            fontWeight = FontWeight.Medium
-        )
     }
 }
 
@@ -847,23 +647,15 @@ private fun ThemeChoice(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Surface(
+    LiquidGlassSurface(
         modifier = modifier
             .height(76.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-        },
-        border = if (selected) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
-        } else {
-            null
-        }
+        fillAlpha = if (selected) 0.20f else 0.055f
     ) {
         Column(
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -881,5 +673,34 @@ private fun ThemeChoice(
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
             )
         }
+    }
+}
+
+@Composable
+private fun DeveloperRow(name: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(31.dp)
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                name.take(1),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            name,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
