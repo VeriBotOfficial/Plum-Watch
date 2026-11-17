@@ -9,23 +9,19 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Settings
@@ -39,10 +35,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.border
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -50,6 +48,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import kotlinx.coroutines.launch
+import me.doruk.plumwatch.data.AppUpdateCheckResult
+import me.doruk.plumwatch.data.AppUpdateInfo
+import me.doruk.plumwatch.data.AppUpdateRepository
+import me.doruk.plumwatch.ui.liquid.LiquidBottomTab
+import me.doruk.plumwatch.ui.liquid.LiquidBottomTabs
 import me.doruk.plumwatch.watch.BleWatchManager
 
 private enum class AppPage(val label: String) {
@@ -62,7 +66,10 @@ private enum class AppPage(val label: String) {
 fun PlumWatchApp(
     watchManager: BleWatchManager,
     themeMode: String,
-    onThemeModeChange: (String) -> Unit
+    onThemeModeChange: (String) -> Unit,
+    uiStyle: String,
+    onUiStyleChange: (String) -> Unit,
+    onInstallUpdate: (AppUpdateInfo) -> Unit
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -71,6 +78,38 @@ fun PlumWatchApp(
         "dark" -> true
         "light" -> false
         else -> systemDark
+    }
+    val packageInfo = remember {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull()
+    }
+    @Suppress("DEPRECATION")
+    val currentVersionCode = packageInfo?.versionCode ?: 1
+    val currentVersionName = packageInfo?.versionName ?: "0.1.0"
+
+    var checkingUpdates by remember { mutableStateOf(false) }
+    var updateMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    val checkUpdates: () -> Unit = {
+        if (!checkingUpdates) {
+            scope.launch {
+                checkingUpdates = true
+                updateMessage = "Checking GitHub…"
+                when (val result = AppUpdateRepository.check(currentVersionCode)) {
+                    is AppUpdateCheckResult.UpToDate -> {
+                        updateMessage = "You're up to date · ${result.versionName}"
+                    }
+                    is AppUpdateCheckResult.UpdateAvailable -> {
+                        updateMessage = "Version ${result.update.versionName} found. Starting download…"
+                        onInstallUpdate(result.update)
+                    }
+                    is AppUpdateCheckResult.Failed -> {
+                        updateMessage = result.message
+                    }
+                }
+                checkingUpdates = false
+            }
+        }
     }
 
     PlumTheme(darkTheme = darkTheme) {
@@ -108,8 +147,8 @@ fun PlumWatchApp(
                     )
                 }
             } else {
-                val permanentlyDeniedOrMissing = results.values.any { !it }
-                if (permanentlyDeniedOrMissing) {
+                val denied = results.values.any { !it }
+                if (denied) {
                     Toast.makeText(
                         context,
                         "Nearby devices permission is needed to find your watch.",
@@ -134,7 +173,7 @@ fun PlumWatchApp(
             }
         }
 
-        LiquidGlassHost(darkTheme = darkTheme) {
+        LiquidGlassHost(enabled = uiStyle == "glass") {
             Box(modifier = Modifier.fillMaxSize()) {
                 when (page) {
                     AppPage.WATCH -> MyWatchScreen(
@@ -145,20 +184,23 @@ fun PlumWatchApp(
                         onDisconnect = { watchManager.disconnect(forgetDevice = true) },
                         onOpenWatchfaces = { page = AppPage.WATCHFACES }
                     )
-
                     AppPage.WATCHFACES -> WatchfacesScreen()
                     AppPage.SETTINGS -> SettingsScreen(
                         themeMode = themeMode,
                         onThemeModeChange = onThemeModeChange,
-                        bluetoothSupported = watchManager.isBluetoothSupported(),
-                        bluetoothEnabled = watchManager.isBluetoothEnabled(),
-                        isConnected = watchState.isConnected
+                        uiStyle = uiStyle,
+                        onUiStyleChange = onUiStyleChange,
+                        appVersion = currentVersionName,
+                        checkingUpdates = checkingUpdates,
+                        updateMessage = updateMessage,
+                        onCheckUpdates = checkUpdates
                     )
                 }
 
                 FloatingNavigationBar(
                     selectedPage = page,
                     onSelect = { page = it },
+                    useGlass = uiStyle == "glass",
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
@@ -173,63 +215,61 @@ fun PlumWatchApp(
 private fun FloatingNavigationBar(
     selectedPage: AppPage,
     onSelect: (AppPage) -> Unit,
+    useGlass: Boolean,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints(
+    val pages = AppPage.values()
+    if (useGlass) {
+        val backdrop = LocalLiquidBackdrop.current
+        if (backdrop != null) {
+            LiquidBottomTabs(
+                selectedTabIndex = { selectedPage.ordinal },
+                onTabSelected = { index -> onSelect(pages[index.coerceIn(pages.indices)]) },
+                backdrop = backdrop,
+                tabsCount = pages.size,
+                modifier = modifier
+                    .widthIn(max = 360.dp)
+                    .fillMaxWidth(0.88f)
+            ) {
+                pages.forEach { page ->
+                    LiquidBottomTab(onClick = { onSelect(page) }) {
+                        NavigationItemContent(page, selectedPage, IconsForPage(page))
+                    }
+                }
+            }
+            return
+        }
+    }
+
+    Box(
         modifier = modifier
             .widthIn(max = 360.dp)
             .fillMaxWidth(0.88f)
-            .height(76.dp)
+            .height(64.dp)
+            .clip(RoundedCornerShape(32.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                RoundedCornerShape(32.dp)
+            )
+            .padding(horizontal = 5.dp)
     ) {
-        val tabWidth = maxWidth / AppPage.values().size
-        val selectedOffset by animateDpAsState(
-            targetValue = tabWidth * selectedPage.ordinal,
-            animationSpec = spring(dampingRatio = 0.76f, stiffness = 520f),
-            label = "liquid-tab-position"
-        )
-
-        LiquidGlassSurface(
+        Row(
             modifier = Modifier.fillMaxSize(),
-            shape = CircleShape,
-            fillAlpha = 0.12f
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(Modifier.fillMaxSize()) {
-                LiquidGlassSurface(
+            pages.forEach { page ->
+                Column(
                     modifier = Modifier
-                        .offset(x = selectedOffset)
-                        .width(tabWidth)
-                        .height(68.dp)
-                        .padding(4.dp),
-                    shape = CircleShape,
-                    fillAlpha = 0.13f
-                ) {}
-
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 5.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .height(60.dp)
+                        .clickable { onSelect(page) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    NavigationItem(
-                        page = AppPage.WATCH,
-                        selectedPage = selectedPage,
-                        icon = Icons.Outlined.Watch,
-                        onSelect = onSelect,
-                        modifier = Modifier.weight(1f)
-                    )
-                    NavigationItem(
-                        page = AppPage.WATCHFACES,
-                        selectedPage = selectedPage,
-                        icon = Icons.Outlined.GridView,
-                        onSelect = onSelect,
-                        modifier = Modifier.weight(1f)
-                    )
-                    NavigationItem(
-                        page = AppPage.SETTINGS,
-                        selectedPage = selectedPage,
-                        icon = Icons.Outlined.Settings,
-                        onSelect = onSelect,
-                        modifier = Modifier.weight(1f)
-                    )
+                    NavigationItemContent(page, selectedPage, IconsForPage(page))
                 }
             }
         }
@@ -237,37 +277,32 @@ private fun FloatingNavigationBar(
 }
 
 @Composable
-private fun NavigationItem(
+private fun NavigationItemContent(
     page: AppPage,
     selectedPage: AppPage,
-    icon: ImageVector,
-    onSelect: (AppPage) -> Unit,
-    modifier: Modifier = Modifier
+    icon: ImageVector
 ) {
     val selected = selectedPage == page
+    Icon(
+        imageVector = icon,
+        contentDescription = page.label,
+        tint = if (selected) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Text(
+        text = page.label,
+        color = if (selected) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        fontSize = 10.sp,
+        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+        letterSpacing = 0.1.sp
+    )
+}
 
-    Column(
-        modifier = modifier
-            .height(66.dp)
-            .clickable { onSelect(page) },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = page.label,
-            tint = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = page.label,
-            color = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            letterSpacing = 0.1.sp
-        )
-    }
+private fun IconsForPage(page: AppPage): ImageVector = when (page) {
+    AppPage.WATCH -> Icons.Outlined.Watch
+    AppPage.WATCHFACES -> Icons.Outlined.GridView
+    AppPage.SETTINGS -> Icons.Outlined.Settings
 }
 
 private fun missingBluetoothPermissions(context: android.content.Context): Array<String> {
