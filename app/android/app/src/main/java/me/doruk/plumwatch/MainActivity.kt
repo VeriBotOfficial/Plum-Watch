@@ -258,7 +258,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val request = DownloadManager.Request(Uri.parse(update.apkUrl))
+        // Bypass stale CDN and DownloadManager cache entries so the APK matches its manifest checksum.
+        val freshApkUrl = Uri.parse(update.apkUrl).buildUpon()
+            .appendQueryParameter("plum_cache", System.currentTimeMillis().toString())
+            .build()
+        val request = DownloadManager.Request(freshApkUrl)
             .setTitle("Plum Watch ${update.versionName}")
             .setDescription("Downloading app update")
             .setMimeType("application/vnd.android.package-archive")
