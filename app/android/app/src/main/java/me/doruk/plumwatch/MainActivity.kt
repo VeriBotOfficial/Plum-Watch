@@ -192,7 +192,7 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val existing = runCatching {
                 companionManager.myAssociations.firstOrNull {
-                    it.deviceMacAddress.equals(device.address, ignoreCase = true)
+                    it.deviceMacAddress?.toString()?.equals(device.address, ignoreCase = true) == true
                 }
             }.getOrNull()
             if (existing != null) {
