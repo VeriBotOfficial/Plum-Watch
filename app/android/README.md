@@ -44,7 +44,7 @@ app/build/outputs/apk/debug/app-debug.apk
 - **Watchfaces** — reads the Git tree under `/watchfaces/`, finds each folder's ZIP archive and preview image, and downloads the archive to `Downloads/Plum Watchfaces/`.
 - **Settings** — separate System / Light / Dark theme and Classic / Liquid Glass interface preferences, app version, update check, and developer credits for Doruk Çavdar and Troy Mitchell.
 
-The UI uses [Shayann07/LiquidGlass](https://github.com/shayann07/liquidglass) (Apache-2.0). Glass mode uses its Material 3 components: the iOS-style floating NavigationBar with its draggable lens selector, prominent glass buttons, frosted surfaces and glass dialogs. The Classic/Liquid Glass appearance switch always uses the library's iOS-style Switch. A single root LiquidGlassTheme records the actual light or dark app background for correct refraction.
+The floating navigation bar uses the backdrop renderer and sample tab components from [Kyant0/AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) (Apache-2.0), with `io.github.kyant0:backdrop:2.0.1` and `io.github.kyant0:shapes:1.2.1`. Liquid Glass mode changes only the floating bottom bar. Cards, tiles, dialogs and regular buttons remain Material 3 surfaces to keep the rest of the app responsive. The Interface setting is a two-option selector for Classic and Liquid Glass navigation.
 
 ## Connecting an HK watch
 
