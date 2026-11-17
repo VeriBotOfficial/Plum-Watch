@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build debug APK
@@ -48,9 +52,20 @@ jobs:
         run: |
           mkdir -p app/android/build
           cp app/android/app/build/outputs/apk/debug/app-debug.apk app/android/build/plum-watch-debug.apk
+          VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' app/android/app/build.gradle.kts)
+          VERSION_CODE=$(grep -oP 'versionCode = \K[0-9]+' app/android/app/build.gradle.kts)
+          SHA256=$(sha256sum app/android/build/plum-watch-debug.apk | cut -d " " -f 1)
+          cat > app/android/build/update.json <<EOF
+          {
+            "versionName": "$VERSION_NAME",
+            "versionCode": $VERSION_CODE,
+            "apkUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/app/android/build/plum-watch-debug.apk",
+            "sha256": "$SHA256"
+          }
+          EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f app/android/build/plum-watch-debug.apk
+          git add -f app/android/build/plum-watch-debug.apk app/android/build/update.json
           if git diff --cached --quiet; then
             echo "APK is unchanged; no repository update needed."
           else
