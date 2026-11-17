@@ -626,34 +626,43 @@ private fun InterfaceStyleChoice(
 ) {
     val backdrop = LocalLiquidBackdrop.current
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            "Classic",
+            text = "Classic",
             color = if (uiStyle == "classic") MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 13.sp,
             fontWeight = if (uiStyle == "classic") FontWeight.SemiBold else FontWeight.Medium
         )
         Spacer(Modifier.weight(1f))
-        if (backdrop != null) {
-            LiquidToggle(
-                selected = { uiStyle == "glass" },
-                onSelect = { enabled -> onUiStyleChange(if (enabled) "glass" else "classic") },
-                backdrop = backdrop
-            )
-        } else {
-            Switch(
-                checked = uiStyle == "glass",
-                onCheckedChange = { enabled ->
-                    onUiStyleChange(if (enabled) "glass" else "classic")
-                }
-            )
+        Box(
+            modifier = Modifier.weight(1f)
+        ) {
+            if (backdrop != null) {
+                LiquidToggle(
+                    selected = { uiStyle == "glass" },
+                    onSelect = { enabled -> onUiStyleChange(if (enabled) "glass" else "classic") },
+                    backdrop = backdrop,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else {
+                Switch(
+                    checked = uiStyle == "glass",
+                    onCheckedChange = { enabled ->
+                        onUiStyleChange(if (enabled) "glass" else "classic")
+                    },
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
         }
         Spacer(Modifier.weight(1f))
         Text(
-            "Liquid Glass",
+            text = "Liquid Glass",
             color = if (uiStyle == "glass") MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 13.sp,

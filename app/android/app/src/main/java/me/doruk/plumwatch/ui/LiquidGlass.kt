@@ -33,6 +33,13 @@ val LocalLiquidBackdrop = staticCompositionLocalOf<Backdrop?> { null }
 /**
  * The app background is a single theme color. The recorded layer exists only
  * to let Kyant's original Liquid Glass controls refract the content behind them.
+ *
+ * NOTE: We do NOT apply .layerBackdrop() to the host surface. That modifier
+ * renders the entire screen content to a hardware layer, which causes a native
+ * SIGSEGV crash in the RenderThread on some devices/drivers (e.g. MIUI Android 16).
+ * Individual glass controls (LiquidButton, LiquidToggle, LiquidBottomTabs) still
+ * receive the backdrop via LocalLiquidBackdrop and use drawBackdrop() instead,
+ * which is more stable.
  */
 @Composable
 fun LiquidGlassHost(
@@ -40,27 +47,16 @@ fun LiquidGlassHost(
     content: @Composable BoxScope.() -> Unit,
     overlay: @Composable BoxScope.() -> Unit
 ) {
-    // Call rememberLayerBackdrop() directly in composable context (not inside remember {}).
+    // Create backdrop object for individual glass controls to use via drawBackdrop.
     val backdrop = if (enabled) rememberLayerBackdrop() else null
     Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalLiquidBackdrop provides backdrop) {
-            if (backdrop != null) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
-                        .layerBackdrop(backdrop)
-                ) {
-                    content()
-                }
-            } else {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
-                ) {
-                    content()
-                }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                content()
             }
             overlay()
         }
