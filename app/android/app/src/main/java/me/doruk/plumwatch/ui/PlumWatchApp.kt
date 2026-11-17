@@ -59,6 +59,7 @@ import androidx.core.view.WindowCompat
 import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.ui.glass.LiquidBottomTab
 import me.doruk.plumwatch.ui.glass.LiquidBottomTabs
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import me.doruk.plumwatch.data.AppUpdateCheckResult
@@ -109,6 +110,7 @@ fun PlumWatchApp(
     LaunchedEffect(currentVersionCode) {
         checkingUpdates = true
         try {
+            delay(Random.nextLong(200L, 401L))
             when (val result = AppUpdateRepository.check(currentVersionName, currentVersionCode)) {
                 is AppUpdateCheckResult.UpToDate -> {
                     availableUpdate = null
@@ -137,6 +139,7 @@ fun PlumWatchApp(
                 availableUpdate = null
                 updateMessage = "Checking GitHub…"
                 try {
+                    delay(Random.nextLong(200L, 401L))
                     when (val result = AppUpdateRepository.check(currentVersionName, currentVersionCode)) {
                         is AppUpdateCheckResult.UpToDate -> {
                             updateMessage = "You're up to date"
