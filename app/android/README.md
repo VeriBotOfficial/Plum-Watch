@@ -8,7 +8,7 @@ A lightweight Android companion app for HK-series watches. This project is the a
 
 - A current Android Studio release compatible with Android Gradle Plugin 9.1.1
 - JDK 17
-- Android SDK Platform 36 (Android 16) and Build-Tools 36.0.0
+- Android SDK Platform 36 (Android 16)
 - Android SDK Build-Tools 36.0.0
 
 Open **this folder** in Android Studio:
