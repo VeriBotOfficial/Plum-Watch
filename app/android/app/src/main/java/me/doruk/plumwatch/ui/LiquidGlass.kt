@@ -41,8 +41,8 @@ fun LiquidGlassHost(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(background)
-                    .then(if (enabled) Modifier.layerBackdrop(backdrop) else Modifier),
+                    .then(if (enabled) Modifier.layerBackdrop(backdrop) else Modifier)
+                    .background(background),
                 content = content
             )
             overlay()
