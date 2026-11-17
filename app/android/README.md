@@ -40,7 +40,7 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Current app structure
 
-- **My Watch** — scans nearby BLE devices, lets you select a watch, opens a real Bluetooth GATT connection, discovers its GATT services, and can disconnect/remove the current connection.
+- **My Watch** — scans nearby BLE devices, maintains a Bluetooth LE GATT connection, discovers services, and uses standard Bluetooth SIG profiles when the watch exposes them: battery level (0x180F), heart-rate measurement (0x180D), and Find Watch alert (0x1802).
 - **Watchfaces** — reads the Git tree under `/watchfaces/`, finds each folder's ZIP archive and preview image, and downloads the archive to `Downloads/Plum Watchfaces/`.
 - **Settings** — separate System / Light / Dark theme and Classic / Liquid Glass interface preferences, app version, update check, and developer credits for Doruk Çavdar and Troy Mitchell.
 
@@ -56,7 +56,7 @@ The floating navigation bar uses the backdrop renderer and sample tab components
 
 If another companion app currently holds the watch connection, disconnect it there before testing. Some watch models expose different BLE services or require a separate bonding step.
 
-**Important:** this first version proves and displays the BLE/GATT connection. It does not yet implement Wearfit Pro's proprietary HK commands. The Notifications, Alarms, Find Watch, Health, Weather, Camera, and Music tiles are placeholders until the exact watch protocol is identified and tested against hardware. A successful GATT connection alone does not mean those actions are implemented.
+**Protocol status:** the app implements standard GATT Battery, Heart Rate, and Immediate Alert profiles only when the watch advertises those exact services and characteristics. These are capability-detected; a supported sensor chip does not guarantee the firmware exposes the standard profile. The HK10 PRO MAX+ is listed by Chronos, but Chronos notes that individual features are not guaranteed. Wearfit Pro's private command protocol is not yet implemented. Notifications, alarms, and other proprietary controls still require a captured, model-specific protocol exchange and physical-device testing. A successful GATT connection alone does not mean those actions are implemented.
 
 ## Watchface folder format
 

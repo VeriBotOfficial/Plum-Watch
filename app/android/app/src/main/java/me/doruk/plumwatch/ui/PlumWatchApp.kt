@@ -252,7 +252,9 @@ fun PlumWatchApp(
                                 onConnect = watchManager::connect,
                                 onReconnect = watchManager::reconnectSavedDevice,
                                 onRemoveWatch = onRemoveWatch,
-                                onOpenWatchfaces = { page = AppPage.WATCHFACES }
+                                onOpenWatchfaces = { page = AppPage.WATCHFACES },
+                                onFindWatch = watchManager::findWatch,
+                                onRefreshHealth = watchManager::refreshHealth
                             )
                             AppPage.WATCHFACES -> WatchfacesScreen()
                             AppPage.SETTINGS -> SettingsScreen(

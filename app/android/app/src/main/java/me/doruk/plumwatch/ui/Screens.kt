@@ -110,7 +110,9 @@ fun MyWatchScreen(
     onConnect: (WatchDevice) -> Unit,
     onReconnect: () -> Unit,
     onRemoveWatch: () -> Unit,
-    onOpenWatchfaces: () -> Unit
+    onOpenWatchfaces: () -> Unit,
+    onFindWatch: () -> Unit,
+    onRefreshHealth: () -> Unit
 ) {
     val context = LocalContext.current
     var showRemoveDialog by remember { mutableStateOf(false) }
@@ -139,7 +141,13 @@ fun MyWatchScreen(
         ) { presentation ->
             when (presentation) {
                 "connected" -> state.connectedDevice?.let { device ->
-                    ConnectedWatchCard(device = device)
+                    ConnectedWatchCard(
+                        device = device,
+                        batteryPercent = state.batteryPercent,
+                        heartRateBpm = state.heartRateBpm,
+                        supportsBattery = state.supportsBattery,
+                        supportsHeartRate = state.supportsHeartRate
+                    )
                 }
                 "connecting" -> ConnectingWatchCard(
                     deviceName = state.pendingDevice?.name ?: state.savedDevice?.name ?: "Your watch"
@@ -212,10 +220,34 @@ fun MyWatchScreen(
                             feature = feature,
                             modifier = Modifier.weight(1f),
                             onClick = {
-                                if (feature.title == "Watchfaces") {
-                                    onOpenWatchfaces()
-                                } else {
-                                    Toast.makeText(context, "Not available yet", Toast.LENGTH_SHORT).show()
+                                when (feature.title) {
+                                    "Watchfaces" -> onOpenWatchfaces()
+                                    "Find watch" -> {
+                                        if (state.canFindWatch) onFindWatch()
+                                        else Toast.makeText(
+                                            context,
+                                            "This watch does not expose the standard Find Watch service.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    "Health" -> {
+                                        onRefreshHealth()
+                                        val readings = listOfNotNull(
+                                            state.heartRateBpm?.let { "$it bpm" },
+                                            state.batteryPercent?.let { "Battery $it%" }
+                                        )
+                                        val message = when {
+                                            readings.isNotEmpty() -> readings.joinToString(" · ")
+                                            state.supportsHeartRate -> "Waiting for a heart-rate measurement from the watch."
+                                            else -> "This watch does not expose the standard BLE heart-rate service."
+                                        }
+                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    }
+                                    else -> Toast.makeText(
+                                        context,
+                                        "Not available yet",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
                         )
@@ -403,7 +435,13 @@ private fun ReconnectingWatchCard(
 }
 
 @Composable
-private fun ConnectedWatchCard(device: WatchDevice) {
+private fun ConnectedWatchCard(
+    device: WatchDevice,
+    batteryPercent: Int?,
+    heartRateBpm: Int?,
+    supportsBattery: Boolean,
+    supportsHeartRate: Boolean
+) {
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(29.dp),
@@ -460,6 +498,54 @@ private fun ConnectedWatchCard(device: WatchDevice) {
                 }
             }
 
+            if (supportsBattery || supportsHeartRate) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (supportsHeartRate) {
+                        WatchMetric(
+                            label = "Heart rate",
+                            value = heartRateBpm?.let { "$it bpm" } ?: "Waiting",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (supportsBattery) {
+                        WatchMetric(
+                            label = "Battery",
+                            value = batteryPercent?.let { "$it%" } ?: "Reading",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+            Text(
+                "BLE link active · ${if (supportsHeartRate) "Heart rate" else "No standard HR"} · ${if (supportsBattery) "Battery" else "No battery service"}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun WatchMetric(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    AppSurface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+            Text(
+                value,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }

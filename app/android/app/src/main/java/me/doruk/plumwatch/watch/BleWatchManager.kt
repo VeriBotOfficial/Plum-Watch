@@ -7,6 +7,10 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothStatusCodes
+import android.os.Build
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
@@ -35,6 +39,11 @@ data class BleUiState(
     val pendingDevice: WatchDevice? = null,
     val connectionMessage: String = "Not connected",
     val discoveredServiceCount: Int = 0,
+    val batteryPercent: Int? = null,
+    val heartRateBpm: Int? = null,
+    val supportsBattery: Boolean = false,
+    val supportsHeartRate: Boolean = false,
+    val canFindWatch: Boolean = false,
     val errorMessage: String? = null
 ) {
     val isConnected: Boolean get() = connectedDevice != null
@@ -66,8 +75,18 @@ class BleWatchManager(context: Context) {
     val state: StateFlow<BleUiState> = mutableState.asStateFlow()
 
     private var bluetoothGatt: BluetoothGatt? = null
+    private var batteryCharacteristic: BluetoothGattCharacteristic? = null
+    private var findWatchCharacteristic: BluetoothGattCharacteristic? = null
+    private val pendingNotificationDescriptors = java.util.ArrayDeque<BluetoothGattDescriptor>()
+    private var pendingBatteryRead: BluetoothGattCharacteristic? = null
     private var autoReconnectEnabled = initialSavedDevice != null
     private var reconnectAttempts = 0
+
+    private val stopFindWatchTask = Runnable {
+        val gatt = bluetoothGatt ?: return@Runnable
+        val characteristic = findWatchCharacteristic ?: return@Runnable
+        writeAlertLevel(gatt, characteristic, ALERT_LEVEL_NONE)
+    }
 
     private val reconnectTask = Runnable {
         val device = mutableState.value.savedDevice
@@ -176,6 +195,10 @@ class BleWatchManager(context: Context) {
                         errorMessage = null
                     )
                 }
+                batteryCharacteristic = null
+                findWatchCharacteristic = null
+                pendingNotificationDescriptors.clear()
+                pendingBatteryRead = null
                 if (!gatt.discoverServices()) {
                     mutableState.update {
                         it.copy(
@@ -194,6 +217,11 @@ class BleWatchManager(context: Context) {
                 if (bluetoothGatt === gatt) {
                     bluetoothGatt = null
                     handler.removeCallbacks(connectionTimeoutTask)
+                    handler.removeCallbacks(stopFindWatchTask)
+                    batteryCharacteristic = null
+                    findWatchCharacteristic = null
+                    pendingNotificationDescriptors.clear()
+                    pendingBatteryRead = null
                     val current = mutableState.value
                     val saved = current.savedDevice ?: current.connectedDevice
                     val shouldReconnect = autoReconnectEnabled &&
@@ -211,6 +239,11 @@ class BleWatchManager(context: Context) {
                                 else -> "Disconnected"
                             },
                             discoveredServiceCount = 0,
+                            batteryPercent = null,
+                            heartRateBpm = null,
+                            supportsBattery = false,
+                            supportsHeartRate = false,
+                            canFindWatch = false,
                             errorMessage = if (shouldReconnect) null else if (failed) {
                                 "The watch connection ended. Try reconnecting when it is nearby."
                             } else {
@@ -225,21 +258,201 @@ class BleWatchManager(context: Context) {
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (bluetoothGatt !== gatt) return
-
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                mutableState.update {
-                    it.copy(
-                        discoveredServiceCount = gatt.services.size,
-                        connectionMessage = "Connected"
-                    )
-                }
-            } else {
+            if (status != BluetoothGatt.GATT_SUCCESS) {
                 mutableState.update {
                     it.copy(
                         connectionMessage = "Connected · service discovery failed",
                         errorMessage = "The GATT link is active, but the watch did not return its service list."
                     )
                 }
+                return
+            }
+
+            val battery = gatt.getService(BATTERY_SERVICE_UUID)
+                ?.getCharacteristic(BATTERY_LEVEL_UUID)
+            val heartRate = gatt.getService(HEART_RATE_SERVICE_UUID)
+                ?.getCharacteristic(HEART_RATE_MEASUREMENT_UUID)
+            val alertLevel = gatt.getService(IMMEDIATE_ALERT_SERVICE_UUID)
+                ?.getCharacteristic(ALERT_LEVEL_UUID)
+
+            batteryCharacteristic = battery
+            findWatchCharacteristic = alertLevel?.takeIf {
+                it.properties and (
+                    BluetoothGattCharacteristic.PROPERTY_WRITE or
+                        BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
+                ) != 0
+            }
+
+            mutableState.update {
+                it.copy(
+                    discoveredServiceCount = gatt.services.size,
+                    supportsBattery = battery != null,
+                    supportsHeartRate = heartRate != null,
+                    canFindWatch = findWatchCharacteristic != null,
+                    connectionMessage = "Connected"
+                )
+            }
+
+            pendingNotificationDescriptors.clear()
+            listOfNotNull(battery, heartRate).forEach { characteristic ->
+                val canNotify = characteristic.properties and (
+                    BluetoothGattCharacteristic.PROPERTY_NOTIFY or
+                        BluetoothGattCharacteristic.PROPERTY_INDICATE
+                ) != 0
+                if (canNotify) {
+                    gatt.setCharacteristicNotification(characteristic, true)
+                    characteristic.getDescriptor(CLIENT_CONFIG_UUID)?.let {
+                        pendingNotificationDescriptors.add(it)
+                    }
+                }
+            }
+            pendingBatteryRead = battery?.takeIf {
+                it.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0
+            }
+            writeNextNotificationDescriptor(gatt)
+            if (pendingNotificationDescriptors.isEmpty()) readPendingBattery(gatt)
+        }
+
+        override fun onDescriptorWrite(
+            gatt: BluetoothGatt,
+            descriptor: BluetoothGattDescriptor,
+            status: Int
+        ) {
+            if (bluetoothGatt !== gatt) return
+            writeNextNotificationDescriptor(gatt)
+            if (pendingNotificationDescriptors.isEmpty()) readPendingBattery(gatt)
+        }
+
+        @Suppress("DEPRECATION")
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            if (bluetoothGatt !== gatt || status != BluetoothGatt.GATT_SUCCESS) return
+            characteristic.value?.let { handleCharacteristicValue(characteristic, it) }
+        }
+
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray,
+            status: Int
+        ) {
+            if (bluetoothGatt !== gatt || status != BluetoothGatt.GATT_SUCCESS) return
+            handleCharacteristicValue(characteristic, value)
+        }
+
+        @Suppress("DEPRECATION")
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
+        ) {
+            if (bluetoothGatt !== gatt) return
+            characteristic.value?.let { handleCharacteristicValue(characteristic, it) }
+        }
+
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray
+        ) {
+            if (bluetoothGatt !== gatt) return
+            handleCharacteristicValue(characteristic, value)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun writeNextNotificationDescriptor(gatt: BluetoothGatt) {
+        if (bluetoothGatt !== gatt) return
+        val descriptor = pendingNotificationDescriptors.pollFirst() ?: return
+        val value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+        val started = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            gatt.writeDescriptor(descriptor, value) == BluetoothStatusCodes.SUCCESS
+        } else {
+            @Suppress("DEPRECATION")
+            descriptor.value = value
+            @Suppress("DEPRECATION")
+            gatt.writeDescriptor(descriptor)
+        }
+        if (!started) handler.post { writeNextNotificationDescriptor(gatt) }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun readPendingBattery(gatt: BluetoothGatt) {
+        if (bluetoothGatt !== gatt) return
+        val characteristic = pendingBatteryRead
+        pendingBatteryRead = null
+        if (characteristic != null) gatt.readCharacteristic(characteristic)
+    }
+
+    private fun handleCharacteristicValue(
+        characteristic: BluetoothGattCharacteristic,
+        value: ByteArray
+    ) {
+        when (characteristic.uuid) {
+            BATTERY_LEVEL_UUID -> {
+                val level = value.firstOrNull()?.toInt()?.and(0xFF)
+                    ?.takeIf { it in 0..100 } ?: return
+                mutableState.update { it.copy(batteryPercent = level) }
+            }
+            HEART_RATE_MEASUREMENT_UUID -> {
+                if (value.size < 2) return
+                val flags = value[0].toInt() and 0xFF
+                val bpm = if ((flags and 0x01) != 0) {
+                    if (value.size < 3) return
+                    (value[1].toInt() and 0xFF) or
+                        ((value[2].toInt() and 0xFF) shl 8)
+                } else {
+                    value[1].toInt() and 0xFF
+                }
+                if (bpm in 1..65535) mutableState.update { it.copy(heartRateBpm = bpm) }
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun refreshHealth() {
+        val gatt = bluetoothGatt ?: return
+        val characteristic = batteryCharacteristic ?: return
+        if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
+            gatt.readCharacteristic(characteristic)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun findWatch() {
+        val gatt = bluetoothGatt ?: return
+        val characteristic = findWatchCharacteristic ?: return
+        handler.removeCallbacks(stopFindWatchTask)
+        writeAlertLevel(gatt, characteristic, ALERT_LEVEL_HIGH)
+        handler.postDelayed(stopFindWatchTask, FIND_WATCH_ALERT_DURATION_MS)
+    }
+
+    @SuppressLint("MissingPermission")
+    @Suppress("DEPRECATION")
+    private fun writeAlertLevel(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+        level: Byte
+    ) {
+        if (bluetoothGatt !== gatt) return
+        val writeType = if (
+            characteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0
+        ) BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        else BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+
+        val started = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            gatt.writeCharacteristic(characteristic, byteArrayOf(level), writeType) ==
+                BluetoothStatusCodes.SUCCESS
+        } else {
+            characteristic.writeType = writeType
+            characteristic.value = byteArrayOf(level)
+            gatt.writeCharacteristic(characteristic)
+        }
+        if (!started) {
+            mutableState.update {
+                it.copy(errorMessage = "The watch rejected the standard alert command.")
             }
         }
     }
@@ -443,6 +656,11 @@ class BleWatchManager(context: Context) {
         autoReconnectEnabled = false
         handler.removeCallbacks(reconnectTask)
         handler.removeCallbacks(connectionTimeoutTask)
+        handler.removeCallbacks(stopFindWatchTask)
+        batteryCharacteristic = null
+        findWatchCharacteristic = null
+        pendingNotificationDescriptors.clear()
+        pendingBatteryRead = null
 
         val activeGatt = bluetoothGatt
         bluetoothGatt = null
@@ -477,6 +695,11 @@ class BleWatchManager(context: Context) {
                 pendingDevice = null,
                 connectionMessage = if (forgetDevice) "Device removed" else "Disconnected",
                 discoveredServiceCount = 0,
+                batteryPercent = null,
+                heartRateBpm = null,
+                supportsBattery = false,
+                supportsHeartRate = false,
+                canFindWatch = false,
                 errorMessage = null
             )
         }
@@ -555,6 +778,16 @@ class BleWatchManager(context: Context) {
         private const val INITIAL_RECONNECT_DELAY_MS = 1_500L
         private const val MAX_RECONNECT_DELAY_MS = 30_000L
         private const val CONNECTION_TIMEOUT_MS = 12_000L
+        private const val FIND_WATCH_ALERT_DURATION_MS = 5_000L
+        private const val ALERT_LEVEL_HIGH: Byte = 0x02
+        private const val ALERT_LEVEL_NONE: Byte = 0x00
+        private val BATTERY_SERVICE_UUID = java.util.UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
+        private val BATTERY_LEVEL_UUID = java.util.UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")
+        private val HEART_RATE_SERVICE_UUID = java.util.UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb")
+        private val HEART_RATE_MEASUREMENT_UUID = java.util.UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")
+        private val IMMEDIATE_ALERT_SERVICE_UUID = java.util.UUID.fromString("00001802-0000-1000-8000-00805f9b34fb")
+        private val ALERT_LEVEL_UUID = java.util.UUID.fromString("00002a06-0000-1000-8000-00805f9b34fb")
+        private val CLIENT_CONFIG_UUID = java.util.UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
         @Volatile
         private var instance: BleWatchManager? = null
