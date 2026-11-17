@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "me.doruk.plumwatch"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "me.doruk.plumwatch"
