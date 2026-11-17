@@ -232,15 +232,17 @@ fun PlumWatchApp(
                         targetState = page,
                         modifier = Modifier.fillMaxSize(),
                         transitionSpec = {
+                            val movingForward = targetState.ordinal > initialState.ordinal
+                            val direction = if (movingForward) 1 else -1
                             (fadeIn(tween(260)) +
                                 slideInHorizontally(
                                     animationSpec = tween(320, easing = FastOutSlowInEasing),
-                                    initialOffsetX = { width -> width / 18 }
+                                    initialOffsetX = { width -> direction * (width / 18) }
                                 )) togetherWith
                                 (fadeOut(tween(190)) +
                                     slideOutHorizontally(
                                         animationSpec = tween(260, easing = FastOutSlowInEasing),
-                                        targetOffsetX = { width -> -width / 24 }
+                                        targetOffsetX = { width -> -direction * (width / 24) }
                                     ))
                         },
                         label = "app-page-transition"
