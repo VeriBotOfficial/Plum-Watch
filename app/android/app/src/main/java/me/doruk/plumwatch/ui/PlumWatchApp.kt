@@ -173,30 +173,34 @@ fun PlumWatchApp(
             }
         }
 
-        LiquidGlassHost(enabled = uiStyle == "glass") {
-            Box(modifier = Modifier.fillMaxSize()) {
-                when (page) {
-                    AppPage.WATCH -> MyWatchScreen(
-                        state = watchState,
-                        onStartScan = startScan,
-                        onStopScan = watchManager::stopScan,
-                        onConnect = watchManager::connect,
-                        onDisconnect = { watchManager.disconnect(forgetDevice = true) },
-                        onOpenWatchfaces = { page = AppPage.WATCHFACES }
-                    )
-                    AppPage.WATCHFACES -> WatchfacesScreen()
-                    AppPage.SETTINGS -> SettingsScreen(
-                        themeMode = themeMode,
-                        onThemeModeChange = onThemeModeChange,
-                        uiStyle = uiStyle,
-                        onUiStyleChange = onUiStyleChange,
-                        appVersion = currentVersionName,
-                        checkingUpdates = checkingUpdates,
-                        updateMessage = updateMessage,
-                        onCheckUpdates = checkUpdates
-                    )
+        LiquidGlassHost(
+            enabled = uiStyle == "glass",
+            content = {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (page) {
+                        AppPage.WATCH -> MyWatchScreen(
+                            state = watchState,
+                            onStartScan = startScan,
+                            onStopScan = watchManager::stopScan,
+                            onConnect = watchManager::connect,
+                            onDisconnect = { watchManager.disconnect(forgetDevice = true) },
+                            onOpenWatchfaces = { page = AppPage.WATCHFACES }
+                        )
+                        AppPage.WATCHFACES -> WatchfacesScreen()
+                        AppPage.SETTINGS -> SettingsScreen(
+                            themeMode = themeMode,
+                            onThemeModeChange = onThemeModeChange,
+                            uiStyle = uiStyle,
+                            onUiStyleChange = onUiStyleChange,
+                            appVersion = currentVersionName,
+                            checkingUpdates = checkingUpdates,
+                            updateMessage = updateMessage,
+                            onCheckUpdates = checkUpdates
+                        )
+                    }
                 }
-
+            },
+            overlay = {
                 FloatingNavigationBar(
                     selectedPage = page,
                     onSelect = { page = it },
@@ -207,8 +211,7 @@ fun PlumWatchApp(
                         .padding(bottom = 12.dp)
                 )
             }
-        }
-    }
+        )
 }
 
 @Composable
