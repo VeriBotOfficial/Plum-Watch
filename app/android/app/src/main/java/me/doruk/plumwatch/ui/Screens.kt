@@ -1058,6 +1058,9 @@ private fun AppAlertDialog(
         onDismissRequest = onDismissRequest,
         title = title,
         confirmButton = confirmButton,
-        dismissButton = dismissButton
+        dismissButton = dismissButton,
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
