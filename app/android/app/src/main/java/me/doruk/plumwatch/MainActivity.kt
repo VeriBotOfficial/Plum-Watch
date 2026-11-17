@@ -93,7 +93,7 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(preferences.getString("theme-mode", "system") ?: "system")
             }
             var uiStyle by rememberSaveable {
-                mutableStateOf(preferences.getString("ui-style", "glass") ?: "glass")
+                mutableStateOf(preferences.getString("ui-style", "classic") ?: "classic")
             }
 
             PlumWatchApp(
