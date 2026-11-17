@@ -50,7 +50,9 @@ import androidx.core.view.WindowCompat
 import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.ui.glass.LiquidBottomTab
 import me.doruk.plumwatch.ui.glass.LiquidBottomTabs
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 import me.doruk.plumwatch.data.AppUpdateCheckResult
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.data.AppUpdateRepository
@@ -100,19 +102,23 @@ fun PlumWatchApp(
                 checkingUpdates = true
                 availableUpdate = null
                 updateMessage = "Checking GitHub…"
-                when (val result = AppUpdateRepository.check(currentVersionCode)) {
-                    is AppUpdateCheckResult.UpToDate -> {
-                        updateMessage = "You're up to date"
+                try {
+                    delay(Random.nextLong(500L, 1_001L))
+                    when (val result = AppUpdateRepository.check(currentVersionCode)) {
+                        is AppUpdateCheckResult.UpToDate -> {
+                            updateMessage = "You're up to date"
+                        }
+                        is AppUpdateCheckResult.UpdateAvailable -> {
+                            availableUpdate = result.update
+                            updateMessage = "A new version is ready to install."
+                        }
+                        is AppUpdateCheckResult.Failed -> {
+                            updateMessage = result.message
+                        }
                     }
-                    is AppUpdateCheckResult.UpdateAvailable -> {
-                        availableUpdate = result.update
-                        updateMessage = "A new version is ready to install."
-                    }
-                    is AppUpdateCheckResult.Failed -> {
-                        updateMessage = result.message
-                    }
+                } finally {
+                    checkingUpdates = false
                 }
-                checkingUpdates = false
             }
         }
     }
