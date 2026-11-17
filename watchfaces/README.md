@@ -1,16 +1,26 @@
 # Watchface library
 
-The Android app reads this directory from the Plum-Watch GitHub repository.
+The Android app loads this static catalogue from `watchfaces/index.json` using GitHub's raw file hosting, not the GitHub REST API. This avoids the unauthenticated GitHub API rate limit that can affect all app users sharing an IP address.
 
-Add each watchface in its own folder:
+Each watchface has its own folder:
 
 ```
 watchfaces/
-  simplewatchface/
-    simplewatchface.zip
+  index.json
+  Red John/
+    Red John.zip
     preview.png
 ```
 
-The app looks for one `.zip` archive and one preview image (`.png`, `.jpg`, `.jpeg`, or `.webp`) in each watchface folder. The image is used in the catalogue; the ZIP is downloaded to the phone's Downloads folder.
+Add one object to `index.json` for every watchface:
 
-The current repository is private. The Android app intentionally does not contain a personal GitHub token. The catalogue becomes available to app users after its files are served from a public source or a secure authenticated service is added.
+```json
+{
+  "id": "Red John",
+  "name": "Red John",
+  "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/watchfaces/Red%20John/preview.png",
+  "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/watchfaces/Red%20John/Red%20John.zip"
+}
+```
+
+The preview is displayed in the catalogue; the ZIP is downloaded to the phone's Downloads folder. Keep the repository public so the app can read these files without a personal access token.
