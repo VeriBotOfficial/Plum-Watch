@@ -337,6 +337,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        watchManager.reconnectSavedDevice()
 
         if (updateDownloadState.value.isOpeningInstaller) {
             updateDownloadState.value = AppUpdateDownloadState()
