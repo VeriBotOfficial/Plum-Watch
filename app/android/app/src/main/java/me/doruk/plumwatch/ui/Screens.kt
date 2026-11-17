@@ -1,6 +1,9 @@
 package me.doruk.plumwatch.ui
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +27,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.DarkMode
@@ -37,9 +44,13 @@ import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog as MaterialAlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -56,8 +67,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wexpa.liquidglass.material3.AlertDialog as GlassAlertDialog
-import com.wexpa.liquidglass.material3.Switch as GlassSwitch
+import me.doruk.plumwatch.data.AppUpdateDownloadState
+import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.WatchDevice
 
@@ -477,8 +488,27 @@ fun SettingsScreen(
     appVersion: String,
     checkingUpdates: Boolean,
     updateMessage: String?,
-    onCheckUpdates: () -> Unit
+    availableUpdate: AppUpdateInfo?,
+    downloadState: AppUpdateDownloadState,
+    onCheckUpdates: () -> Unit,
+    onInstallUpdate: (AppUpdateInfo) -> Unit
 ) {
+    val installButtonColor by animateColorAsState(
+        targetValue = if (availableUpdate != null) Color(0xFF248B55)
+        else MaterialTheme.colorScheme.primary,
+        animationSpec = tween(durationMillis = 320),
+        label = "update-button-color"
+    )
+    val updateBusy = checkingUpdates || downloadState.isDownloading || downloadState.isOpeningInstaller
+    val updateButtonLabel = when {
+        checkingUpdates -> "Checking…"
+        downloadState.isDownloading -> "Downloading…"
+        downloadState.isOpeningInstaller -> "Opening installer…"
+        availableUpdate != null -> "Install Update"
+        else -> "Check for updates"
+    }
+    val downloadProgress = downloadState.progress?.coerceIn(0f, 1f)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -531,19 +561,16 @@ fun SettingsScreen(
                             onClick = { onThemeModeChange("dark") }
                         )
                     }
-
-                    Text(
-                        "Interface",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    InterfaceStyleChoice(
-                        uiStyle = uiStyle,
-                        onUiStyleChange = onUiStyleChange
-                    )
                 }
             }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            SectionHeading("Interface")
+            InterfaceStyleChoice(
+                uiStyle = uiStyle,
+                onUiStyleChange = onUiStyleChange
+            )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -576,18 +603,97 @@ fun SettingsScreen(
                         )
                     }
 
-                    PlumActionButton(
-                        label = if (checkingUpdates) "Checking…" else "Check for updates",
-                        icon = Icons.Outlined.Refresh,
-                        onClick = onCheckUpdates,
-                        enabled = !checkingUpdates,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Button(
+                        onClick = {
+                            val update = availableUpdate
+                            if (update != null) onInstallUpdate(update) else onCheckUpdates()
+                        },
+                        enabled = !updateBusy,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = installButtonColor,
+                            contentColor = Color.White,
+                            disabledContainerColor = installButtonColor.copy(alpha = 0.68f),
+                            disabledContentColor = Color.White
+                        )
+                    ) {
+                        if (updateBusy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else if (availableUpdate != null) {
+                            Icon(Icons.Outlined.Download, contentDescription = null)
+                        } else {
+                            Icon(Icons.Outlined.Refresh, contentDescription = null)
+                        }
+                        Spacer(Modifier.width(9.dp))
+                        AnimatedContent(
+                            targetState = updateButtonLabel,
+                            label = "update-button-label"
+                        ) { label ->
+                            Text(
+                                text = label,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
 
-                    if (updateMessage != null) {
+                    if (downloadState.isDownloading || downloadState.isOpeningInstaller) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    if (downloadState.isOpeningInstaller) "Download complete"
+                                    else "Downloading update",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(Modifier.weight(1f))
+                                if (downloadProgress != null) {
+                                    Text(
+                                        (downloadProgress * 100f).toInt().toString() + "%",
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+
+                            if (downloadProgress == null) {
+                                LinearProgressIndicator(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(5.dp)
+                                )
+                            } else {
+                                LinearProgressIndicator(
+                                    progress = { downloadProgress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(5.dp),
+                                    color = if (downloadState.isOpeningInstaller) Color(0xFF248B55)
+                                    else MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    val visibleMessage = downloadState.errorMessage ?: updateMessage
+                    if (visibleMessage != null) {
                         Text(
-                            text = updateMessage,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = visibleMessage,
+                            color = if (downloadState.errorMessage != null) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
                             lineHeight = 17.sp
                         )
@@ -622,38 +728,100 @@ private fun InterfaceStyleChoice(
     onUiStyleChange: (String) -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 28.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "Classic",
-            color = if (uiStyle == "classic") MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 14.sp,
-            fontWeight = if (uiStyle == "classic") FontWeight.SemiBold else FontWeight.Medium
+        InterfaceChoiceCard(
+            label = "Classic",
+            description = "Original navigation",
+            icon = Icons.Outlined.Widgets,
+            selected = uiStyle == "classic",
+            modifier = Modifier.weight(1f),
+            onClick = { onUiStyleChange("classic") }
         )
-        Spacer(Modifier.weight(1f))
-        Box(modifier = Modifier.weight(1f)) {
-            // This selector remains liquid glass even when the rest of the UI is Classic.
-            GlassSwitch(
-                checked = uiStyle == "glass",
-                onCheckedChange = { enabled ->
-                    onUiStyleChange(if (enabled) "glass" else "classic")
-                },
-                modifier = Modifier.align(Alignment.Center)
-            )
+        InterfaceChoiceCard(
+            label = "Liquid Glass",
+            description = "Floating glass bar",
+            icon = Icons.Outlined.Layers,
+            selected = uiStyle == "glass",
+            modifier = Modifier.weight(1f),
+            onClick = { onUiStyleChange("glass") }
+        )
+    }
+}
+
+@Composable
+private fun InterfaceChoiceCard(
+    label: String,
+    description: String,
+    icon: ImageVector,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.09f)
+        else MaterialTheme.colorScheme.surface,
+        animationSpec = tween(durationMillis = 220),
+        label = "interface-choice-background"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+        else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+        animationSpec = tween(durationMillis = 220),
+        label = "interface-choice-border"
+    )
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(112.dp),
+        shape = RoundedCornerShape(19.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(Modifier.weight(1f))
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Outlined.CheckCircle,
+                        contentDescription = "Selected",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = label,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = description,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
-        Spacer(Modifier.weight(1f))
-        Text(
-            text = "Liquid Glass",
-            color = if (uiStyle == "glass") MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 14.sp,
-            fontWeight = if (uiStyle == "glass") FontWeight.SemiBold else FontWeight.Medium
-        )
     }
 }
 
@@ -729,19 +897,10 @@ private fun AppAlertDialog(
     confirmButton: @Composable () -> Unit,
     dismissButton: (@Composable () -> Unit)? = null
 ) {
-    if (LocalLiquidGlassEnabled.current) {
-        GlassAlertDialog(
-            onDismissRequest = onDismissRequest,
-            title = title,
-            confirmButton = confirmButton,
-            dismissButton = dismissButton
-        )
-    } else {
-        MaterialAlertDialog(
-            onDismissRequest = onDismissRequest,
-            title = title,
-            confirmButton = confirmButton,
-            dismissButton = dismissButton
-        )
-    }
+    MaterialAlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = title,
+        confirmButton = confirmButton,
+        dismissButton = dismissButton
+    )
 }
