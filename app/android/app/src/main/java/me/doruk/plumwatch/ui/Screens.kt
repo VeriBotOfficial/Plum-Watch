@@ -594,7 +594,7 @@ fun SettingsScreen(
         checkingUpdates -> "Checking…"
         downloadState.isDownloading -> "Downloading…"
         downloadState.isOpeningInstaller -> "Opening installer…"
-        availableUpdate != null -> "Install Update"
+        availableUpdate != null -> "Install ${availableUpdate.versionName}"
         else -> "Check for updates"
     }
     val downloadProgress = downloadState.progress?.coerceIn(0f, 1f)
