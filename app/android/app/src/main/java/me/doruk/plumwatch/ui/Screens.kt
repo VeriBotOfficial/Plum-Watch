@@ -646,7 +646,7 @@ private fun InterfaceStyleChoice(
             LiquidToggle(
                 selected = { uiStyle == "glass" },
                 onSelect = { enabled -> onUiStyleChange(if (enabled) "glass" else "classic") },
-                backdrop = backdrop,
+                backdrop = backdrop!!
                 modifier = Modifier.align(Alignment.Center)
             )
         }
