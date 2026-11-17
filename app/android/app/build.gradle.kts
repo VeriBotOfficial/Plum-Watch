@@ -62,8 +62,7 @@ android {
 
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2026.06.01"))
-    implementation("dev.shayxo.liquidglass:liquidglass:1.0.0")
-    implementation("dev.shayxo.liquidglass:liquidglass-material3:1.0.0")
+    implementation("androidx.compose.animation:animation")
     implementation("io.github.kyant0:backdrop:2.0.1")
     implementation("io.github.kyant0:shapes:1.2.1")
     implementation("androidx.activity:activity-compose:1.13.0")
