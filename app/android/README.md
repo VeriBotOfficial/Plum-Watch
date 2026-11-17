@@ -8,7 +8,7 @@ A lightweight Android companion app for HK-series watches. This project is the a
 
 - A current Android Studio release compatible with Android Gradle Plugin 9.1.1
 - JDK 17
-- Android SDK Platform 36 (Android 16)
+- Android SDK Platform 37 (Android 17 preview) and Build-Tools 37.0.0
 - Android SDK Build-Tools 36.0.0
 
 Open **this folder** in Android Studio:
@@ -82,6 +82,6 @@ The catalogue code is ready for the repository's public GitHub Git Trees API. It
 
 - Application ID: `me.doruk.plumwatch`
 - Minimum Android version: Android 8.0 (API 26)
-- Compile SDK: 36
+- Compile SDK: 37 (preview; target SDK remains 36)
 - Target SDK: 36
 - Version: 0.1.0
