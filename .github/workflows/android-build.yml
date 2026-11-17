@@ -10,6 +10,7 @@ on:
     paths:
       - "app/android/**"
       - ".github/workflows/android-build.yml"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -43,21 +44,47 @@ jobs:
       - name: Install Android SDK packages
         run: |
           sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
-          # Android SDK packages API 37.0 under android-37.0, while some AGP builds
-          # still resolve compileSdk 37 using the android-37 directory name.
           if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
             ln -s "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"
           fi
+
+      - name: Prepare persistent APK signing key
+        id: signing
+        env:
+          PLUM_SIGNING_KEYSTORE_BASE64: ${{ secrets.PLUM_SIGNING_KEYSTORE_BASE64 }}
+          PLUM_SIGNING_STORE_PASSWORD: ${{ secrets.PLUM_SIGNING_STORE_PASSWORD }}
+          PLUM_SIGNING_KEY_ALIAS: ${{ secrets.PLUM_SIGNING_KEY_ALIAS }}
+          PLUM_SIGNING_KEY_PASSWORD: ${{ secrets.PLUM_SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -z "$PLUM_SIGNING_KEYSTORE_BASE64" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Persistent signing secrets are missing. Build will be validated, but this APK will not be published."
+            exit 0
+          fi
+
+          if [ -z "$PLUM_SIGNING_STORE_PASSWORD" ] || [ -z "$PLUM_SIGNING_KEY_ALIAS" ] || [ -z "$PLUM_SIGNING_KEY_PASSWORD" ]; then
+            echo "::error::The signing keystore is present, but one or more signing secrets are missing."
+            exit 1
+          fi
+
+          KEYSTORE_PATH="$RUNNER_TEMP/plum-watch-release.jks"
+          printf '%s' "$PLUM_SIGNING_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          keytool -list -keystore "$KEYSTORE_PATH" -storepass "$PLUM_SIGNING_STORE_PASSWORD" -alias "$PLUM_SIGNING_KEY_ALIAS" >/dev/null
+          echo "PLUM_SIGNING_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
 
       - name: Build debug APK
         env:
           PLUM_VERSION_CODE: ${{ github.run_number }}
           PLUM_VERSION_NAME: 0.1.${{ github.run_number }}
+          PLUM_SIGNING_STORE_PASSWORD: ${{ secrets.PLUM_SIGNING_STORE_PASSWORD }}
+          PLUM_SIGNING_KEY_ALIAS: ${{ secrets.PLUM_SIGNING_KEY_ALIAS }}
+          PLUM_SIGNING_KEY_PASSWORD: ${{ secrets.PLUM_SIGNING_KEY_PASSWORD }}
         working-directory: app/android
         run: sh ./gradlew --no-daemon assembleDebug
 
       - name: Publish latest APK to repository
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.signing.outputs.configured == 'true'
         run: |
           mkdir -p app/android/build
           cp app/android/app/build/outputs/apk/debug/app-debug.apk app/android/build/plum-watch-debug.apk
@@ -82,9 +109,16 @@ jobs:
             git push
           fi
 
-      - name: Upload debug APK artifact
+      - name: Upload stable debug APK artifact
+        if: steps.signing.outputs.configured == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: plum-watch-debug-apk
           path: app/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Report signing setup
+        if: steps.signing.outputs.configured != 'true'
+        run: |
+          echo "Build compilation succeeded, but no installable update was published."
+          echo "Add the four PLUM_SIGNING_* repository secrets, then run this workflow manually."

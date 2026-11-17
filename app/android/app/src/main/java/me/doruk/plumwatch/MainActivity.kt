@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -26,6 +25,10 @@ import java.security.MessageDigest
 
 class MainActivity : ComponentActivity() {
     private lateinit var watchManager: BleWatchManager
+    private val updatePreferences by lazy {
+        getSharedPreferences("plum-watch-update", MODE_PRIVATE)
+    }
+
     private var pendingUpdate: AppUpdateInfo? = null
     private var activeDownloadId: Long = -1L
     private var expectedApkSha256: String? = null
@@ -35,53 +38,16 @@ class MainActivity : ComponentActivity() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
             val completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
-            if (completedId != activeDownloadId) return
-
-            val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val query = DownloadManager.Query().setFilterById(completedId)
-            val cursor = manager.query(query)
-            val status = try {
-                if (cursor.moveToFirst()) {
-                    cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                } else {
-                    DownloadManager.STATUS_FAILED
-                }
-            } finally {
-                cursor.close()
-            }
-
-            if (status != DownloadManager.STATUS_SUCCESSFUL) {
-                Toast.makeText(this@MainActivity, "APK download failed.", Toast.LENGTH_LONG).show()
-                return
-            }
-
-            val apkUri = manager.getUriForDownloadedFile(completedId)
-            if (apkUri == null || !verifyDownloadedApk(apkUri)) {
-                manager.remove(completedId)
-                Toast.makeText(this@MainActivity, "Downloaded APK failed its SHA-256 check.", Toast.LENGTH_LONG).show()
-                return
-            }
-
-            try {
-                val installIntent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(apkUri, "application/vnd.android.package-archive")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(installIntent)
-            } catch (exception: Exception) {
-                Toast.makeText(
-                    this@MainActivity,
-                    exception.message ?: "Could not open the Android installer.",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
+            handleDownloadCompletion(completedId)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        activeDownloadId = updatePreferences.getLong(KEY_DOWNLOAD_ID, -1L)
+        expectedApkSha256 = updatePreferences.getString(KEY_EXPECTED_SHA256, null)
 
         watchManager = BleWatchManager(applicationContext)
         registerUpdateReceiver()
@@ -125,7 +91,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun downloadAndInstallUpdate(update: AppUpdateInfo) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
             pendingUpdate = update
             Toast.makeText(
                 this,
@@ -142,6 +110,15 @@ class MainActivity : ComponentActivity() {
         }
 
         pendingUpdate = null
+
+        if (activeDownloadId != -1L) {
+            handleDownloadCompletion(activeDownloadId)
+            if (activeDownloadId != -1L) {
+                Toast.makeText(this, "An app update is already downloading.", Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+
         val request = DownloadManager.Request(Uri.parse(update.apkUrl))
             .setTitle("Plum Watch ${update.versionName}")
             .setDescription("Downloading app update")
@@ -153,21 +130,135 @@ class MainActivity : ComponentActivity() {
                 "plum-watch-update.apk"
             )
 
-        activeDownloadId = (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager)
-            .enqueue(request)
+        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        activeDownloadId = manager.enqueue(request)
         expectedApkSha256 = update.sha256
-        Toast.makeText(this, "Downloading Plum Watch ${update.versionName}…", Toast.LENGTH_LONG).show()
+
+        updatePreferences.edit()
+            .putLong(KEY_DOWNLOAD_ID, activeDownloadId)
+            .putString(KEY_EXPECTED_SHA256, expectedApkSha256)
+            .commit()
+
+        Toast.makeText(
+            this,
+            "Downloading Plum Watch ${update.versionName}…",
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     override fun onResume() {
         super.onResume()
+
         val update = pendingUpdate
         if (update != null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             packageManager.canRequestPackageInstalls()
         ) {
+            pendingUpdate = null
             downloadAndInstallUpdate(update)
         }
+
+        if (activeDownloadId != -1L) {
+            handleDownloadCompletion(activeDownloadId)
+        }
+    }
+
+    private fun handleDownloadCompletion(downloadId: Long) {
+        if (downloadId == -1L || downloadId != activeDownloadId) return
+
+        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val cursor = manager.query(DownloadManager.Query().setFilterById(downloadId))
+        val status = cursor?.use {
+            if (it.moveToFirst()) {
+                it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+            } else {
+                DownloadManager.STATUS_FAILED
+            }
+        } ?: DownloadManager.STATUS_FAILED
+
+        when (status) {
+            DownloadManager.STATUS_PENDING,
+            DownloadManager.STATUS_RUNNING,
+            DownloadManager.STATUS_PAUSED -> return
+
+            DownloadManager.STATUS_SUCCESSFUL -> {
+                val apkUri = manager.getUriForDownloadedFile(downloadId)
+                if (apkUri == null || !verifyDownloadedApk(apkUri)) {
+                    manager.remove(downloadId)
+                    clearActiveDownload()
+                    Toast.makeText(
+                        this,
+                        "Downloaded APK failed its SHA-256 check.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return
+                }
+
+                clearActiveDownload()
+                openPackageInstaller(apkUri)
+            }
+
+            else -> {
+                clearActiveDownload()
+                Toast.makeText(this, "APK download failed.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun openPackageInstaller(apkUri: Uri) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            Toast.makeText(
+                this,
+                "Allow Plum Watch to install apps, then open the downloaded APK from Downloads.",
+                Toast.LENGTH_LONG
+            ).show()
+            startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:$packageName")
+                )
+            )
+            return
+        }
+
+        val installIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+            setDataAndType(apkUri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            putExtra(Intent.EXTRA_RETURN_RESULT, true)
+        }
+
+        try {
+            startActivity(installIntent)
+        } catch (exception: Exception) {
+            try {
+                val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(apkUri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(fallbackIntent)
+            } catch (fallbackException: Exception) {
+                Toast.makeText(
+                    this,
+                    fallbackException.message
+                        ?: exception.message
+                        ?: "Could not open the Android installer. Open the APK from Downloads.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun clearActiveDownload() {
+        activeDownloadId = -1L
+        expectedApkSha256 = null
+        updatePreferences.edit()
+            .remove(KEY_DOWNLOAD_ID)
+            .remove(KEY_EXPECTED_SHA256)
+            .commit()
     }
 
     private fun verifyDownloadedApk(uri: Uri): Boolean {
@@ -182,6 +273,7 @@ class MainActivity : ComponentActivity() {
             }
             digest.digest().joinToString("") { byte -> "%02x".format(byte) }
         } ?: return false
+
         return actual.equals(expected, ignoreCase = true)
     }
 
@@ -191,5 +283,10 @@ class MainActivity : ComponentActivity() {
         }
         watchManager.release()
         super.onDestroy()
+    }
+
+    private companion object {
+        const val KEY_DOWNLOAD_ID = "active-update-download-id"
+        const val KEY_EXPECTED_SHA256 = "active-update-sha256"
     }
 }

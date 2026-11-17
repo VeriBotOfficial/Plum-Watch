@@ -3,6 +3,16 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val signingKeystorePath = System.getenv("PLUM_SIGNING_KEYSTORE_PATH")
+val signingStorePassword = System.getenv("PLUM_SIGNING_STORE_PASSWORD")
+val signingKeyAlias = System.getenv("PLUM_SIGNING_KEY_ALIAS")
+val signingKeyPassword = System.getenv("PLUM_SIGNING_KEY_PASSWORD")
+val hasStableSigning = !signingKeystorePath.isNullOrBlank() &&
+    !signingStorePassword.isNullOrBlank() &&
+    !signingKeyAlias.isNullOrBlank() &&
+    !signingKeyPassword.isNullOrBlank() &&
+    file(signingKeystorePath).isFile
+
 android {
     namespace = "me.doruk.plumwatch"
     compileSdk = 37
@@ -13,6 +23,25 @@ android {
         targetSdk = 37
         versionCode = System.getenv("PLUM_VERSION_CODE")?.toIntOrNull() ?: 1
         versionName = System.getenv("PLUM_VERSION_NAME") ?: "0.1.0"
+    }
+
+    signingConfigs {
+        if (hasStableSigning) {
+            create("stableCi") {
+                storeFile = file(signingKeystorePath!!)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            if (hasStableSigning) {
+                signingConfig = signingConfigs.getByName("stableCi")
+            }
+        }
     }
 
     buildFeatures {
