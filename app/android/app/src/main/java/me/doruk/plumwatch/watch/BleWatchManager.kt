@@ -424,7 +424,7 @@ class BleWatchManager(context: Context) {
     private fun finishFailedConnection(message: String) {
         handler.removeCallbacks(connectionTimeoutTask)
         val shouldReconnect = autoReconnectEnabled &&
-            mutableState.value.savedDevice != null &&
+            mutableState.value.savedDevice != null
         mutableState.update {
             it.copy(
                 isConnecting = false,
