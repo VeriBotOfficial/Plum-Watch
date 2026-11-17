@@ -47,8 +47,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.wexpa.liquidglass.material3.NavigationBar as GlassNavigationBar
-import com.wexpa.liquidglass.material3.NavigationBarItem as GlassNavigationBarItem
+import me.doruk.plumwatch.data.AppUpdateDownloadState
+import me.doruk.plumwatch.ui.glass.LiquidBottomTab
+import me.doruk.plumwatch.ui.glass.LiquidBottomTabs
 import kotlinx.coroutines.launch
 import me.doruk.plumwatch.data.AppUpdateCheckResult
 import me.doruk.plumwatch.data.AppUpdateInfo
@@ -68,6 +69,7 @@ fun PlumWatchApp(
     onThemeModeChange: (String) -> Unit,
     uiStyle: String,
     onUiStyleChange: (String) -> Unit,
+    updateDownloadState: AppUpdateDownloadState,
     onInstallUpdate: (AppUpdateInfo) -> Unit
 ) {
     val context = LocalContext.current
@@ -87,20 +89,24 @@ fun PlumWatchApp(
 
     var checkingUpdates by remember { mutableStateOf(false) }
     var updateMessage by remember { mutableStateOf<String?>(null) }
+    var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
     val scope = rememberCoroutineScope()
 
     val checkUpdates: () -> Unit = {
-        if (!checkingUpdates) {
+        if (!checkingUpdates && !updateDownloadState.isDownloading &&
+            !updateDownloadState.isOpeningInstaller
+        ) {
             scope.launch {
                 checkingUpdates = true
+                availableUpdate = null
                 updateMessage = "Checking GitHub…"
                 when (val result = AppUpdateRepository.check(currentVersionCode)) {
                     is AppUpdateCheckResult.UpToDate -> {
-                        updateMessage = "You're up to date · ${result.versionName}"
+                        updateMessage = "You're up to date"
                     }
                     is AppUpdateCheckResult.UpdateAvailable -> {
-                        updateMessage = "Version ${result.update.versionName} found. Starting download…"
-                        onInstallUpdate(result.update)
+                        availableUpdate = result.update
+                        updateMessage = "A new version is ready to install."
                     }
                     is AppUpdateCheckResult.Failed -> {
                         updateMessage = result.message
@@ -191,7 +197,10 @@ fun PlumWatchApp(
                             appVersion = currentVersionName,
                             checkingUpdates = checkingUpdates,
                             updateMessage = updateMessage,
-                            onCheckUpdates = checkUpdates
+                            availableUpdate = availableUpdate,
+                            downloadState = updateDownloadState,
+                            onCheckUpdates = checkUpdates,
+                            onInstallUpdate = onInstallUpdate
                         )
                     }
                 }
@@ -201,6 +210,7 @@ fun PlumWatchApp(
                     selectedPage = page,
                     onSelect = { page = it },
                     useGlass = uiStyle == "glass",
+                    backdrop = LocalLiquidBackdrop.current,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 8.dp)
@@ -215,27 +225,43 @@ private fun FloatingNavigationBar(
     selectedPage: AppPage,
     onSelect: (AppPage) -> Unit,
     useGlass: Boolean,
+    backdrop: com.kyant.backdrop.Backdrop?,
     modifier: Modifier = Modifier
 ) {
     val pages = AppPage.values()
 
-    if (useGlass) {
-        // Shayann07's Material 3 NavigationBar owns the iOS-style floating capsule,
-        // selector lens, tap/hold/drag gestures and fling behavior.
-        GlassNavigationBar(modifier = modifier.fillMaxWidth()) {
+    if (useGlass && backdrop != null) {
+        LiquidBottomTabs(
+            selectedTabIndex = { pages.indexOf(selectedPage).coerceAtLeast(0) },
+            onTabSelected = { index -> pages.getOrNull(index)?.let(onSelect) },
+            backdrop = backdrop,
+            tabsCount = pages.size,
+            modifier = modifier
+                .navigationBarsPadding()
+                .widthIn(max = 360.dp)
+                .fillMaxWidth(0.88f)
+                .height(72.dp)
+        ) {
             pages.forEach { page ->
-                GlassNavigationBarItem(
-                    selected = selectedPage == page,
-                    onClick = { onSelect(page) },
-                    icon = {
-                        Icon(
-                            imageVector = IconsForPage(page),
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text(page.label) },
-                    alwaysShowLabel = true
-                )
+                val selected = page == selectedPage
+                val tint = if (selected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+
+                LiquidBottomTab(onClick = { onSelect(page) }) {
+                    Icon(
+                        imageVector = IconsForPage(page),
+                        contentDescription = page.label,
+                        tint = tint,
+                        modifier = Modifier.height(21.dp)
+                    )
+                    Text(
+                        text = page.label,
+                        color = tint,
+                        fontSize = 10.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                        letterSpacing = 0.1.sp
+                    )
+                }
             }
         }
     } else {
