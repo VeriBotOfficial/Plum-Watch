@@ -30,40 +30,36 @@ sealed interface AppUpdateCheckResult {
 object AppUpdateRepository {
     private const val RAW_MANIFEST_URL =
         "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/app/android/build/update.json"
-    private const val API_MANIFEST_URL =
-        "https://api.github.com/repos/VeriBotOfficial/Plum-Watch/contents/app/android/build/update.json"
 
-    suspend fun check(currentVersionName: String, currentVersionCode: Int): AppUpdateCheckResult = withContext(Dispatchers.IO) {
-        val manifests = mutableListOf<AppUpdateInfo>()
-        var lastError: String? = null
+    suspend fun check(currentVersionName: String, currentVersionCode: Int): AppUpdateCheckResult =
+        withContext(Dispatchers.IO) {
+            var latestManifest: AppUpdateInfo? = null
+            var lastError = "Could not reach the update server."
 
-        // GitHub's raw CDN can briefly lag behind a newly published manifest.
-        // Read several cache-busted copies and also query the GitHub Contents API.
-        repeat(3) { attempt ->
-            val raw = fetchManifest(RAW_MANIFEST_URL, "raw")
-            if (raw != null) manifests += raw else lastError = "Could not read the published update manifest."
+            // Raw GitHub is the only manifest source. No GitHub REST API requests.
+            repeat(3) { attempt ->
+                val manifest = fetchManifest(RAW_MANIFEST_URL)
+                if (manifest != null) {
+                    latestManifest = manifest
+                    if (
+                        manifest.versionCode > currentVersionCode ||
+                        isNewerVersion(manifest.versionName, currentVersionName)
+                    ) {
+                        return@withContext AppUpdateCheckResult.UpdateAvailable(manifest)
+                    }
+                    return@withContext AppUpdateCheckResult.UpToDate(manifest.versionName)
+                }
 
-            val api = fetchManifest(API_MANIFEST_URL, "api")
-            if (api != null) manifests += api else lastError = "GitHub's update service is temporarily unavailable."
-
-            if (manifests.any { it.versionCode > currentVersionCode || isNewerVersion(it.versionName, currentVersionName) }) {
-                val newest = manifests.maxBy { it.versionCode }
-                return@withContext AppUpdateCheckResult.UpdateAvailable(newest)
+                lastError = "GitHub's raw update manifest is temporarily unavailable."
+                if (attempt < 2) delay(900L)
             }
-            if (attempt < 2) delay(900L)
+
+            AppUpdateCheckResult.Failed(lastError)
         }
 
-        val newest = manifests.maxByOrNull { it.versionCode }
-        if (newest != null) {
-            AppUpdateCheckResult.UpToDate(newest.versionName)
-        } else {
-            AppUpdateCheckResult.Failed(lastError ?: "Could not reach GitHub.")
-        }
-    }
-
-    private fun fetchManifest(baseUrl: String, source: String): AppUpdateInfo? {
+    private fun fetchManifest(baseUrl: String): AppUpdateInfo? {
         val connection = runCatching {
-            (URL("$baseUrl?nocache=${System.currentTimeMillis()}-${source}").openConnection() as HttpURLConnection)
+            (URL("$baseUrl?nocache=${System.currentTimeMillis()}").openConnection() as HttpURLConnection)
                 .apply {
                     connectTimeout = 8_000
                     readTimeout = 10_000
@@ -71,7 +67,7 @@ object AppUpdateRepository {
                     useCaches = false
                     setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0")
                     setRequestProperty("Pragma", "no-cache")
-                    setRequestProperty("Accept", if (source == "api") "application/vnd.github.raw" else "application/json")
+                    setRequestProperty("Accept", "application/json")
                     setRequestProperty("User-Agent", "Plum-Watch-Android")
                 }
         }.getOrNull() ?: return null
@@ -85,9 +81,11 @@ object AppUpdateRepository {
             val apkUrl = manifest.getString("apkUrl")
             val sha256 = manifest.getString("sha256").lowercase()
 
-            if (!apkUrl.startsWith("https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/") ||
+            if (
+                !apkUrl.startsWith("https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/") ||
                 !sha256.matches(Regex("[a-f0-9]{64}")) ||
-                versionCode < 1 || versionName.isBlank()
+                versionCode < 1 ||
+                versionName.isBlank()
             ) return null
 
             AppUpdateInfo(versionCode, versionName, apkUrl, sha256)
