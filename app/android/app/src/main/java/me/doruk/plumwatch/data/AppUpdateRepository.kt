@@ -34,7 +34,7 @@ object AppUpdateRepository {
             val status = connection.responseCode
             if (status == HttpURLConnection.HTTP_NOT_FOUND) {
                 return@withContext AppUpdateCheckResult.Failed(
-                    "The update manifest is not publicly accessible. The GitHub repository is private."
+                    "The update manifest was not found. Check that the latest APK build has published it."
                 )
             }
             if (status !in 200..299) {

@@ -642,11 +642,21 @@ private fun InterfaceStyleChoice(
         Box(
             modifier = Modifier.weight(1f)
         ) {
-            LiquidToggle(
-                selected = { uiStyle == "glass" },
-                onSelect = { enabled -> onUiStyleChange(if (enabled) "glass" else "classic") },
-                modifier = Modifier.align(Alignment.Center)
-            )
+            if (LocalLiquidGlassEnabled.current) {
+                LiquidToggle(
+                    selected = { uiStyle == "glass" },
+                    onSelect = { enabled -> onUiStyleChange(if (enabled) "glass" else "classic") },
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else {
+                Switch(
+                    checked = uiStyle == "glass",
+                    onCheckedChange = { enabled ->
+                        onUiStyleChange(if (enabled) "glass" else "classic")
+                    },
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
         }
         Spacer(Modifier.weight(1f))
         Text(

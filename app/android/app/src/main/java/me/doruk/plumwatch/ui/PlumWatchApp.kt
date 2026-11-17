@@ -41,7 +41,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.border
-import androidx.compose.foundation.border
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -237,7 +236,7 @@ private fun FloatingNavigationBar(
                 .glassEffect(Glass.Regular.interactive(), CapsuleShape)
                 .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalArrangement = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
             pages.forEach { page ->
                 val isSelected = selectedPage == page

@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
@@ -16,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import com.wexpa.liquidglass.Glass
 import com.wexpa.liquidglass.LiquidGlassTheme
 import com.wexpa.liquidglass.glassEffect
+
+val LocalLiquidGlassEnabled = staticCompositionLocalOf { false }
 
 /**
  * LiquidGlassHost wraps content in LiquidGlassTheme so every child can use
@@ -29,17 +32,19 @@ fun LiquidGlassHost(
     content: @Composable BoxScope.() -> Unit,
     overlay: @Composable BoxScope.() -> Unit
 ) {
-    if (enabled) {
-        LiquidGlassTheme {
+    CompositionLocalProvider(LocalLiquidGlassEnabled provides enabled) {
+        if (enabled) {
+            LiquidGlassTheme {
+                Box(Modifier.fillMaxSize()) {
+                    content()
+                    overlay()
+                }
+            }
+        } else {
             Box(Modifier.fillMaxSize()) {
                 content()
                 overlay()
             }
-        }
-    } else {
-        Box(Modifier.fillMaxSize()) {
-            content()
-            overlay()
         }
     }
 }
@@ -68,11 +73,16 @@ fun PlumActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     enabled: Boolean = true
 ) {
+    val buttonModifier = if (LocalLiquidGlassEnabled.current) {
+        modifier.glassEffect(Glass.Regular.interactive(), RoundedCornerShape(16.dp))
+    } else {
+        modifier
+    }
+
     androidx.compose.material3.Button(
-        onClick = { if (enabled) onClick() },
+        onClick = onClick,
         enabled = enabled,
-        modifier = modifier
-            .glassEffect(Glass.Regular.interactive(), RoundedCornerShape(16.dp)),
+        modifier = buttonModifier,
         colors = androidx.compose.material3.ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary

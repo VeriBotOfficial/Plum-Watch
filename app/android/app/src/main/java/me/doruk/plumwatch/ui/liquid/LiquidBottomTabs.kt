@@ -39,7 +39,7 @@ fun LiquidBottomTabs(
             .fillMaxWidth()
             .glassEffect(Glass.Regular.interactive(), CapsuleShape),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalArrangement = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically
     ) {
         repeat(tabsCount) { index ->
             val isSelected = selected == index
