@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.shape.CapsuleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GridView
@@ -49,13 +50,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.wexpa.liquidglass.Glass
+import com.wexpa.liquidglass.glassEffect
 import kotlinx.coroutines.launch
 import me.doruk.plumwatch.data.AppUpdateCheckResult
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.data.AppUpdateRepository
-import me.doruk.plumwatch.ui.liquid.LiquidBottomTab
 import me.doruk.plumwatch.ui.liquid.LiquidBottomTabs
 import me.doruk.plumwatch.watch.BleWatchManager
+import androidx.compose.ui.semantics.Role
 
 private enum class AppPage(val label: String) {
     WATCH("My Watch"),
@@ -234,9 +237,20 @@ private fun FloatingNavigationBar(
                 .fillMaxWidth(0.88f)
         ) { index, isSelected ->
             val page = pages[index.coerceIn(pages.indices)]
-            LiquidBottomTab(
-                selected = isSelected,
-                modifier = Modifier.weight(1f)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(CapsuleShape)
+                    .glassEffect(Glass.Regular.interactive(), CapsuleShape)
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        role = Role.Tab,
+                        onClick = { onSelect(page) }
+                    )
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(2f.dp, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 NavigationItemContent(page, selectedPage, IconsForPage(page))
             }

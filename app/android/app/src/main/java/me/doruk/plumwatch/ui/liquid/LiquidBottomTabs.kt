@@ -3,8 +3,9 @@ package me.doruk.plumwatch.ui.liquid
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.wexpa.liquidglass.Glass
@@ -27,7 +28,7 @@ fun LiquidBottomTabs(
     modifier: Modifier = Modifier,
     tabContent: @Composable (Int, Boolean) -> Unit
 ) {
-    var selected by remember { mutableStateOf(selectedTabIndex()) }
+    var selected by remember { mutableIntStateOf(selectedTabIndex()) }
 
     // Keep selected in sync when the parent changes the page externally
     androidx.compose.runtime.LaunchedEffect(selectedTabIndex) {
