@@ -40,11 +40,11 @@ fun LiquidGlassHost(
     content: @Composable BoxScope.() -> Unit,
     overlay: @Composable BoxScope.() -> Unit
 ) {
-    // rememberLayerBackdrop must be called unconditionally for Compose state tracking.
-    val backdrop = remember { rememberLayerBackdrop() }
+    // Call rememberLayerBackdrop() directly in composable context (not inside remember {}).
+    val backdrop = if (enabled) rememberLayerBackdrop() else null
     Box(Modifier.fillMaxSize()) {
-        CompositionLocalProvider(LocalLiquidBackdrop provides if (enabled) backdrop else null) {
-            if (enabled) {
+        CompositionLocalProvider(LocalLiquidBackdrop provides backdrop) {
+            if (backdrop != null) {
                 Box(
                     Modifier
                         .fillMaxSize()
