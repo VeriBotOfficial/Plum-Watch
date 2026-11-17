@@ -466,7 +466,7 @@ class MainActivity : ComponentActivity() {
             )
             val notification = NotificationCompat.Builder(this, UPDATE_CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                .setContentTitle("Plum Watch update available")
+                .setContentTitle("Plum Watch ${update.versionName} available")
                 .setContentText("Version ${update.versionName} is ready. Open Settings to install.")
                 .setStyle(
                     NotificationCompat.BigTextStyle().bigText(
