@@ -10,12 +10,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.wexpa.liquidglass.Glass
 import com.wexpa.liquidglass.glassEffect
-import com.wexpa.liquidglass.material3.GlassTabBar
 import androidx.compose.foundation.shape.CapsuleShape
 
 /**
- * Real liquid glass bottom navigation bar using GlassTabBar from shayxo/liquidglass.
- * The selector moves when tabs are tapped or dragged.
+ * Real liquid glass bottom navigation bar using Row + Modifier.weight.
+ * The selector moves when tabs are tapped.
  *
  * @param tabContent index-based content for each tab: (index, isSelected) -> Unit
  */
@@ -35,17 +34,34 @@ fun LiquidBottomTabs(
         selected = selectedTabIndex()
     }
 
-    GlassTabBar(
-        itemCount = tabsCount,
-        selectedIndex = selected,
-        onSelected = { index ->
-            selected = index
-            onTabSelected(index)
-        },
+    androidx.compose.foundation.layout.Row(
         modifier = modifier
             .fillMaxWidth()
-            .glassEffect(Glass.Regular.interactive(), CapsuleShape)
-    ) { index, isSelected ->
-        tabContent(index, isSelected)
+            .glassEffect(Glass.Regular.interactive(), CapsuleShape),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.CenterVertically
+    ) {
+        repeat(tabsCount) { index ->
+            val isSelected = selected == index
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .glassEffect(Glass.Regular.interactive(), CapsuleShape)
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        role = androidx.compose.ui.semantics.Role.Tab,
+                        onClick = {
+                            selected = index
+                            onTabSelected(index)
+                        }
+                    )
+                    .fillMaxHeight(),
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(2.dp, androidx.compose.ui.Alignment.CenterVertically),
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+            ) {
+                tabContent(index, isSelected)
+            }
+        }
     }
 }
