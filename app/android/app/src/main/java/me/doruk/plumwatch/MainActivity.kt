@@ -1,10 +1,15 @@
 package me.doruk.plumwatch
 
+import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.DownloadManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.bluetooth.le.ScanFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
