@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.math.min
+import kotlinx.coroutines.flow.update
 
 data class WatchDevice(
     val name: String,
@@ -28,7 +30,9 @@ data class BleUiState(
     val discoveredDevices: List<WatchDevice> = emptyList(),
     val isScanning: Boolean = false,
     val isConnecting: Boolean = false,
+    val isReconnecting: Boolean = false,
     val connectedDevice: WatchDevice? = null,
+    val savedDevice: WatchDevice? = null,
     val pendingDevice: WatchDevice? = null,
     val connectionMessage: String = "Not connected",
     val discoveredServiceCount: Int = 0,
@@ -44,10 +48,47 @@ class BleWatchManager(context: Context) {
     private val adapter: BluetoothAdapter? = bluetoothManager?.adapter
     private val handler = Handler(Looper.getMainLooper())
 
-    private val mutableState = MutableStateFlow(BleUiState())
+    private val preferences = appContext.getSharedPreferences(
+        WATCH_PREFERENCES,
+        Context.MODE_PRIVATE
+    )
+    private val initialSavedDevice = readSavedDevice()
+    private val mutableState = MutableStateFlow(
+        BleUiState(
+            savedDevice = initialSavedDevice,
+            isReconnecting = initialSavedDevice != null,
+            connectionMessage = if (initialSavedDevice != null) {
+                "Saved watch · reconnecting"
+            } else {
+                "Not connected"
+            }
+        )
+    )
     val state: StateFlow<BleUiState> = mutableState.asStateFlow()
 
     private var bluetoothGatt: BluetoothGatt? = null
+    private var autoReconnectEnabled = initialSavedDevice != null
+    private var companionPresenceMonitoring = false
+    private var companionDevicePresent = true
+    private var reconnectAttempts = 0
+
+    private val reconnectTask = Runnable {
+        val device = mutableState.value.savedDevice
+        if (device == null || !autoReconnectEnabled) return@Runnable
+        if (companionPresenceMonitoring && !companionDevicePresent) return@Runnable
+        if (mutableState.value.isConnected || mutableState.value.isConnecting) return@Runnable
+
+        if (!isBluetoothEnabled()) {
+            scheduleReconnect(MAX_RECONNECT_DELAY_MS)
+            return@Runnable
+        }
+
+        connectInternal(device, reconnecting = true)
+    }
+
+    init {
+        if (initialSavedDevice != null) scheduleReconnect(INITIAL_RECONNECT_DELAY_MS)
+    }
 
     private val stopScanTask = Runnable {
         stopScan()
@@ -106,10 +147,19 @@ class BleWatchManager(context: Context) {
             if (status == BluetoothGatt.GATT_SUCCESS &&
                 newState == BluetoothProfile.STATE_CONNECTED
             ) {
+                if (bluetoothGatt !== gatt) {
+                    gatt.close()
+                    return
+                }
+                handler.removeCallbacks(reconnectTask)
+                reconnectAttempts = 0
                 mutableState.update { old ->
+                    val device = old.pendingDevice ?: old.savedDevice
                     old.copy(
                         isConnecting = false,
-                        connectedDevice = old.pendingDevice,
+                        isReconnecting = false,
+                        connectedDevice = device,
+                        savedDevice = device ?: old.savedDevice,
                         pendingDevice = null,
                         connectionMessage = "Connected",
                         discoveredServiceCount = 0,
@@ -133,24 +183,33 @@ class BleWatchManager(context: Context) {
 
                 if (bluetoothGatt === gatt) {
                     bluetoothGatt = null
+                    val current = mutableState.value
+                    val saved = current.savedDevice ?: current.connectedDevice ?: current.pendingDevice
+                    val shouldReconnect = autoReconnectEnabled &&
+                        saved != null &&
+                        (!companionPresenceMonitoring || companionDevicePresent)
+
                     mutableState.update { old ->
                         old.copy(
                             isConnecting = false,
+                            isReconnecting = shouldReconnect,
                             connectedDevice = null,
+                            savedDevice = saved,
                             pendingDevice = null,
-                            connectionMessage = if (failed) {
-                                "Connection ended ($status)"
-                            } else {
-                                "Disconnected"
+                            connectionMessage = when {
+                                shouldReconnect -> "Connection lost · reconnecting"
+                                failed -> "Connection ended ($status)"
+                                else -> "Disconnected"
                             },
                             discoveredServiceCount = 0,
-                            errorMessage = if (failed) {
-                                "The watch ended the BLE connection. Try again with the watch awake and nearby."
+                            errorMessage = if (shouldReconnect) null else if (failed) {
+                                "The watch connection ended. Try reconnecting when it is nearby."
                             } else {
                                 null
                             }
                         )
                     }
+                    if (shouldReconnect) scheduleReconnect(nextReconnectDelay())
                 }
             }
         }
@@ -273,15 +332,31 @@ class BleWatchManager(context: Context) {
 
     @SuppressLint("MissingPermission")
     fun connect(device: WatchDevice) {
+        saveDevice(device)
+        autoReconnectEnabled = true
+        reconnectAttempts = 0
+        companionDevicePresent = true
+        handler.removeCallbacks(reconnectTask)
+        connectInternal(device, reconnecting = false)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun connectInternal(device: WatchDevice, reconnecting: Boolean) {
+        if (mutableState.value.isConnected || mutableState.value.isConnecting) return
         stopScan()
 
         val bluetoothAdapter = adapter
         if (bluetoothAdapter == null || !isBluetoothEnabled()) {
             mutableState.update {
                 it.copy(
+                    isConnecting = false,
+                    isReconnecting = autoReconnectEnabled,
                     connectionMessage = "Bluetooth is unavailable",
-                    errorMessage = "Turn on Bluetooth and try again."
+                    errorMessage = if (autoReconnectEnabled) null else "Turn on Bluetooth and try again."
                 )
+            }
+            if (autoReconnectEnabled && (!companionPresenceMonitoring || companionDevicePresent)) {
+                scheduleReconnect(nextReconnectDelay())
             }
             return
         }
@@ -299,9 +374,15 @@ class BleWatchManager(context: Context) {
         mutableState.update {
             it.copy(
                 isConnecting = true,
+                isReconnecting = reconnecting,
                 connectedDevice = null,
+                savedDevice = device,
                 pendingDevice = device,
-                connectionMessage = "Connecting to ${device.name}…",
+                connectionMessage = if (reconnecting) {
+                    "Reconnecting to ${device.name}…"
+                } else {
+                    "Connecting to ${device.name}…"
+                },
                 discoveredServiceCount = 0,
                 errorMessage = null
             )
@@ -316,64 +397,68 @@ class BleWatchManager(context: Context) {
                 BluetoothDevice.TRANSPORT_LE
             )
 
-            if (bluetoothGatt == null) {
-                mutableState.update {
-                    it.copy(
-                        isConnecting = false,
-                        pendingDevice = null,
-                        connectionMessage = "Connection could not start",
-                        errorMessage = "Android did not create a GATT connection."
-                    )
-                }
-            }
+            if (bluetoothGatt == null) finishFailedConnection("Android did not create a GATT connection.")
         } catch (_: SecurityException) {
-            mutableState.update {
-                it.copy(
-                    isConnecting = false,
-                    pendingDevice = null,
-                    connectionMessage = "Bluetooth permission required",
-                    errorMessage = "Allow Nearby devices access and try again."
-                )
-            }
+            finishFailedConnection("Allow Nearby devices access and try again.")
         } catch (exception: IllegalArgumentException) {
-            mutableState.update {
-                it.copy(
-                    isConnecting = false,
-                    pendingDevice = null,
-                    connectionMessage = "Invalid Bluetooth device",
-                    errorMessage = exception.message
-                )
-            }
+            finishFailedConnection(exception.message ?: "Invalid Bluetooth device.")
+        } catch (exception: IllegalStateException) {
+            finishFailedConnection(exception.message ?: "Android could not start the connection.")
         }
+    }
+
+    private fun finishFailedConnection(message: String) {
+        val shouldReconnect = autoReconnectEnabled &&
+            mutableState.value.savedDevice != null &&
+            (!companionPresenceMonitoring || companionDevicePresent)
+        mutableState.update {
+            it.copy(
+                isConnecting = false,
+                isReconnecting = shouldReconnect,
+                pendingDevice = null,
+                connectionMessage = if (shouldReconnect) "Connection lost · retrying" else "Connection failed",
+                errorMessage = if (shouldReconnect) null else message
+            )
+        }
+        if (shouldReconnect) scheduleReconnect(nextReconnectDelay())
     }
 
     @SuppressLint("MissingPermission")
     fun disconnect(forgetDevice: Boolean = false) {
         stopScan()
-        val activeGatt = bluetoothGatt
+        autoReconnectEnabled = false
+        handler.removeCallbacks(reconnectTask)
 
+        val activeGatt = bluetoothGatt
+        bluetoothGatt = null
         if (activeGatt != null) {
             try {
                 activeGatt.disconnect()
             } catch (_: SecurityException) {
-                // Close below still releases the local GATT object.
+                // Closing below still releases the local GATT object.
             }
             handler.postDelayed({
-                if (bluetoothGatt === activeGatt) {
-                    try {
-                        activeGatt.close()
-                    } catch (_: SecurityException) {
-                        // Nothing else can be done if permission was revoked.
-                    }
-                    bluetoothGatt = null
+                try {
+                    activeGatt.close()
+                } catch (_: SecurityException) {
+                    // Nothing else can be done if permission was revoked.
                 }
-            }, 400L)
+            }, 350L)
+        }
+
+        if (forgetDevice) {
+            preferences.edit()
+                .remove(KEY_DEVICE_NAME)
+                .remove(KEY_DEVICE_ADDRESS)
+                .apply()
         }
 
         mutableState.update {
             it.copy(
                 isConnecting = false,
+                isReconnecting = false,
                 connectedDevice = null,
+                savedDevice = if (forgetDevice) null else it.savedDevice,
                 pendingDevice = null,
                 connectionMessage = if (forgetDevice) "Device removed" else "Disconnected",
                 discoveredServiceCount = 0,
@@ -382,23 +467,132 @@ class BleWatchManager(context: Context) {
         }
     }
 
-    @SuppressLint("MissingPermission")
-    fun release() {
-        handler.removeCallbacks(stopScanTask)
-        try {
-            adapter?.bluetoothLeScanner?.stopScan(scanCallback)
-        } catch (_: Exception) {
-            // The activity is closing; release the GATT handle regardless.
+    fun reconnectSavedDevice() {
+        if (mutableState.value.savedDevice == null) return
+        autoReconnectEnabled = true
+        if (companionPresenceMonitoring && !companionDevicePresent) {
+            mutableState.update {
+                it.copy(
+                    isReconnecting = true,
+                    connectionMessage = "Waiting for your watch to come into range"
+                )
+            }
+            return
         }
-        bluetoothGatt?.let {
-            try {
-                it.disconnect()
-                it.close()
-            } catch (_: Exception) {
-                // Best-effort cleanup during Activity destruction.
+        reconnectAttempts = 0
+        scheduleReconnect(250L)
+    }
+
+    fun setCompanionPresenceMonitoring(enabled: Boolean) {
+        companionPresenceMonitoring = enabled
+        if (enabled) {
+            companionDevicePresent = false
+            handler.removeCallbacks(reconnectTask)
+            mutableState.update {
+                it.copy(
+                    isReconnecting = it.savedDevice != null,
+                    connectionMessage = if (it.savedDevice != null) {
+                        "Waiting for your watch to come into range"
+                    } else {
+                        it.connectionMessage
+                    }
+                )
             }
         }
+    }
+
+    fun onCompanionDeviceAppeared() {
+        companionPresenceMonitoring = true
+        companionDevicePresent = true
+        autoReconnectEnabled = mutableState.value.savedDevice != null
+        reconnectAttempts = 0
+        if (autoReconnectEnabled && !mutableState.value.isConnected && !mutableState.value.isConnecting) {
+            scheduleReconnect(250L)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun onCompanionDeviceDisappeared() {
+        companionPresenceMonitoring = true
+        companionDevicePresent = false
+        handler.removeCallbacks(reconnectTask)
+        val activeGatt = bluetoothGatt
         bluetoothGatt = null
+        if (activeGatt != null) {
+            try {
+                activeGatt.disconnect()
+            } catch (_: SecurityException) {
+                // The watch is already out of range or permission was revoked.
+            }
+            handler.postDelayed({
+                try {
+                    activeGatt.close()
+                } catch (_: SecurityException) {
+                    // Best-effort cleanup.
+                }
+            }, 300L)
+        }
+        mutableState.update {
+            it.copy(
+                isConnecting = false,
+                isReconnecting = it.savedDevice != null,
+                connectedDevice = null,
+                pendingDevice = null,
+                connectionMessage = if (it.savedDevice != null) {
+                    "Watch out of range · waiting to reconnect"
+                } else {
+                    it.connectionMessage
+                },
+                discoveredServiceCount = 0,
+                errorMessage = null
+            )
+        }
+    }
+
+    private fun saveDevice(device: WatchDevice) {
+        preferences.edit()
+            .putString(KEY_DEVICE_NAME, device.name)
+            .putString(KEY_DEVICE_ADDRESS, device.address)
+            .apply()
+        mutableState.update { it.copy(savedDevice = device) }
+    }
+
+    private fun readSavedDevice(): WatchDevice? {
+        val address = preferences.getString(KEY_DEVICE_ADDRESS, null)
+            ?.takeIf { it.isNotBlank() } ?: return null
+        val name = preferences.getString(KEY_DEVICE_NAME, null)
+            ?.takeIf { it.isNotBlank() } ?: "My watch"
+        return WatchDevice(name = name, address = address, rssi = 0)
+    }
+
+    private fun scheduleReconnect(delayMs: Long) {
+        if (!autoReconnectEnabled) return
+        if (companionPresenceMonitoring && !companionDevicePresent) return
+        handler.removeCallbacks(reconnectTask)
+        mutableState.update {
+            it.copy(
+                isReconnecting = it.savedDevice != null && !it.isConnected,
+                connectionMessage = if (it.savedDevice != null && !it.isConnected) {
+                    "Connection lost · reconnecting"
+                } else {
+                    it.connectionMessage
+                }
+            )
+        }
+        handler.postDelayed(reconnectTask, delayMs)
+    }
+
+    private fun nextReconnectDelay(): Long {
+        val delays = longArrayOf(2_000L, 5_000L, 12_000L, 30_000L, MAX_RECONNECT_DELAY_MS)
+        val index = min(reconnectAttempts, delays.lastIndex)
+        reconnectAttempts = (reconnectAttempts + 1).coerceAtMost(delays.lastIndex)
+        return delays[index]
+    }
+
+    @SuppressLint("MissingPermission")
+    fun release() {
+        // Activity destruction must not drop the saved watch connection.
+        stopScan()
     }
 
     @SuppressLint("MissingPermission")
@@ -408,7 +602,20 @@ class BleWatchManager(context: Context) {
         null
     }
 
-    private companion object {
-        const val SCAN_WINDOW_MS = 15_000L
+    companion object {
+        private const val SCAN_WINDOW_MS = 15_000L
+        private const val WATCH_PREFERENCES = "plum-watch-saved-device"
+        private const val KEY_DEVICE_NAME = "device-name"
+        private const val KEY_DEVICE_ADDRESS = "device-address"
+        private const val INITIAL_RECONNECT_DELAY_MS = 1_500L
+        private const val MAX_RECONNECT_DELAY_MS = 60_000L
+
+        @Volatile
+        private var instance: BleWatchManager? = null
+
+        fun getInstance(context: Context): BleWatchManager =
+            instance ?: synchronized(this) {
+                instance ?: BleWatchManager(context.applicationContext).also { instance = it }
+            }
     }
 }
