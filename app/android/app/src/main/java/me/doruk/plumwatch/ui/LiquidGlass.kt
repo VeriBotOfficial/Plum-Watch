@@ -34,9 +34,13 @@ val LocalLiquidBackdrop = staticCompositionLocalOf<Backdrop?> { null }
  * The app background is a single theme color. The recorded layer exists only
  * to let Kyant's original Liquid Glass controls refract the content behind them.
  *
- * .layerBackdrop() is applied to the host surface only when glass is enabled.
- * Individual glass controls (LiquidButton, LiquidToggle, LiquidBottomTabs) use
- * drawBackdrop() via LocalLiquidBackdrop to render real blur/vibrancy/lens effects.
+ * rememberLayerBackdrop() is always called (not wrapped in remember {}) so
+ * individual glass controls (LiquidToggle, LiquidButton, LiquidBottomTabs)
+ * always have a backdrop object to use via drawBackdrop().
+ *
+ * .layerBackdrop() is only applied to the host surface when glass is enabled,
+ * which avoids the native SIGSEGV crash in RenderThread on some devices
+ * while still letting glass controls render blur/vibrancy/lens effects.
  */
 @Composable
 fun LiquidGlassHost(
@@ -44,13 +48,14 @@ fun LiquidGlassHost(
     content: @Composable BoxScope.() -> Unit,
     overlay: @Composable BoxScope.() -> Unit
 ) {
-    // Call rememberLayerBackdrop() unconditionally for Compose state tracking stability.
-    val backdrop = if (enabled) rememberLayerBackdrop() else null
+    // Always call rememberLayerBackdrop() directly in composable context so
+    // glass controls can use it via LocalLiquidBackdrop.
+    val backdrop = rememberLayerBackdrop()
     Box(
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
+            .then(if (enabled) Modifier.layerBackdrop(backdrop) else Modifier)
     ) {
         CompositionLocalProvider(LocalLiquidBackdrop provides backdrop) {
             content()
