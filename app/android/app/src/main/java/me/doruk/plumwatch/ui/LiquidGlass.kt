@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,10 +40,11 @@ fun LiquidGlassHost(
     content: @Composable BoxScope.() -> Unit,
     overlay: @Composable BoxScope.() -> Unit
 ) {
-    if (enabled) {
-        val backdrop = rememberLayerBackdrop()
-        Box(Modifier.fillMaxSize()) {
-            CompositionLocalProvider(LocalLiquidBackdrop provides backdrop) {
+    // rememberLayerBackdrop must be called unconditionally for Compose state tracking.
+    val backdrop = remember { rememberLayerBackdrop() }
+    Box(Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalLiquidBackdrop provides if (enabled) backdrop else null) {
+            if (enabled) {
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -51,19 +53,16 @@ fun LiquidGlassHost(
                 ) {
                     content()
                 }
-                overlay()
+            } else {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
+                    content()
+                }
             }
-        }
-    } else {
-        CompositionLocalProvider(LocalLiquidBackdrop provides null) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-            ) {
-                content()
-                overlay()
-            }
+            overlay()
         }
     }
 }

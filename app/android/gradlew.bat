@@ -12,6 +12,6 @@ if not exist "%PLUM_GRADLE_HOME%\bin\gradle.bat" (
     if errorlevel 1 exit /b 1
 )
 
-call "%PLUM_GRADLE_HOME%\bin\gradle.bat" -p "%~dp0" %*
+call "%PLUM_GRADLE_HOME%\bin\gradle.bat" -p "%~dp0." %*
 set "PLUM_EXIT=%ERRORLEVEL%"
 endlocal & exit /b %PLUM_EXIT%
