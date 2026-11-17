@@ -36,17 +36,34 @@ val LocalLiquidBackdrop = staticCompositionLocalOf<Backdrop?> { null }
 @Composable
 fun LiquidGlassHost(
     enabled: Boolean,
-    content: @Composable BoxScope.() -> Unit
+    content: @Composable BoxScope.() -> Unit,
+    overlay: @Composable BoxScope.() -> Unit
 ) {
-    val backdrop = if (enabled) rememberLayerBackdrop() else null
-    val background = Modifier
-        .fillMaxSize()
-        .background(MaterialTheme.colorScheme.background)
-        .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
-
-    Box(background) {
-        CompositionLocalProvider(LocalLiquidBackdrop provides backdrop) {
-            content()
+    if (enabled) {
+        val backdrop = rememberLayerBackdrop()
+        Box(Modifier.fillMaxSize()) {
+            CompositionLocalProvider(LocalLiquidBackdrop provides backdrop) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .layerBackdrop(backdrop)
+                ) {
+                    content()
+                }
+                overlay()
+            }
+        }
+    } else {
+        CompositionLocalProvider(LocalLiquidBackdrop provides null) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                content()
+                overlay()
+            }
         }
     }
 }
