@@ -13,6 +13,13 @@ data class AppUpdateInfo(
     val sha256: String
 )
 
+data class AppUpdateDownloadState(
+    val isDownloading: Boolean = false,
+    val progress: Float? = null,
+    val isOpeningInstaller: Boolean = false,
+    val errorMessage: String? = null
+)
+
 sealed interface AppUpdateCheckResult {
     data class UpToDate(val versionName: String) : AppUpdateCheckResult
     data class UpdateAvailable(val update: AppUpdateInfo) : AppUpdateCheckResult
