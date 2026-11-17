@@ -146,10 +146,9 @@ private fun WatchfaceInfoState(
     action: String? = null,
     onAction: (() -> Unit)? = null
 ) {
-    LiquidGlassSurface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        fillAlpha = 0.10f
     ) {
         Column(
             modifier = Modifier
@@ -208,10 +207,9 @@ private fun WatchfaceCard(
     watchface: Watchface,
     onDownload: () -> Unit
 ) {
-    LiquidGlassSurface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(27.dp),
-        fillAlpha = 0.10f
     ) {
         Column {
             WatchfacePreview(
@@ -234,18 +232,11 @@ private fun WatchfaceCard(
                     fontWeight = FontWeight.SemiBold
                 )
 
-                Button(
-                    onClick = onDownload,
-                    shape = RoundedCornerShape(15.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                ) {
-                    Icon(Icons.Outlined.Download, contentDescription = null)
-                    Text("Download", modifier = Modifier.padding(start = 6.dp))
-                }
-            }
+                PlumActionButton(
+                    label = "Download",
+                    icon = Icons.Outlined.Download,
+                    onClick = onDownload
+                )
         }
     }
 }
