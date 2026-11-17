@@ -52,6 +52,15 @@ class MainActivity : ComponentActivity() {
         getSharedPreferences(PREF_COMPANION, MODE_PRIVATE)
     }
     private var pendingAssociationDevice: WatchDevice? = null
+    private var pendingNotificationUpdate: AppUpdateInfo? = null
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val update = pendingNotificationUpdate
+        pendingNotificationUpdate = null
+        if (update != null) publishUpdateNotification(update, granted)
+    }
 
     private val associationLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -419,11 +428,32 @@ class MainActivity : ComponentActivity() {
         val previouslyNotified = updatePreferences.getInt(KEY_NOTIFIED_UPDATE_VERSION, -1)
         if (previouslyNotified >= update.versionCode) return
 
-        val notificationsAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED &&
+            !updatePreferences.getBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, false)
+        ) {
+            pendingNotificationUpdate = update
+            updatePreferences.edit()
+                .putBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, true)
+                .apply()
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            return
+        }
 
-        if (notificationsAllowed && NotificationManagerCompat.from(this).areNotificationsEnabled()) {
+        publishUpdateNotification(
+            update,
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    private fun publishUpdateNotification(update: AppUpdateInfo, permissionGranted: Boolean) {
+        val notificationsAllowed = permissionGranted &&
+            NotificationManagerCompat.from(this).areNotificationsEnabled()
+
+        if (notificationsAllowed) {
             val openAppIntent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra(EXTRA_OPEN_SETTINGS, true)
@@ -760,6 +790,7 @@ class MainActivity : ComponentActivity() {
         const val KEY_DOWNLOAD_ID = "active-update-download-id"
         const val KEY_EXPECTED_SHA256 = "active-update-sha256"
         const val KEY_NOTIFIED_UPDATE_VERSION = "last-notified-update-version"
+        const val KEY_NOTIFICATION_PERMISSION_REQUESTED = "notification-permission-requested"
         const val PREF_COMPANION = "plum-watch-companion"
         const val KEY_COMPANION_ASSOCIATION_ID = "association-id"
         const val KEY_COMPANION_ADDRESS = "device-address"
