@@ -181,42 +181,56 @@ private fun FloatingNavigationBar(
     Surface(
         modifier = modifier
             .widthIn(max = 360.dp)
-            .fillMaxWidth(0.84f)
-            .height(72.dp),
+            .fillMaxWidth(0.86f)
+            .height(76.dp),
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.91f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
         border = BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.outline.copy(alpha = 0.46f)
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.62f)
         ),
-        shadowElevation = 18.dp
+        shadowElevation = 24.dp
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            NavigationItem(
-                page = AppPage.WATCH,
-                selectedPage = selectedPage,
-                icon = Icons.Outlined.Watch,
-                onSelect = onSelect,
-                modifier = Modifier.weight(1f)
+        Box(modifier = Modifier.fillMaxSize()) {
+            // A restrained inner rim gives the translucent bar a glass-like edge.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 46.dp, vertical = 1.dp)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color.White.copy(alpha = 0.28f), CircleShape)
             )
-            NavigationItem(
-                page = AppPage.WATCHFACES,
-                selectedPage = selectedPage,
-                icon = Icons.Outlined.GridView,
-                onSelect = onSelect,
-                modifier = Modifier.weight(1f)
-            )
-            NavigationItem(
-                page = AppPage.SETTINGS,
-                selectedPage = selectedPage,
-                icon = Icons.Outlined.Settings,
-                onSelect = onSelect,
-                modifier = Modifier.weight(1f)
-            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 7.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                NavigationItem(
+                    page = AppPage.WATCH,
+                    selectedPage = selectedPage,
+                    icon = Icons.Outlined.Watch,
+                    onSelect = onSelect,
+                    modifier = Modifier.weight(1f)
+                )
+                NavigationItem(
+                    page = AppPage.WATCHFACES,
+                    selectedPage = selectedPage,
+                    icon = Icons.Outlined.GridView,
+                    onSelect = onSelect,
+                    modifier = Modifier.weight(1f)
+                )
+                NavigationItem(
+                    page = AppPage.SETTINGS,
+                    selectedPage = selectedPage,
+                    icon = Icons.Outlined.Settings,
+                    onSelect = onSelect,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
@@ -237,7 +251,12 @@ private fun NavigationItem(
             .height(58.dp)
             .clickable { onSelect(page) }
             .background(
-                color = if (selected) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f) else Color.Transparent,
+                color = if (selected) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f) else Color.Transparent,
+                shape = CircleShape
+            )
+            .border(
+                width = if (selected) 1.dp else 0.dp,
+                color = if (selected) MaterialTheme.colorScheme.outline.copy(alpha = 0.42f) else Color.Transparent,
                 shape = CircleShape
             )
             .padding(vertical = 7.dp),
