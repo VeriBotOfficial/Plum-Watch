@@ -29,9 +29,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,21 +79,17 @@ fun WatchfacesScreen() {
             .fillMaxWidth()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 23.dp)
-            .padding(top = 32.dp, bottom = 122.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 22.dp)
+            .padding(top = 27.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        PageHeader(
-            eyebrow = "PERSONALISE YOUR WATCH",
-            title = "Watchfaces",
-            subtitle = "A small collection of watchfaces, ready to install."
-        )
+        PageTitle("Watchfaces")
 
         when {
             loading -> Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(260.dp),
+                    .height(220.dp),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -102,19 +97,17 @@ fun WatchfacesScreen() {
 
             result is WatchfaceLibraryResult.PrivateOrUnavailable -> {
                 WatchfaceInfoState(
-                    title = "Library not public yet",
-                    description = "Plum-Watch is currently a private GitHub repository. The app does not contain a personal access token, so it cannot read private files. The catalogue will load when the watchface files are served from a public source.",
-                    action = "Try again",
+                    title = "Repository is private",
+                    action = "Refresh",
                     onAction = { scope.launch { refreshLibrary() } }
                 )
             }
 
             result is WatchfaceLibraryResult.Failed -> {
-                val message = (result as WatchfaceLibraryResult.Failed).message
                 WatchfaceInfoState(
-                    title = "Couldn't load the library",
-                    description = message,
-                    action = "Refresh",
+                    title = "Couldn't load watchfaces",
+                    detail = (result as WatchfaceLibraryResult.Failed).message,
+                    action = "Retry",
                     onAction = { scope.launch { refreshLibrary() } }
                 )
             }
@@ -122,31 +115,15 @@ fun WatchfacesScreen() {
             result is WatchfaceLibraryResult.Available -> {
                 val watchfaces = (result as WatchfaceLibraryResult.Available).watchfaces
                 if (watchfaces.isEmpty()) {
-                    WatchfaceInfoState(
-                        title = "No watchfaces yet",
-                        description = "New designs will appear here automatically. Add a folder inside watchfaces/ with a ZIP file and a preview image.",
-                        action = "Check again",
-                        onAction = { scope.launch { refreshLibrary() } }
-                    )
+                    WatchfaceInfoState(title = "No watchfaces yet")
                 } else {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Text(
-                            text = "${watchfaces.size} WATCHFACES",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 1.5.sp
-                        )
-                        OutlinedButton(
-                            onClick = { scope.launch { refreshLibrary() } },
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
+                        TextButton(onClick = { scope.launch { refreshLibrary() } }) {
                             Icon(Icons.Outlined.Refresh, contentDescription = null)
-                            Text("Refresh", modifier = Modifier.padding(start = 6.dp))
+                            Text("Refresh", modifier = Modifier.padding(start = 5.dp))
                         }
                     }
 
@@ -158,8 +135,6 @@ fun WatchfacesScreen() {
                     }
                 }
             }
-
-            else -> Unit
         }
     }
 }
@@ -167,34 +142,37 @@ fun WatchfacesScreen() {
 @Composable
 private fun WatchfaceInfoState(
     title: String,
-    description: String,
-    action: String,
-    onAction: () -> Unit
+    detail: String? = null,
+    action: String? = null,
+    onAction: (() -> Unit)? = null
 ) {
-    Surface(
+    LiquidGlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(30.dp),
-        color = MaterialTheme.colorScheme.surface
+        shape = RoundedCornerShape(28.dp),
+        fillAlpha = 0.10f
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 30.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 23.dp, vertical = 25.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .height(74.dp)
+                    .height(64.dp)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(21.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.74f))
+                        .padding(17.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Image,
                         contentDescription = null,
-                        modifier = Modifier.padding(20.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -203,24 +181,23 @@ private fun WatchfaceInfoState(
             Text(
                 text = title,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 21.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold
             )
-            Text(
-                text = description,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                lineHeight = 21.sp
-            )
-            Button(
-                onClick = onAction,
-                shape = RoundedCornerShape(17.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+
+            if (detail != null) {
+                Text(
+                    text = detail,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
                 )
-            ) {
-                Text(action)
+            }
+
+            if (action != null && onAction != null) {
+                TextButton(onClick = onAction) {
+                    Text(action)
+                }
             }
         }
     }
@@ -231,10 +208,10 @@ private fun WatchfaceCard(
     watchface: Watchface,
     onDownload: () -> Unit
 ) {
-    Surface(
+    LiquidGlassSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(27.dp),
-        color = MaterialTheme.colorScheme.surface
+        fillAlpha = 0.10f
     ) {
         Column {
             WatchfacePreview(
@@ -242,34 +219,24 @@ private fun WatchfaceCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)
+                    .clip(RoundedCornerShape(topStart = 27.dp, topEnd = 27.dp))
             )
 
             Row(
-                modifier = Modifier.padding(horizontal = 17.dp, vertical = 17.dp),
+                modifier = Modifier.padding(horizontal = 17.dp, vertical = 15.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
+                Text(
+                    text = watchface.name,
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Text(
-                        text = watchface.name,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "WATCHFACE ARCHIVE · ZIP",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 9.sp,
-                        letterSpacing = 1.1.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
 
                 Button(
                     onClick = onDownload,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(15.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -294,8 +261,11 @@ private fun WatchfacePreview(
                 val connection = URL(url).openConnection() as HttpURLConnection
                 connection.connectTimeout = 10_000
                 connection.readTimeout = 12_000
-                connection.inputStream.use { BitmapFactory.decodeStream(it) }
-                    .also { connection.disconnect() }
+                try {
+                    connection.inputStream.use { BitmapFactory.decodeStream(it) }
+                } finally {
+                    connection.disconnect()
+                }
             }.getOrNull()
         }
     }
@@ -303,7 +273,7 @@ private fun WatchfacePreview(
     if (bitmap != null) {
         Image(
             bitmap = bitmap!!.asImageBitmap(),
-            contentDescription = "Preview of the ${url.substringAfterLast('/')} watchface",
+            contentDescription = "Watchface preview",
             modifier = modifier,
             contentScale = ContentScale.Crop
         )
@@ -314,7 +284,7 @@ private fun WatchfacePreview(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Image,
-                contentDescription = "Watchface preview",
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -326,7 +296,7 @@ private fun downloadWatchface(context: Context, watchface: Watchface) {
         val safeName = watchface.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
         val request = DownloadManager.Request(Uri.parse(watchface.archiveUrl))
             .setTitle("${watchface.name}.zip")
-            .setDescription("Downloading to Downloads/Plum Watchfaces")
+            .setDescription("Downloading watchface")
             .setNotificationVisibility(
                 DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
             )
@@ -341,7 +311,7 @@ private fun downloadWatchface(context: Context, watchface: Watchface) {
     } catch (exception: Exception) {
         Toast.makeText(
             context,
-            exception.message ?: "Could not start the download.",
+            exception.message ?: "Could not start download",
             Toast.LENGTH_LONG
         ).show()
     }
