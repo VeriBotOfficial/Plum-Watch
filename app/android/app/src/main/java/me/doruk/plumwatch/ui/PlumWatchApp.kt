@@ -229,10 +229,12 @@ private fun FloatingNavigationBar(
     modifier: Modifier = Modifier
 ) {
     val pages = AppPage.values()
+    val selectedIndex = pages.indexOf(selectedPage).coerceAtLeast(0)
+    val selectedTabIndex = remember(selectedIndex) { { selectedIndex } }
 
     if (useGlass && backdrop != null) {
         LiquidBottomTabs(
-            selectedTabIndex = { pages.indexOf(selectedPage).coerceAtLeast(0) },
+            selectedTabIndex = selectedTabIndex,
             onTabSelected = { index -> pages.getOrNull(index)?.let(onSelect) },
             backdrop = backdrop,
             tabsCount = pages.size,
