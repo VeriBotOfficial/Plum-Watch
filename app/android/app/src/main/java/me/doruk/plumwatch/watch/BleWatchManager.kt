@@ -465,7 +465,7 @@ class BleWatchManager(context: Context) {
             preferences.edit()
                 .remove(KEY_DEVICE_NAME)
                 .remove(KEY_DEVICE_ADDRESS)
-                .apply()
+                .commit()
         }
 
         mutableState.update {
@@ -500,7 +500,7 @@ class BleWatchManager(context: Context) {
         preferences.edit()
             .putString(KEY_DEVICE_NAME, device.name)
             .putString(KEY_DEVICE_ADDRESS, device.address)
-            .apply()
+            .commit()
     }
 
     private fun readSavedDevice(): WatchDevice? {
