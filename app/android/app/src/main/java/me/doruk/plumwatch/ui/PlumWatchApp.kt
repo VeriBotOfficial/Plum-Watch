@@ -212,6 +212,7 @@ fun PlumWatchApp(
                 )
             }
         )
+    }
 }
 
 @Composable
