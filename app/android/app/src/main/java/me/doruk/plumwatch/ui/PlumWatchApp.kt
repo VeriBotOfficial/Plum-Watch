@@ -139,7 +139,7 @@ fun PlumWatchApp(
                 updateMessage = "Checking GitHub…"
                 try {
                     delay(Random.nextLong(500L, 1_001L))
-                    when (val result = AppUpdateRepository.check(currentVersionCode)) {
+                    when (val result = AppUpdateRepository.check(currentVersionName, currentVersionCode)) {
                         is AppUpdateCheckResult.UpToDate -> {
                             updateMessage = "You're up to date"
                         }
@@ -248,9 +248,7 @@ fun PlumWatchApp(
                                 state = watchState,
                                 onStartScan = startScan,
                                 onStopScan = watchManager::stopScan,
-                                onConnect = { device ->
-                                    watchManager.connect(device)
-                                },
+                                onConnect = watchManager::connect,
                                 onReconnect = watchManager::reconnectSavedDevice,
                                 onRemoveWatch = onRemoveWatch,
                                 onOpenWatchfaces = { page = AppPage.WATCHFACES }
