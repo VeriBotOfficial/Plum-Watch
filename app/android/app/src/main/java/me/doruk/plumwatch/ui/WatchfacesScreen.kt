@@ -237,6 +237,7 @@ private fun WatchfaceCard(
                     icon = Icons.Outlined.Download,
                     onClick = onDownload
                 )
+            }
         }
     }
 }
