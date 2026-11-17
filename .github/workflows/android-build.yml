@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: android-build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -49,8 +49,9 @@ jobs:
       - name: Compute yearly app version
         shell: bash
         run: |
+          git fetch origin main
           VERSION_YEAR="$(TZ=Europe/Istanbul date +%y)"
-          PREVIOUS_VERSION="$(jq -r '.versionName // empty' app/android/build/update.json 2>/dev/null || true)"
+          PREVIOUS_VERSION="$(git show origin/main:app/android/build/update.json 2>/dev/null | jq -r '.versionName // empty' || true)"
           MINOR=0
           PATCH=1
 
@@ -108,12 +109,13 @@ jobs:
       - name: Publish latest APK to repository
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.signing.outputs.configured == 'true'
         run: |
-          mkdir -p app/android/build
-          cp app/android/app/build/outputs/apk/debug/app-debug.apk app/android/build/plum-watch-debug.apk
+          APK_FILE="$RUNNER_TEMP/plum-watch-debug.apk"
+          UPDATE_FILE="$RUNNER_TEMP/update.json"
+          cp app/android/app/build/outputs/apk/debug/app-debug.apk "$APK_FILE"
           VERSION_NAME="$PLUM_VERSION_NAME"
           VERSION_CODE="${GITHUB_RUN_NUMBER}"
-          SHA256=$(sha256sum app/android/build/plum-watch-debug.apk | cut -d " " -f 1)
-          cat > app/android/build/update.json <<EOF
+          SHA256=$(sha256sum "$APK_FILE" | cut -d " " -f 1)
+          cat > "$UPDATE_FILE" <<EOF
           {
             "versionName": "$VERSION_NAME",
             "versionCode": $VERSION_CODE,
@@ -121,18 +123,27 @@ jobs:
             "sha256": "$SHA256"
           }
           EOF
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Publish on top of the latest main, not the possibly stale event checkout.
+          git fetch origin main
+          git reset --hard origin/main
+          mkdir -p app/android/build
+          cp "$APK_FILE" app/android/build/plum-watch-debug.apk
+          cp "$UPDATE_FILE" app/android/build/update.json
           git add -f app/android/build/plum-watch-debug.apk app/android/build/update.json
+
           if git diff --cached --quiet; then
             echo "APK is unchanged; no repository update needed."
           else
             git commit -m "[skip ci] Publish latest Android APK"
-            git push
+            git push origin HEAD:main
           fi
 
       - name: Upload stable debug APK artifact
-        if: steps.signing.outputs.configured == 'true'
+        if: always() && steps.signing.outputs.configured == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: plum-watch-debug-apk
