@@ -14,18 +14,16 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
-import com.wexpa.liquidglass.LiquidGlassTheme
-import com.wexpa.liquidglass.material3.Button as GlassButton
-import com.wexpa.liquidglass.material3.GlassMaterialDefaults
-import com.wexpa.liquidglass.material3.Surface as GlassSurface
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 /**
- * The root glass theme is present in both interface modes because the appearance switch
- * remains a library glass control even while the rest of the interface is Classic.
+ * The only Liquid Glass backdrop in Plum Watch is used by the floating navigation bar.
+ * Cards, tiles, dialogs and regular buttons deliberately remain ordinary Material 3 UI.
  */
-val LocalLiquidGlassEnabled = staticCompositionLocalOf { false }
+val LocalLiquidBackdrop = staticCompositionLocalOf<Backdrop?> { null }
 
 @Composable
 fun LiquidGlassHost(
@@ -33,54 +31,41 @@ fun LiquidGlassHost(
     content: @Composable BoxScope.() -> Unit,
     overlay: @Composable BoxScope.() -> Unit
 ) {
-    val scheme = MaterialTheme.colorScheme
-    val background = scheme.background
+    val backdrop = rememberLayerBackdrop()
+    val background = MaterialTheme.colorScheme.background
 
-    LiquidGlassTheme(
-        dark = background.luminance() < 0.5f,
-        background = background
+    CompositionLocalProvider(
+        LocalLiquidBackdrop provides if (enabled) backdrop else null
     ) {
-        CompositionLocalProvider(LocalLiquidGlassEnabled provides enabled) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(background)
-            ) {
-                content()
-                overlay()
-            }
+                    .then(if (enabled) Modifier.layerBackdrop(backdrop) else Modifier),
+                content = content
+            )
+            overlay()
         }
     }
 }
 
-/** Library frosted panel in Glass mode; ordinary Material surface in Classic mode. */
 @Composable
 fun AppSurface(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(24.dp),
     content: @Composable BoxScope.() -> Unit
 ) {
-    if (LocalLiquidGlassEnabled.current) {
-        GlassSurface(
-            modifier = modifier,
-            shape = shape,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ) {
-            Box(content = content)
-        }
-    } else {
-        MaterialSurface(
-            modifier = modifier,
-            shape = shape,
-            color = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ) {
-            Box(content = content)
-        }
+    MaterialSurface(
+        modifier = modifier,
+        shape = shape,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    ) {
+        Box(content = content)
     }
 }
 
-/** Interactive library surface for selectable tiles and appearance choices. */
 @Composable
 fun AppClickableSurface(
     onClick: () -> Unit,
@@ -89,31 +74,18 @@ fun AppClickableSurface(
     enabled: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
-    if (LocalLiquidGlassEnabled.current) {
-        GlassSurface(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shape,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ) {
-            Box(content = content)
-        }
-    } else {
-        MaterialSurface(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shape,
-            color = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ) {
-            Box(content = content)
-        }
+    MaterialSurface(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = shape,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    ) {
+        Box(content = content)
     }
 }
 
-/** Prominent library button in Glass mode, Material 3 button in Classic mode. */
 @Composable
 fun PlumActionButton(
     label: String,
@@ -122,41 +94,22 @@ fun PlumActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     enabled: Boolean = true
 ) {
-    if (LocalLiquidGlassEnabled.current) {
-        GlassButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = RoundedCornerShape(16.dp),
-            glass = GlassMaterialDefaults.prominent(),
+    MaterialButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = MaterialButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary
-        ) {
-            if (icon != null) {
-                androidx.compose.material3.Icon(icon, contentDescription = null)
-            }
-            androidx.compose.material3.Text(
-                text = label,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
-            )
+        )
+    ) {
+        if (icon != null) {
+            androidx.compose.material3.Icon(icon, contentDescription = null)
         }
-    } else {
-        MaterialButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = modifier,
-            shape = RoundedCornerShape(16.dp),
-            colors = MaterialButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
-        ) {
-            if (icon != null) {
-                androidx.compose.material3.Icon(icon, contentDescription = null)
-            }
-            androidx.compose.material3.Text(
-                text = label,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
-            )
-        }
+        androidx.compose.material3.Text(
+            text = label,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+        )
     }
 }
