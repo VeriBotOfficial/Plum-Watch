@@ -6,7 +6,7 @@ A lightweight Android companion app for HK-series watches. This project is the a
 
 ### Requirements
 
-- Android Studio Panda 3 or newer
+- A current Android Studio release compatible with Android Gradle Plugin 9.1.1
 - JDK 17
 - Android SDK Platform 37
 - Android SDK Build-Tools 36.0.0
