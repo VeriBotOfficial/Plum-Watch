@@ -48,6 +48,31 @@ jobs:
             ln -s "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"
           fi
 
+      - name: Compute yearly app version
+        shell: bash
+        run: |
+          VERSION_YEAR="$(TZ=Europe/Istanbul date +%y)"
+          PREVIOUS_VERSION="$(jq -r '.versionName // empty' app/android/build/update.json 2>/dev/null || true)"
+          MINOR=0
+          PATCH=1
+
+          if [[ "$PREVIOUS_VERSION" =~ ^([0-9]{2})\.([0-9]+)\.([0-9]+)$ ]]; then
+            PREVIOUS_YEAR="${BASH_REMATCH[1]}"
+            if [ "$PREVIOUS_YEAR" = "$VERSION_YEAR" ]; then
+              MINOR="${BASH_REMATCH[2]}"
+              PATCH="${BASH_REMATCH[3]}"
+              PATCH=$((PATCH + 1))
+              if [ "$PATCH" -ge 10 ]; then
+                MINOR=$((MINOR + 1))
+                PATCH=0
+              fi
+            fi
+          fi
+
+          VERSION_NAME="$VERSION_YEAR.$MINOR.$PATCH"
+          echo "PLUM_VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "Building Plum Watch $VERSION_NAME (version code $GITHUB_RUN_NUMBER)"
+
       - name: Prepare persistent APK signing key
         id: signing
         env:
@@ -76,7 +101,6 @@ jobs:
       - name: Build debug APK
         env:
           PLUM_VERSION_CODE: ${{ github.run_number }}
-          PLUM_VERSION_NAME: 0.1.${{ github.run_number }}
           PLUM_SIGNING_STORE_PASSWORD: ${{ secrets.PLUM_SIGNING_STORE_PASSWORD }}
           PLUM_SIGNING_KEY_ALIAS: ${{ secrets.PLUM_SIGNING_KEY_ALIAS }}
           PLUM_SIGNING_KEY_PASSWORD: ${{ secrets.PLUM_SIGNING_KEY_PASSWORD }}
@@ -88,7 +112,7 @@ jobs:
         run: |
           mkdir -p app/android/build
           cp app/android/app/build/outputs/apk/debug/app-debug.apk app/android/build/plum-watch-debug.apk
-          VERSION_NAME="0.1.${GITHUB_RUN_NUMBER}"
+          VERSION_NAME="$PLUM_VERSION_NAME"
           VERSION_CODE="${GITHUB_RUN_NUMBER}"
           SHA256=$(sha256sum app/android/build/plum-watch-debug.apk | cut -d " " -f 1)
           cat > app/android/build/update.json <<EOF

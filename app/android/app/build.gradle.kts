@@ -22,7 +22,7 @@ android {
         minSdk = 26
         targetSdk = 37
         versionCode = System.getenv("PLUM_VERSION_CODE")?.toIntOrNull() ?: 1
-        versionName = System.getenv("PLUM_VERSION_NAME") ?: "0.1.0"
+        versionName = System.getenv("PLUM_VERSION_NAME") ?: "${java.time.Year.now().value % 100}.0.1"
     }
 
     signingConfigs {

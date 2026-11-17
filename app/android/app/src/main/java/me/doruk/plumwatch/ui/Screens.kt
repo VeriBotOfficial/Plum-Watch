@@ -1,12 +1,16 @@
 package me.doruk.plumwatch.ui
 
+import android.content.Context
+import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +58,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,8 +66,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -71,6 +79,11 @@ import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.WatchDevice
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 @Composable
 fun PageTitle(title: String) {
@@ -717,8 +730,8 @@ fun SettingsScreen(
                         .padding(19.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    DeveloperRow("Doruk Çavdar")
-                    DeveloperRow("Troy Mitchell")
+                    DeveloperRow("Doruk Çavdar", "VeriBotOfficial")
+                    DeveloperRow("Troy Mitchell", "TroyMitchell911")
                 }
             }
         }
@@ -864,23 +877,38 @@ private fun ThemeChoice(
 }
 
 @Composable
-private fun DeveloperRow(name: String) {
+private fun DeveloperRow(name: String, githubUsername: String) {
+    val context = LocalContext.current
+    var avatar by remember(githubUsername) { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(githubUsername) {
+        avatar = loadGitHubAvatar(context, githubUsername)
+    }
+
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
                 .size(31.dp)
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f),
-                    CircleShape
-                ),
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                name.take(1),
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            val profileImage = avatar
+            if (profileImage != null) {
+                Image(
+                    bitmap = profileImage,
+                    contentDescription = "$name GitHub profile picture",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Text(
+                    name.take(1),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
         Spacer(Modifier.width(10.dp))
         Text(
@@ -891,6 +919,55 @@ private fun DeveloperRow(name: String) {
         )
     }
 }
+
+private suspend fun loadGitHubAvatar(
+    context: Context,
+    username: String
+): ImageBitmap? = withContext(Dispatchers.IO) {
+    val cacheDirectory = File(context.filesDir, "github-avatar-cache")
+    if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) {
+        return@withContext null
+    }
+
+    val cacheFile = File(cacheDirectory, "$username.png")
+    val cacheIsStale = !cacheFile.exists() ||
+        System.currentTimeMillis() - cacheFile.lastModified() > GITHUB_AVATAR_CACHE_MAX_AGE_MS
+
+    if (cacheIsStale) {
+        var connection: HttpURLConnection? = null
+        try {
+            val request = (URL("https://github.com/$username.png?size=160")
+                .openConnection() as HttpURLConnection)
+            connection = request
+            request.connectTimeout = 8_000
+            request.readTimeout = 8_000
+            request.instanceFollowRedirects = true
+            request.setRequestProperty("User-Agent", "Plum-Watch-Android")
+            request.setRequestProperty("Accept", "image/png,image/*;q=0.8")
+
+            if (request.responseCode in 200..299) {
+                val imageBytes = request.inputStream.use { it.readBytes() }
+                if (imageBytes.isNotEmpty() && imageBytes.size <= MAX_GITHUB_AVATAR_BYTES) {
+                    val temporaryFile = File(cacheDirectory, "$username.tmp")
+                    temporaryFile.writeBytes(imageBytes)
+                    if (!temporaryFile.renameTo(cacheFile)) {
+                        temporaryFile.delete()
+                        cacheFile.writeBytes(imageBytes)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // Keep showing the last cached profile picture when GitHub is unavailable.
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    BitmapFactory.decodeFile(cacheFile.absolutePath)?.asImageBitmap()
+}
+
+private const val GITHUB_AVATAR_CACHE_MAX_AGE_MS = 7L * 24 * 60 * 60 * 1_000
+private const val MAX_GITHUB_AVATAR_BYTES = 2 * 1024 * 1024
 
 
 @Composable
