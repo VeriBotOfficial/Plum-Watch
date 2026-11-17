@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+set -eu
+
+VERSION="9.3.1"
+BASE="${GRADLE_USER_HOME:-$HOME/.gradle}/plum-bootstrap"
+GRADLE_HOME="$BASE/gradle-$VERSION"
+APP_HOME="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+
+if [ ! -x "$GRADLE_HOME/bin/gradle" ]; then
+    mkdir -p "$BASE"
+    ARCHIVE="$BASE/gradle-$VERSION-bin.zip"
+
+    if command -v curl >/dev/null 2>&1; then
+        curl -fL "https://services.gradle.org/distributions/gradle-$VERSION-bin.zip" -o "$ARCHIVE"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -O "$ARCHIVE" "https://services.gradle.org/distributions/gradle-$VERSION-bin.zip"
+    else
+        echo "Install curl or wget to download Gradle." >&2
+        exit 1
+    fi
+
+    if command -v unzip >/dev/null 2>&1; then
+        unzip -q "$ARCHIVE" -d "$BASE"
+    else
+        echo "Install unzip to extract Gradle." >&2
+        exit 1
+    fi
+    rm -f "$ARCHIVE"
+fi
+
+exec "$GRADLE_HOME/bin/gradle" -p "$APP_HOME" "$@"
