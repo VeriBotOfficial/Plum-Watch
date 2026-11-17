@@ -30,17 +30,18 @@ jobs:
           cache: gradle
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+          accept-android-sdk-licenses: yes
+          log-accepted-android-sdk-licenses: false
 
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
 
       - name: Build debug APK
         working-directory: app/android
-        run: sh ./gradlew assembleDebug
+        run: sh ./gradlew --no-daemon assembleDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
