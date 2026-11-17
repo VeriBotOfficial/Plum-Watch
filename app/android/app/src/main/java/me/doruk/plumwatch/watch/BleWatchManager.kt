@@ -343,6 +343,8 @@ class BleWatchManager(context: Context) {
     fun connect(device: WatchDevice) {
         autoReconnectEnabled = true
         reconnectAttempts = 0
+        persistSavedDevice(device)
+        mutableState.update { it.copy(savedDevice = device, errorMessage = null) }
         handler.removeCallbacks(reconnectTask)
         connectInternal(device, reconnecting = false)
     }
