@@ -9,6 +9,13 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -110,7 +117,7 @@ fun PlumWatchApp(
                 }
                 is AppUpdateCheckResult.UpdateAvailable -> {
                     availableUpdate = result.update
-                    updateMessage = "A new version is ready to install."
+                    updateMessage = "Version ${result.update.versionName} is available to install."
                     onUpdateAvailable(result.update)
                 }
                 is AppUpdateCheckResult.Failed -> {
@@ -138,7 +145,7 @@ fun PlumWatchApp(
                         }
                         is AppUpdateCheckResult.UpdateAvailable -> {
                             availableUpdate = result.update
-                            updateMessage = "A new version is ready to install."
+                            updateMessage = "Version ${result.update.versionName} is available to install."
                             onUpdateAvailable(result.update)
                         }
                         is AppUpdateCheckResult.Failed -> {
@@ -220,30 +227,48 @@ fun PlumWatchApp(
             enabled = uiStyle == "glass",
             content = {
                 Box(Modifier.fillMaxSize()) {
-                    when (page) {
-                        AppPage.WATCH -> MyWatchScreen(
-                            state = watchState,
-                            onStartScan = startScan,
-                            onStopScan = watchManager::stopScan,
-                            onConnect = watchManager::connect,
-                            onReconnect = watchManager::reconnectSavedDevice,
-                            onRemoveWatch = onRemoveWatch,
-                            onOpenWatchfaces = { page = AppPage.WATCHFACES }
-                        )
-                        AppPage.WATCHFACES -> WatchfacesScreen()
-                        AppPage.SETTINGS -> SettingsScreen(
-                            themeMode = themeMode,
-                            onThemeModeChange = onThemeModeChange,
-                            uiStyle = uiStyle,
-                            onUiStyleChange = onUiStyleChange,
-                            appVersion = currentVersionName,
-                            checkingUpdates = checkingUpdates,
-                            updateMessage = updateMessage,
-                            availableUpdate = availableUpdate,
-                            downloadState = updateDownloadState,
-                            onCheckUpdates = checkUpdates,
-                            onInstallUpdate = onInstallUpdate
-                        )
+                    AnimatedContent(
+                        targetState = page,
+                        modifier = Modifier.fillMaxSize(),
+                        transitionSpec = {
+                            (fadeIn(tween(260)) +
+                                slideInHorizontally(
+                                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                                    initialOffsetX = { width -> width / 18 }
+                                )) togetherWith
+                                (fadeOut(tween(190)) +
+                                    slideOutHorizontally(
+                                        animationSpec = tween(260, easing = FastOutSlowInEasing),
+                                        targetOffsetX = { width -> -width / 24 }
+                                    ))
+                        },
+                        label = "app-page-transition"
+                    ) { targetPage ->
+                        when (targetPage) {
+                            AppPage.WATCH -> MyWatchScreen(
+                                state = watchState,
+                                onStartScan = startScan,
+                                onStopScan = watchManager::stopScan,
+                                onConnect = watchManager::connect,
+                                onReconnect = watchManager::reconnectSavedDevice,
+                                onRemoveWatch = onRemoveWatch,
+                                onOpenWatchfaces = { page = AppPage.WATCHFACES }
+                            )
+                            AppPage.WATCHFACES -> WatchfacesScreen()
+                            AppPage.SETTINGS -> SettingsScreen(
+                                themeMode = themeMode,
+                                onThemeModeChange = onThemeModeChange,
+                                uiStyle = uiStyle,
+                                onUiStyleChange = onUiStyleChange,
+                                appVersion = currentVersionName,
+                                checkingUpdates = checkingUpdates,
+                                updateMessage = updateMessage,
+                                availableUpdate = availableUpdate,
+                                downloadState = updateDownloadState,
+                                onCheckUpdates = checkUpdates,
+                                onInstallUpdate = onInstallUpdate
+                            )
+                        }
                     }
                 }
             },
