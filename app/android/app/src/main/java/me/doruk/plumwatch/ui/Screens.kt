@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material.icons.outlined.Watch
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -59,6 +60,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.WatchDevice
+import me.doruk.plumwatch.ui.liquid.LiquidBottomTab
+import me.doruk.plumwatch.ui.liquid.LiquidBottomTabs
 
 @Composable
 fun PageTitle(title: String) {
@@ -118,10 +121,9 @@ fun MyWatchScreen(
         }
 
         if (state.errorMessage != null) {
-            LiquidGlassSurface(
+            AppSurface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
-                fillAlpha = 0.12f
             ) {
                 Text(
                     text = state.errorMessage,
@@ -207,10 +209,9 @@ private fun DisconnectedWatchCard(
     scanning: Boolean,
     onClick: () -> Unit
 ) {
-    LiquidGlassSurface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(30.dp),
-        fillAlpha = 0.10f
     ) {
         Column(
             modifier = Modifier
@@ -243,39 +244,23 @@ private fun DisconnectedWatchCard(
                 fontWeight = FontWeight.SemiBold
             )
 
-            Button(
+            PlumActionButton(
+                label = if (scanning) "Stop scanning" else "Connect a watch",
+                icon = if (scanning) null else Icons.Outlined.Bluetooth,
                 onClick = onClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(17.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                if (scanning) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                    Text("Stop scanning", modifier = Modifier.padding(start = 9.dp))
-                } else {
-                    Icon(Icons.Outlined.Bluetooth, contentDescription = null)
-                    Text("Connect a watch", modifier = Modifier.padding(start = 8.dp))
-                }
-            }
+                    .height(52.dp)
+            )
         }
     }
 }
 
 @Composable
 private fun ConnectingWatchCard(deviceName: String) {
-    LiquidGlassSurface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(27.dp),
-        fillAlpha = 0.10f
     ) {
         Row(
             modifier = Modifier.padding(22.dp),
@@ -309,10 +294,9 @@ private fun ConnectedWatchCard(
     device: WatchDevice,
     onRemove: () -> Unit
 ) {
-    LiquidGlassSurface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(29.dp),
-        fillAlpha = 0.11f
     ) {
         Column(
             modifier = Modifier
@@ -391,10 +375,9 @@ private fun NearbyDevicesSection(
         SectionHeading("Nearby devices")
 
         devices.forEach { device ->
-            LiquidGlassSurface(
+            AppSurface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(21.dp),
-                fillAlpha = 0.09f
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp),
@@ -450,12 +433,11 @@ private fun FeatureTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    LiquidGlassSurface(
+    AppSurface(
         modifier = modifier
             .height(96.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(22.dp),
-        fillAlpha = 0.09f
     ) {
         Column(
             modifier = Modifier
@@ -493,9 +475,12 @@ private fun SectionHeading(title: String) {
 fun SettingsScreen(
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
-    bluetoothSupported: Boolean,
-    bluetoothEnabled: Boolean,
-    isConnected: Boolean
+    uiStyle: String,
+    onUiStyleChange: (String) -> Unit,
+    appVersion: String,
+    checkingUpdates: Boolean,
+    updateMessage: String?,
+    onCheckUpdates: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -510,16 +495,15 @@ fun SettingsScreen(
 
         Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
             SectionHeading("Appearance")
-            LiquidGlassSurface(
+            AppSurface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(25.dp),
-                fillAlpha = 0.09f
+                shape = RoundedCornerShape(25.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(13.dp)
+                    verticalArrangement = Arrangement.spacedBy(15.dp)
                 ) {
                     Text(
                         "Theme",
@@ -550,90 +534,155 @@ fun SettingsScreen(
                             onClick = { onThemeModeChange("dark") }
                         )
                     }
+
+                    Text(
+                        "Interface",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    InterfaceStyleChoice(
+                        uiStyle = uiStyle,
+                        onUiStyleChange = onUiStyleChange
+                    )
                 }
             }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            SectionHeading("Device")
-            LiquidGlassSurface(
+            SectionHeading("App")
+            AppSurface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(23.dp),
-                fillAlpha = 0.09f
+                shape = RoundedCornerShape(24.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(18.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        Icons.Outlined.Bluetooth,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(23.dp)
-                    )
-                    Spacer(modifier = Modifier.width(13.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            "Bluetooth",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            when {
-                                !bluetoothSupported -> "Not supported"
-                                !bluetoothEnabled -> "Turned off"
-                                isConnected -> "Watch connected"
-                                else -> "On"
-                            },
+                            "Version",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp
+                            fontSize = 13.sp
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            appVersion,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
-                    Text(
-                        when {
-                            !bluetoothSupported -> "Unavailable"
-                            !bluetoothEnabled -> "Off"
-                            isConnected -> "Connected"
-                            else -> "On"
-                        },
-                        color = if (isConnected) Color(0xFF69C58E)
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
+
+                    PlumActionButton(
+                        label = if (checkingUpdates) "Checking…" else "Check for updates",
+                        icon = Icons.Outlined.Refresh,
+                        onClick = onCheckUpdates,
+                        enabled = !checkingUpdates,
+                        modifier = Modifier.fillMaxWidth()
                     )
+
+                    if (updateMessage != null) {
+                        Text(
+                            text = updateMessage,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp
+                        )
+                    }
                 }
             }
         }
 
-        LiquidGlassSurface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(25.dp),
-            fillAlpha = 0.09f
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(19.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            SectionHeading("Developers")
+            AppSurface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(25.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Outlined.Code,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(10.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(19.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    DeveloperRow("Doruk Çavdar")
+                    DeveloperRow("Troy Mitchell")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InterfaceStyleChoice(
+    uiStyle: String,
+    onUiStyleChange: (String) -> Unit
+) {
+    val backdrop = LocalLiquidBackdrop.current
+    if (backdrop != null) {
+        LiquidBottomTabs(
+            selectedTabIndex = { if (uiStyle == "glass") 0 else 1 },
+            onTabSelected = { index -> onUiStyleChange(if (index == 0) "glass" else "classic") },
+            backdrop = backdrop,
+            tabsCount = 2,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            LiquidBottomTab(onClick = { onUiStyleChange("glass") }) {
+                Text(
+                    "Liquid Glass",
+                    color = if (uiStyle == "glass") MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            LiquidBottomTab(onClick = { onUiStyleChange("classic") }) {
+                Text(
+                    "Classic",
+                    color = if (uiStyle == "classic") MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            listOf("glass" to "Liquid Glass", "classic" to "Classic").forEach { (value, label) ->
+                val selected = uiStyle == value
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            if (selected) MaterialTheme.colorScheme.surface
+                            else Color.Transparent
+                        )
+                        .clickable { onUiStyleChange(value) },
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        "Developers",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
+                        label,
+                        color = if (selected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
                     )
                 }
-                DeveloperRow("Doruk Çavdar")
-                DeveloperRow("Troy Mitchell")
             }
         }
     }
@@ -647,12 +696,11 @@ private fun ThemeChoice(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    LiquidGlassSurface(
+    AppSurface(
         modifier = modifier
             .height(76.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        fillAlpha = if (selected) 0.20f else 0.055f
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
