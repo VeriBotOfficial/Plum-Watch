@@ -57,7 +57,6 @@ import kotlinx.coroutines.launch
 import me.doruk.plumwatch.data.AppUpdateCheckResult
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.data.AppUpdateRepository
-import me.doruk.plumwatch.ui.liquid.LiquidBottomTabs
 import me.doruk.plumwatch.watch.BleWatchManager
 import androidx.compose.ui.semantics.Role
 
@@ -229,31 +228,35 @@ private fun FloatingNavigationBar(
 ) {
     val pages = AppPage.values()
     if (useGlass) {
-        LiquidBottomTabs(
-            selectedTabIndex = { selectedPage.ordinal },
-            onTabSelected = { index -> onSelect(pages[index.coerceIn(pages.indices)]) },
-            tabsCount = pages.size,
+        Row(
             modifier = modifier
                 .widthIn(max = 360.dp)
                 .fillMaxWidth(0.88f)
-        ) { index, isSelected ->
-            val page = pages[index.coerceIn(pages.indices)]
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(CapsuleShape)
-                    .glassEffect(Glass.Regular.interactive(), CapsuleShape)
-                    .clickable(
-                        interactionSource = null,
-                        indication = null,
-                        role = Role.Tab,
-                        onClick = { onSelect(page) }
-                    )
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(2f.dp, Alignment.CenterVertically),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                NavigationItemContent(page, selectedPage, IconsForPage(page))
+                .height(64.dp)
+                .clip(CapsuleShape)
+                .glassEffect(Glass.Regular.interactive(), CapsuleShape)
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            pages.forEach { page ->
+                val isSelected = selectedPage == page
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .glassEffect(Glass.Regular.interactive(), CapsuleShape)
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            role = Role.Tab,
+                            onClick = { onSelect(page) }
+                        )
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(2f.dp, Alignment.CenterVertically),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    NavigationItemContent(page, selectedPage, IconsForPage(page))
+                }
             }
         }
         return
