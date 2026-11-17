@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "me.doruk.plumwatch"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "me.doruk.plumwatch"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = System.getenv("PLUM_VERSION_CODE")?.toIntOrNull() ?: 1
         versionName = System.getenv("PLUM_VERSION_NAME") ?: "0.1.0"
     }

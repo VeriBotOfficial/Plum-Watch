@@ -12,7 +12,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.wexpa.liquidglass.Glass
 import com.wexpa.liquidglass.glassEffect
-import com.wexpa.liquidglass.material3.GlassTabBar
 import androidx.compose.foundation.shape.CapsuleShape
 
 @Composable

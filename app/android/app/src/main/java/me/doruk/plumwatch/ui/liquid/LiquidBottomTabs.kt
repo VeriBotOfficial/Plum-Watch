@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.dp
 import com.wexpa.liquidglass.Glass
 import com.wexpa.liquidglass.glassEffect
 import com.wexpa.liquidglass.material3.GlassTabBar
+import androidx.compose.foundation.shape.CapsuleShape
 
 /**
  * Real liquid glass bottom navigation bar using GlassTabBar from shayxo/liquidglass.
@@ -42,7 +43,7 @@ fun LiquidBottomTabs(
         },
         modifier = modifier
             .fillMaxWidth()
-            .glassEffect(Glass.Regular.interactive(), androidx.compose.foundation.shape.CapsuleShape)
+            .glassEffect(Glass.Regular.interactive(), CapsuleShape)
     ) { index, isSelected ->
         tabContent(index, isSelected)
     }
