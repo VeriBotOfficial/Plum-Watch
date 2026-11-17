@@ -116,7 +116,14 @@ class BleWatchManager(context: Context) {
                         errorMessage = null
                     )
                 }
-                gatt.discoverServices()
+                if (!gatt.discoverServices()) {
+                    mutableState.update {
+                        it.copy(
+                            connectionMessage = "Connected · service discovery unavailable",
+                            errorMessage = "The BLE link is active, but Android could not start GATT service discovery."
+                        )
+                    }
+                }
                 return
             }
 
