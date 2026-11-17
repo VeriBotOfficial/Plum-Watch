@@ -83,7 +83,6 @@ fun PlumWatchApp(
     onUiStyleChange: (String) -> Unit,
     updateDownloadState: AppUpdateDownloadState,
     onInstallUpdate: (AppUpdateInfo) -> Unit,
-    onAssociateWatch: (WatchDevice) -> Unit,
     onRemoveWatch: () -> Unit,
     onUpdateAvailable: (AppUpdateInfo) -> Unit,
     settingsOpenRequest: Int
@@ -250,10 +249,6 @@ fun PlumWatchApp(
                                 onStartScan = startScan,
                                 onStopScan = watchManager::stopScan,
                                 onConnect = { device ->
-                                    // Start Android's companion association while the watch is
-                                    // still advertising; doing this after GATT connection made
-                                    // the system picker search for a device that had stopped advertising.
-                                    onAssociateWatch(device)
                                     watchManager.connect(device)
                                 },
                                 onReconnect = watchManager::reconnectSavedDevice,
