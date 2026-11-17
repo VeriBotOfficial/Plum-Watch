@@ -3,12 +3,11 @@ package me.doruk.plumwatch.ui
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 
 private val PlumDarkColors = darkColorScheme(
     primary = Color(0xFFE9AC58),
@@ -41,36 +40,28 @@ fun PlumTheme(
     darkTheme: Boolean,
     content: @Composable () -> Unit
 ) {
-    val target = if (darkTheme) PlumDarkColors else PlumLightColors
-    val motion = tween<Color>(
-        durationMillis = 680,
-        easing = FastOutSlowInEasing
+    // A single animation clock drives the whole palette. This avoids ten independent
+    // color animations invalidating the composition separately.
+    val progress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (darkTheme) 1f else 0f,
+        animationSpec = tween(durationMillis = 220),
+        label = "theme-transition"
+    )
+    val colorScheme = PlumLightColors.copy(
+        primary = lerp(PlumLightColors.primary, PlumDarkColors.primary, progress),
+        onPrimary = lerp(PlumLightColors.onPrimary, PlumDarkColors.onPrimary, progress),
+        secondary = lerp(PlumLightColors.secondary, PlumDarkColors.secondary, progress),
+        background = lerp(PlumLightColors.background, PlumDarkColors.background, progress),
+        onBackground = lerp(PlumLightColors.onBackground, PlumDarkColors.onBackground, progress),
+        surface = lerp(PlumLightColors.surface, PlumDarkColors.surface, progress),
+        onSurface = lerp(PlumLightColors.onSurface, PlumDarkColors.onSurface, progress),
+        surfaceVariant = lerp(PlumLightColors.surfaceVariant, PlumDarkColors.surfaceVariant, progress),
+        onSurfaceVariant = lerp(PlumLightColors.onSurfaceVariant, PlumDarkColors.onSurfaceVariant, progress),
+        outline = lerp(PlumLightColors.outline, PlumDarkColors.outline, progress)
     )
 
-    val primary by animateColorAsState(target.primary, motion, label = "theme-primary")
-    val onPrimary by animateColorAsState(target.onPrimary, motion, label = "theme-on-primary")
-    val secondary by animateColorAsState(target.secondary, motion, label = "theme-secondary")
-    val background by animateColorAsState(target.background, motion, label = "theme-background")
-    val onBackground by animateColorAsState(target.onBackground, motion, label = "theme-on-background")
-    val surface by animateColorAsState(target.surface, motion, label = "theme-surface")
-    val onSurface by animateColorAsState(target.onSurface, motion, label = "theme-on-surface")
-    val surfaceVariant by animateColorAsState(target.surfaceVariant, motion, label = "theme-surface-variant")
-    val onSurfaceVariant by animateColorAsState(target.onSurfaceVariant, motion, label = "theme-on-surface-variant")
-    val outline by animateColorAsState(target.outline, motion, label = "theme-outline")
-
     MaterialTheme(
-        colorScheme = target.copy(
-            primary = primary,
-            onPrimary = onPrimary,
-            secondary = secondary,
-            background = background,
-            onBackground = onBackground,
-            surface = surface,
-            onSurface = onSurface,
-            surfaceVariant = surfaceVariant,
-            onSurfaceVariant = onSurfaceVariant,
-            outline = outline
-        ),
+        colorScheme = colorScheme,
         content = content
     )
 }
