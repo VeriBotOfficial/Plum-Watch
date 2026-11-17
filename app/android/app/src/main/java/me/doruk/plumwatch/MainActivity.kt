@@ -9,6 +9,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -18,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
+import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.ui.PlumWatchApp
 import me.doruk.plumwatch.watch.BleWatchManager
@@ -29,10 +32,25 @@ class MainActivity : ComponentActivity() {
         getSharedPreferences("plum-watch-update", MODE_PRIVATE)
     }
 
+    private val updateDownloadState = mutableStateOf(AppUpdateDownloadState())
+    private val progressHandler = Handler(Looper.getMainLooper())
+
     private var pendingUpdate: AppUpdateInfo? = null
+    private var pendingInstallerUri: Uri? = null
     private var activeDownloadId: Long = -1L
     private var expectedApkSha256: String? = null
     private var updateReceiverRegistered = false
+
+    private val progressPoller = object : Runnable {
+        override fun run() {
+            val downloadId = activeDownloadId
+            if (downloadId == -1L) return
+            refreshDownloadProgress(downloadId)
+            if (activeDownloadId == downloadId) {
+                progressHandler.postDelayed(this, PROGRESS_POLL_INTERVAL_MS)
+            }
+        }
+    }
 
     private val updateDownloadReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -74,6 +92,7 @@ class MainActivity : ComponentActivity() {
                     uiStyle = style
                     preferences.edit().putString("ui-style", style).apply()
                 },
+                updateDownloadState = updateDownloadState.value,
                 onInstallUpdate = ::downloadAndInstallUpdate
             )
         }
@@ -82,7 +101,8 @@ class MainActivity : ComponentActivity() {
     private fun registerUpdateReceiver() {
         val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(updateDownloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            // DownloadManager is a system package; its completion broadcast must reach an exported receiver.
+            registerReceiver(updateDownloadReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             @Suppress("DEPRECATION")
             registerReceiver(updateDownloadReceiver, filter)
@@ -110,10 +130,12 @@ class MainActivity : ComponentActivity() {
         }
 
         pendingUpdate = null
+        pendingInstallerUri = null
 
         if (activeDownloadId != -1L) {
             handleDownloadCompletion(activeDownloadId)
             if (activeDownloadId != -1L) {
+                startProgressPolling()
                 Toast.makeText(this, "An app update is already downloading.", Toast.LENGTH_SHORT).show()
                 return
             }
@@ -130,24 +152,81 @@ class MainActivity : ComponentActivity() {
                 "plum-watch-update.apk"
             )
 
+        try {
+            val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            activeDownloadId = manager.enqueue(request)
+            expectedApkSha256 = update.sha256
+
+            updatePreferences.edit()
+                .putLong(KEY_DOWNLOAD_ID, activeDownloadId)
+                .putString(KEY_EXPECTED_SHA256, expectedApkSha256)
+                .commit()
+
+            updateDownloadState.value = AppUpdateDownloadState(isDownloading = true)
+            startProgressPolling()
+        } catch (exception: Exception) {
+            clearActiveDownload()
+            updateDownloadState.value = AppUpdateDownloadState(
+                errorMessage = exception.message ?: "Could not start the update download."
+            )
+        }
+    }
+
+    private fun startProgressPolling() {
+        if (activeDownloadId == -1L) return
+        progressHandler.removeCallbacks(progressPoller)
+        progressHandler.post(progressPoller)
+    }
+
+    private fun refreshDownloadProgress(downloadId: Long) {
+        if (downloadId != activeDownloadId) return
+
         val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        activeDownloadId = manager.enqueue(request)
-        expectedApkSha256 = update.sha256
+        val cursor = manager.query(DownloadManager.Query().setFilterById(downloadId))
 
-        updatePreferences.edit()
-            .putLong(KEY_DOWNLOAD_ID, activeDownloadId)
-            .putString(KEY_EXPECTED_SHA256, expectedApkSha256)
-            .commit()
+        var status = DownloadManager.STATUS_FAILED
+        var downloadedBytes = 0L
+        var totalBytes = -1L
 
-        Toast.makeText(
-            this,
-            "Downloading Plum Watch ${update.versionName}…",
-            Toast.LENGTH_LONG
-        ).show()
+        cursor?.use {
+            if (it.moveToFirst()) {
+                status = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                if (status == DownloadManager.STATUS_PENDING ||
+                    status == DownloadManager.STATUS_RUNNING ||
+                    status == DownloadManager.STATUS_PAUSED
+                ) {
+                    downloadedBytes = it.getLong(
+                        it.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                    )
+                    totalBytes = it.getLong(
+                        it.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+                    )
+                }
+            }
+        }
+
+        when (status) {
+            DownloadManager.STATUS_PENDING,
+            DownloadManager.STATUS_RUNNING,
+            DownloadManager.STATUS_PAUSED -> {
+                val progress = if (totalBytes > 0L) {
+                    (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+                } else null
+                updateDownloadState.value = AppUpdateDownloadState(
+                    isDownloading = true,
+                    progress = progress
+                )
+            }
+            else -> handleDownloadCompletion(downloadId)
+        }
     }
 
     override fun onResume() {
         super.onResume()
+
+        if (updateDownloadState.value.isOpeningInstaller) {
+            updateDownloadState.value = AppUpdateDownloadState()
+        }
 
         val update = pendingUpdate
         if (update != null &&
@@ -158,9 +237,21 @@ class MainActivity : ComponentActivity() {
             downloadAndInstallUpdate(update)
         }
 
-        if (activeDownloadId != -1L) {
-            handleDownloadCompletion(activeDownloadId)
+        val installerUri = pendingInstallerUri
+        if (installerUri != null) {
+            pendingInstallerUri = null
+            openPackageInstaller(installerUri)
         }
+
+        if (activeDownloadId != -1L) {
+            refreshDownloadProgress(activeDownloadId)
+            if (activeDownloadId != -1L) startProgressPolling()
+        }
+    }
+
+    override fun onPause() {
+        progressHandler.removeCallbacks(progressPoller)
+        super.onPause()
     }
 
     private fun handleDownloadCompletion(downloadId: Long) {
@@ -186,6 +277,9 @@ class MainActivity : ComponentActivity() {
                 if (apkUri == null || !verifyDownloadedApk(apkUri)) {
                     manager.remove(downloadId)
                     clearActiveDownload()
+                    updateDownloadState.value = AppUpdateDownloadState(
+                        errorMessage = "Downloaded APK failed its SHA-256 check."
+                    )
                     Toast.makeText(
                         this,
                         "Downloaded APK failed its SHA-256 check.",
@@ -194,12 +288,24 @@ class MainActivity : ComponentActivity() {
                     return
                 }
 
+                updateDownloadState.value = AppUpdateDownloadState(
+                    progress = 1f,
+                    isOpeningInstaller = true
+                )
                 clearActiveDownload()
-                openPackageInstaller(apkUri)
+
+                if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+                    openPackageInstaller(apkUri)
+                } else {
+                    pendingInstallerUri = apkUri
+                }
             }
 
             else -> {
                 clearActiveDownload()
+                updateDownloadState.value = AppUpdateDownloadState(
+                    errorMessage = "APK download failed. Try installing the update again."
+                )
                 Toast.makeText(this, "APK download failed.", Toast.LENGTH_LONG).show()
             }
         }
@@ -209,6 +315,9 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             !packageManager.canRequestPackageInstalls()
         ) {
+            updateDownloadState.value = AppUpdateDownloadState(
+                errorMessage = "Allow Plum Watch to install apps, then try again."
+            )
             Toast.makeText(
                 this,
                 "Allow Plum Watch to install apps, then open the downloaded APK from Downloads.",
@@ -241,18 +350,17 @@ class MainActivity : ComponentActivity() {
                 }
                 startActivity(fallbackIntent)
             } catch (fallbackException: Exception) {
-                Toast.makeText(
-                    this,
-                    fallbackException.message
-                        ?: exception.message
-                        ?: "Could not open the Android installer. Open the APK from Downloads.",
-                    Toast.LENGTH_LONG
-                ).show()
+                val message = fallbackException.message
+                    ?: exception.message
+                    ?: "Could not open the Android installer. Open the APK from Downloads."
+                updateDownloadState.value = AppUpdateDownloadState(errorMessage = message)
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
             }
         }
     }
 
     private fun clearActiveDownload() {
+        progressHandler.removeCallbacks(progressPoller)
         activeDownloadId = -1L
         expectedApkSha256 = null
         updatePreferences.edit()
@@ -278,6 +386,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        progressHandler.removeCallbacks(progressPoller)
         if (updateReceiverRegistered) {
             unregisterReceiver(updateDownloadReceiver)
         }
@@ -288,5 +397,6 @@ class MainActivity : ComponentActivity() {
     private companion object {
         const val KEY_DOWNLOAD_ID = "active-update-download-id"
         const val KEY_EXPECTED_SHA256 = "active-update-sha256"
+        const val PROGRESS_POLL_INTERVAL_MS = 500L
     }
 }
