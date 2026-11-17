@@ -628,44 +628,34 @@ private fun InterfaceStyleChoice(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = 28.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = "Classic",
             color = if (uiStyle == "classic") MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             fontWeight = if (uiStyle == "classic") FontWeight.SemiBold else FontWeight.Medium
         )
         Spacer(Modifier.weight(1f))
         Box(
             modifier = Modifier.weight(1f)
         ) {
-            if (backdrop != null) {
-                LiquidToggle(
-                    selected = { uiStyle == "glass" },
-                    onSelect = { enabled -> onUiStyleChange(if (enabled) "glass" else "classic") },
-                    backdrop = backdrop,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else {
-                Switch(
-                    checked = uiStyle == "glass",
-                    onCheckedChange = { enabled ->
-                        onUiStyleChange(if (enabled) "glass" else "classic")
-                    },
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
+            LiquidToggle(
+                selected = { uiStyle == "glass" },
+                onSelect = { enabled -> onUiStyleChange(if (enabled) "glass" else "classic") },
+                backdrop = backdrop,
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
         Spacer(Modifier.weight(1f))
         Text(
             text = "Liquid Glass",
             color = if (uiStyle == "glass") MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             fontWeight = if (uiStyle == "glass") FontWeight.SemiBold else FontWeight.Medium
         )
     }
