@@ -61,7 +61,7 @@ import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.WatchDevice
 
 @Composable
-private fun PageTitle(title: String) {
+fun PageTitle(title: String) {
     Text(
         text = title,
         color = MaterialTheme.colorScheme.onBackground,
