@@ -2,13 +2,23 @@ package me.doruk.plumwatch
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.Manifest
+import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.companion.AssociationRequest
+import android.companion.BluetoothLeDeviceFilter
+import android.companion.CompanionDeviceManager
+import android.companion.ObservingDevicePresenceRequest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanFilter
 import android.net.Uri
 import android.os.Build
@@ -19,20 +29,63 @@ import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.ui.PlumWatchApp
 import me.doruk.plumwatch.watch.BleWatchManager
+import me.doruk.plumwatch.watch.WatchDevice
 import java.security.MessageDigest
 
 class MainActivity : ComponentActivity() {
     private lateinit var watchManager: BleWatchManager
+
+    private val companionPreferences by lazy {
+        getSharedPreferences(PREF_COMPANION, MODE_PRIVATE)
+    }
+    private var pendingAssociationDevice: WatchDevice? = null
+
+    private val associationLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val device = pendingAssociationDevice
+        if (result.resultCode == Activity.RESULT_OK && device != null &&
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+        ) {
+            companionPreferences.edit()
+                .putString(KEY_COMPANION_ADDRESS, device.address)
+                .putString(KEY_COMPANION_NAME, device.name)
+                .apply()
+            pendingAssociationDevice = null
+            beginPresenceObservation(device.address)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                watchManager.onCompanionDeviceAppeared()
+            } else {
+                Toast.makeText(
+                    this,
+                    "Watch saved. This Android version can reconnect automatically while Plum Watch is running.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        } else if (result.resultCode != Activity.RESULT_OK) {
+            pendingAssociationDevice = null
+            Toast.makeText(
+                this,
+                "Background reconnection wasn't enabled. You can still reconnect while Plum Watch is open.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
     private val updatePreferences by lazy {
         getSharedPreferences("plum-watch-update", MODE_PRIVATE)
     }
@@ -72,8 +125,10 @@ class MainActivity : ComponentActivity() {
         activeDownloadId = updatePreferences.getLong(KEY_DOWNLOAD_ID, -1L)
         expectedApkSha256 = updatePreferences.getString(KEY_EXPECTED_SHA256, null)
 
-        watchManager = BleWatchManager(applicationContext)
+        watchManager = BleWatchManager.getInstance(applicationContext)
         registerUpdateReceiver()
+        createUpdateNotificationChannel()
+        restoreCompanionAssociation()
 
         val preferences = getSharedPreferences("plum-watch-preferences", MODE_PRIVATE)
 
@@ -98,7 +153,10 @@ class MainActivity : ComponentActivity() {
                     preferences.edit().putString("ui-style", style).apply()
                 },
                 updateDownloadState = updateDownloadState.value,
-                onInstallUpdate = ::downloadAndInstallUpdate
+                onInstallUpdate = ::downloadAndInstallUpdate,
+                onAssociateWatch = ::associateWatch,
+                onRemoveWatch = ::removeSavedWatch,
+                onUpdateAvailable = ::notifyUpdateAvailable
             )
         }
     }
@@ -113,6 +171,276 @@ class MainActivity : ComponentActivity() {
             registerReceiver(updateDownloadReceiver, filter)
         }
         updateReceiverRegistered = true
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun associateWatch(device: WatchDevice) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+            !packageManager.hasSystemFeature(PackageManager.FEATURE_COMPANION_DEVICE_SETUP)
+        ) {
+            Toast.makeText(
+                this,
+                "Android companion-device support is unavailable. The watch will still be saved for reconnecting while the app is open.",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        val companionManager =
+            getSystemService(Context.COMPANION_DEVICE_SERVICE) as? CompanionDeviceManager
+        if (companionManager == null) {
+            Toast.makeText(this, "Android companion-device support is unavailable.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val existing = runCatching {
+                companionManager.myAssociations.firstOrNull {
+                    it.deviceMacAddress.equals(device.address, ignoreCase = true)
+                }
+            }.getOrNull()
+            if (existing != null) {
+                saveCompanionAssociation(device, existing.id)
+                beginPresenceObservation(device.address)
+                watchManager.onCompanionDeviceAppeared()
+                return
+            }
+        }
+
+        pendingAssociationDevice = device
+        val bleFilter = BluetoothLeDeviceFilter.Builder()
+            .setScanFilter(ScanFilter.Builder().setDeviceAddress(device.address).build())
+            .build()
+        val request = AssociationRequest.Builder()
+            .addDeviceFilter(bleFilter)
+            .setSingleDevice(true)
+            .build()
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                companionManager.associate(
+                    request,
+                    mainExecutor,
+                    object : CompanionDeviceManager.Callback() {
+                        override fun onAssociationPending(intentSender: android.content.IntentSender) {
+                            associationLauncher.launch(
+                                IntentSenderRequest.Builder(intentSender).build()
+                            )
+                        }
+
+                        override fun onAssociationCreated(
+                            associationInfo: android.companion.AssociationInfo
+                        ) {
+                            val selected = pendingAssociationDevice ?: device
+                            pendingAssociationDevice = null
+                            saveCompanionAssociation(selected, associationInfo.id)
+                            beginPresenceObservation(selected.address)
+                            watchManager.onCompanionDeviceAppeared()
+                        }
+
+                        override fun onFailure(error: CharSequence?) {
+                            pendingAssociationDevice = null
+                            Toast.makeText(
+                                this@MainActivity,
+                                error?.toString() ?: "Could not enable background watch reconnection.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                companionManager.associate(
+                    request,
+                    object : CompanionDeviceManager.Callback() {
+                        override fun onDeviceFound(intentSender: android.content.IntentSender) {
+                            associationLauncher.launch(
+                                IntentSenderRequest.Builder(intentSender).build()
+                            )
+                        }
+
+                        override fun onFailure(error: CharSequence?) {
+                            pendingAssociationDevice = null
+                            Toast.makeText(
+                                this@MainActivity,
+                                error?.toString() ?: "Could not associate this watch.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    },
+                    Handler(Looper.getMainLooper())
+                )
+            }
+        } catch (exception: Exception) {
+            pendingAssociationDevice = null
+            Toast.makeText(
+                this,
+                exception.message ?: "Could not set up background reconnection.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    private fun saveCompanionAssociation(device: WatchDevice, associationId: Int) {
+        companionPreferences.edit()
+            .putInt(KEY_COMPANION_ASSOCIATION_ID, associationId)
+            .putString(KEY_COMPANION_ADDRESS, device.address)
+            .putString(KEY_COMPANION_NAME, device.name)
+            .apply()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun beginPresenceObservation(address: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        try {
+            watchManager.setCompanionPresenceMonitoring(true)
+            val companionManager =
+                getSystemService(Context.COMPANION_DEVICE_SERVICE) as CompanionDeviceManager
+            if (Build.VERSION.SDK_INT >= 36) {
+                val associationId = companionPreferences.getInt(KEY_COMPANION_ASSOCIATION_ID, -1)
+                if (associationId == -1) {
+                    throw IllegalStateException("Android didn't return a companion association ID.")
+                }
+                val request = ObservingDevicePresenceRequest.Builder()
+                    .setAssociationId(associationId)
+                    .build()
+                companionManager.startObservingDevicePresence(request)
+            } else {
+                @Suppress("DEPRECATION")
+                companionManager.startObservingDevicePresence(address)
+            }
+        } catch (exception: Exception) {
+            watchManager.setCompanionPresenceMonitoring(false)
+            Toast.makeText(
+                this,
+                exception.message ?: "Android couldn't start background watch detection.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun restoreCompanionAssociation() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        val address = companionPreferences.getString(KEY_COMPANION_ADDRESS, null)
+            ?.takeIf { it.isNotBlank() } ?: return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val associationId = companionPreferences.getInt(KEY_COMPANION_ASSOCIATION_ID, -1)
+            val association = runCatching {
+                if (associationId == -1) null
+                else getSystemService(CompanionDeviceManager::class.java)
+                    ?.myAssociations?.firstOrNull { it.id == associationId }
+            }.getOrNull()
+            if (association == null) {
+                companionPreferences.edit()
+                    .remove(KEY_COMPANION_ASSOCIATION_ID)
+                    .remove(KEY_COMPANION_ADDRESS)
+                    .remove(KEY_COMPANION_NAME)
+                    .apply()
+                watchManager.setCompanionPresenceMonitoring(false)
+                return
+            }
+        }
+
+        beginPresenceObservation(address)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun removeSavedWatch() {
+        val address = companionPreferences.getString(KEY_COMPANION_ADDRESS, null)
+        val associationId = companionPreferences.getInt(KEY_COMPANION_ASSOCIATION_ID, -1)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !address.isNullOrBlank()) {
+            runCatching {
+                val companionManager =
+                    getSystemService(Context.COMPANION_DEVICE_SERVICE) as CompanionDeviceManager
+                if (Build.VERSION.SDK_INT >= 36 && associationId != -1) {
+                    val request = ObservingDevicePresenceRequest.Builder()
+                        .setAssociationId(associationId)
+                        .build()
+                    companionManager.stopObservingDevicePresence(request)
+                } else {
+                    @Suppress("DEPRECATION")
+                    companionManager.stopObservingDevicePresence(address)
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && associationId != -1) {
+                    companionManager.disassociate(associationId)
+                } else {
+                    @Suppress("DEPRECATION")
+                    companionManager.disassociate(address)
+                }
+            }
+        }
+
+        companionPreferences.edit()
+            .remove(KEY_COMPANION_ASSOCIATION_ID)
+            .remove(KEY_COMPANION_ADDRESS)
+            .remove(KEY_COMPANION_NAME)
+            .apply()
+        watchManager.disconnect(forgetDevice = true)
+    }
+
+    private fun createUpdateNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                UPDATE_CHANNEL_ID,
+                "App updates",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications when a new Plum Watch version is available."
+            }
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
+    }
+
+    private fun notifyUpdateAvailable(update: AppUpdateInfo) {
+        val previouslyNotified = updatePreferences.getInt(KEY_NOTIFIED_UPDATE_VERSION, -1)
+        if (previouslyNotified >= update.versionCode) return
+
+        val notificationsAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+
+        if (notificationsAllowed && NotificationManagerCompat.from(this).areNotificationsEnabled()) {
+            val openAppIntent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            val pendingIntent = android.app.PendingIntent.getActivity(
+                this,
+                0,
+                openAppIntent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            val notification = NotificationCompat.Builder(this, UPDATE_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle("Plum Watch update available")
+                .setContentText("Version ${update.versionName} is ready. Open Settings to install.")
+                .setStyle(
+                    NotificationCompat.BigTextStyle().bigText(
+                        "Plum Watch ${update.versionName} is ready. Open the app's Settings tab to install the update."
+                    )
+                )
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+
+            runCatching {
+                NotificationManagerCompat.from(this).notify(UPDATE_NOTIFICATION_ID, notification)
+            }
+        } else {
+            Toast.makeText(
+                this,
+                "Plum Watch ${update.versionName} is available. Open Settings to install the update.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+
+        updatePreferences.edit()
+            .putInt(KEY_NOTIFIED_UPDATE_VERSION, update.versionCode)
+            .apply()
     }
 
     private fun downloadAndInstallUpdate(update: AppUpdateInfo) {
@@ -402,6 +730,13 @@ class MainActivity : ComponentActivity() {
     private companion object {
         const val KEY_DOWNLOAD_ID = "active-update-download-id"
         const val KEY_EXPECTED_SHA256 = "active-update-sha256"
+        const val KEY_NOTIFIED_UPDATE_VERSION = "last-notified-update-version"
+        const val PREF_COMPANION = "plum-watch-companion"
+        const val KEY_COMPANION_ASSOCIATION_ID = "association-id"
+        const val KEY_COMPANION_ADDRESS = "device-address"
+        const val KEY_COMPANION_NAME = "device-name"
+        const val UPDATE_CHANNEL_ID = "plum-watch-app-updates"
+        const val UPDATE_NOTIFICATION_ID = 2601
         const val PROGRESS_POLL_INTERVAL_MS = 500L
     }
 }

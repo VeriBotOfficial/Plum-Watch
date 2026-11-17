@@ -162,6 +162,9 @@ fun PlumWatchApp(
         }
 
         val watchState by watchManager.state.collectAsState()
+        LaunchedEffect(watchState.connectedDevice?.address) {
+            watchState.connectedDevice?.let(onAssociateWatch)
+        }
         var page by remember { mutableStateOf(AppPage.WATCH) }
 
         val bluetoothEnableLauncher = rememberLauncherForActivityResult(
@@ -218,10 +221,7 @@ fun PlumWatchApp(
                             state = watchState,
                             onStartScan = startScan,
                             onStopScan = watchManager::stopScan,
-                            onConnect = { device ->
-                                watchManager.connect(device)
-                                onAssociateWatch(device)
-                            },
+                            onConnect = watchManager::connect,
                             onReconnect = watchManager::reconnectSavedDevice,
                             onRemoveWatch = onRemoveWatch,
                             onOpenWatchfaces = { page = AppPage.WATCHFACES }
