@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CapsuleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,7 +28,7 @@ fun LiquidButton(
 ) {
     Row(
         modifier
-            .glassEffect(Glass.Regular.interactive(), CapsuleShape)
+            .glassEffect(Glass.Regular.interactive(), RoundedCornerShape(50))
             .clickable(
                 interactionSource = null,
                 indication = null,

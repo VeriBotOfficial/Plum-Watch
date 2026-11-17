@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CapsuleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GridView
@@ -232,8 +231,8 @@ private fun FloatingNavigationBar(
                 .widthIn(max = 360.dp)
                 .fillMaxWidth(0.88f)
                 .height(64.dp)
-                .clip(CapsuleShape)
-                .glassEffect(Glass.Regular.interactive(), CapsuleShape)
+                .clip(RoundedCornerShape(50))
+                .glassEffect(Glass.Regular.interactive(), RoundedCornerShape(50))
                 .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -243,7 +242,7 @@ private fun FloatingNavigationBar(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .glassEffect(Glass.Regular.interactive(), CapsuleShape)
+                        .glassEffect(Glass.Regular.interactive(), RoundedCornerShape(50))
                         .clickable(
                             interactionSource = null,
                             indication = null,

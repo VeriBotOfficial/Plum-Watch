@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.CapsuleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -37,7 +37,7 @@ fun LiquidBottomTabs(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .glassEffect(Glass.Regular.interactive(), CapsuleShape),
+            .glassEffect(Glass.Regular.interactive(), RoundedCornerShape(50)),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -46,7 +46,7 @@ fun LiquidBottomTabs(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .glassEffect(Glass.Regular.interactive(), CapsuleShape)
+                    .glassEffect(Glass.Regular.interactive(), RoundedCornerShape(50))
                     .clickable(
                         interactionSource = null,
                         indication = null,

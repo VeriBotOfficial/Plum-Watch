@@ -1,6 +1,6 @@
 package me.doruk.plumwatch.ui.liquid
 
-import androidx.compose.animation.animateFloatAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -31,7 +31,7 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.lerp
 import com.wexpa.liquidglass.Glass
 import com.wexpa.liquidglass.glassEffect
-import androidx.compose.foundation.shape.CapsuleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -76,8 +76,8 @@ fun LiquidToggle(
         // Track with glass effect
         Box(
             Modifier
-                .clip(CapsuleShape)
-                .glassEffect(Glass.Regular.interactive(), CapsuleShape)
+                .clip(RoundedCornerShape(50))
+                .glassEffect(Glass.Regular.interactive(), RoundedCornerShape(50))
                 .drawBehind {
                     val f = animatedFraction
                     drawRect(lerp(trackColor, accentColor, f))
@@ -98,7 +98,7 @@ fun LiquidToggle(
                 .semantics {
                     role = Role.Switch
                 }
-                .glassEffect(Glass.Regular.interactive(), CapsuleShape)
+                .glassEffect(Glass.Regular.interactive(), RoundedCornerShape(50))
                 .size(40f.dp, 24f.dp)
                 .clickable(
                     interactionSource = null,
