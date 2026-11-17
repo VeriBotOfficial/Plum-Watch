@@ -77,7 +77,8 @@ fun PlumWatchApp(
     onInstallUpdate: (AppUpdateInfo) -> Unit,
     onAssociateWatch: (WatchDevice) -> Unit,
     onRemoveWatch: () -> Unit,
-    onUpdateAvailable: (AppUpdateInfo) -> Unit
+    onUpdateAvailable: (AppUpdateInfo) -> Unit,
+    settingsOpenRequest: Int
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -166,6 +167,9 @@ fun PlumWatchApp(
             watchState.connectedDevice?.let(onAssociateWatch)
         }
         var page by remember { mutableStateOf(AppPage.WATCH) }
+        LaunchedEffect(settingsOpenRequest) {
+            if (settingsOpenRequest > 0) page = AppPage.SETTINGS
+        }
 
         val bluetoothEnableLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult()

@@ -30,6 +30,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationCompat
@@ -45,6 +46,7 @@ import java.security.MessageDigest
 
 class MainActivity : ComponentActivity() {
     private lateinit var watchManager: BleWatchManager
+    private val settingsOpenRequest = mutableIntStateOf(0)
 
     private val companionPreferences by lazy {
         getSharedPreferences(PREF_COMPANION, MODE_PRIVATE)
@@ -117,6 +119,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        if (intent.getBooleanExtra(EXTRA_OPEN_SETTINGS, false)) {
+            settingsOpenRequest.intValue = 1
+        }
 
         activeDownloadId = updatePreferences.getLong(KEY_DOWNLOAD_ID, -1L)
         expectedApkSha256 = updatePreferences.getString(KEY_EXPECTED_SHA256, null)
@@ -152,7 +157,8 @@ class MainActivity : ComponentActivity() {
                 onInstallUpdate = ::downloadAndInstallUpdate,
                 onAssociateWatch = ::associateWatch,
                 onRemoveWatch = ::removeSavedWatch,
-                onUpdateAvailable = ::notifyUpdateAvailable
+                onUpdateAvailable = ::notifyUpdateAvailable,
+                settingsOpenRequest = settingsOpenRequest.intValue
             )
         }
     }
@@ -402,6 +408,7 @@ class MainActivity : ComponentActivity() {
         if (notificationsAllowed && NotificationManagerCompat.from(this).areNotificationsEnabled()) {
             val openAppIntent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(EXTRA_OPEN_SETTINGS, true)
             }
             val pendingIntent = android.app.PendingIntent.getActivity(
                 this,
@@ -578,6 +585,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_OPEN_SETTINGS, false)) {
+            settingsOpenRequest.intValue += 1
+        }
+    }
+
     override fun onPause() {
         progressHandler.removeCallbacks(progressPoller)
         super.onPause()
@@ -733,6 +748,7 @@ class MainActivity : ComponentActivity() {
         const val KEY_COMPANION_NAME = "device-name"
         const val UPDATE_CHANNEL_ID = "plum-watch-app-updates"
         const val UPDATE_NOTIFICATION_ID = 2601
+        const val EXTRA_OPEN_SETTINGS = "plum-watch-open-settings"
         const val PROGRESS_POLL_INTERVAL_MS = 500L
     }
 }
