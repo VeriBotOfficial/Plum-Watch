@@ -5,11 +5,9 @@ on:
     branches: [main]
     paths:
       - "app/android/**"
-      - ".github/workflows/android-build.yml"
   pull_request:
     paths:
       - "app/android/**"
-      - ".github/workflows/android-build.yml"
   workflow_dispatch:
 
 permissions:
