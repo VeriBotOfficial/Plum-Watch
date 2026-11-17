@@ -9,19 +9,21 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -30,7 +32,6 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -133,13 +134,8 @@ fun PlumWatchApp(
             }
         }
 
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            Box {
+        LiquidGlassHost(darkTheme = darkTheme) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 when (page) {
                     AppPage.WATCH -> MyWatchScreen(
                         state = watchState,
@@ -179,58 +175,62 @@ private fun FloatingNavigationBar(
     onSelect: (AppPage) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    BoxWithConstraints(
         modifier = modifier
             .widthIn(max = 360.dp)
-            .fillMaxWidth(0.86f)
-            .height(76.dp),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outline.copy(alpha = 0.62f)
-        ),
-        shadowElevation = 24.dp
+            .fillMaxWidth(0.88f)
+            .height(76.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // A restrained inner rim gives the translucent bar a glass-like edge.
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(horizontal = 46.dp, vertical = 1.dp)
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(Color.White.copy(alpha = 0.28f), CircleShape)
-            )
+        val tabWidth = maxWidth / AppPage.values().size
+        val selectedOffset by animateDpAsState(
+            targetValue = tabWidth * selectedPage.ordinal,
+            animationSpec = spring(dampingRatio = 0.76f, stiffness = 520f),
+            label = "liquid-tab-position"
+        )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 7.dp, vertical = 7.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                NavigationItem(
-                    page = AppPage.WATCH,
-                    selectedPage = selectedPage,
-                    icon = Icons.Outlined.Watch,
-                    onSelect = onSelect,
-                    modifier = Modifier.weight(1f)
-                )
-                NavigationItem(
-                    page = AppPage.WATCHFACES,
-                    selectedPage = selectedPage,
-                    icon = Icons.Outlined.GridView,
-                    onSelect = onSelect,
-                    modifier = Modifier.weight(1f)
-                )
-                NavigationItem(
-                    page = AppPage.SETTINGS,
-                    selectedPage = selectedPage,
-                    icon = Icons.Outlined.Settings,
-                    onSelect = onSelect,
-                    modifier = Modifier.weight(1f)
-                )
+        LiquidGlassSurface(
+            modifier = Modifier.fillMaxSize(),
+            shape = CircleShape,
+            fillAlpha = 0.12f
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                LiquidGlassSurface(
+                    modifier = Modifier
+                        .offset(x = selectedOffset)
+                        .width(tabWidth)
+                        .height(68.dp)
+                        .padding(4.dp),
+                    shape = CircleShape,
+                    fillAlpha = 0.13f
+                ) {}
+
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 5.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    NavigationItem(
+                        page = AppPage.WATCH,
+                        selectedPage = selectedPage,
+                        icon = Icons.Outlined.Watch,
+                        onSelect = onSelect,
+                        modifier = Modifier.weight(1f)
+                    )
+                    NavigationItem(
+                        page = AppPage.WATCHFACES,
+                        selectedPage = selectedPage,
+                        icon = Icons.Outlined.GridView,
+                        onSelect = onSelect,
+                        modifier = Modifier.weight(1f)
+                    )
+                    NavigationItem(
+                        page = AppPage.SETTINGS,
+                        selectedPage = selectedPage,
+                        icon = Icons.Outlined.Settings,
+                        onSelect = onSelect,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
@@ -245,33 +245,24 @@ private fun NavigationItem(
     modifier: Modifier = Modifier
 ) {
     val selected = selectedPage == page
-    val accent = MaterialTheme.colorScheme.primary
 
     Column(
         modifier = modifier
-            .height(58.dp)
-            .clickable { onSelect(page) }
-            .background(
-                color = if (selected) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f) else Color.Transparent,
-                shape = CircleShape
-            )
-            .border(
-                width = if (selected) 1.dp else 0.dp,
-                color = if (selected) MaterialTheme.colorScheme.outline.copy(alpha = 0.42f) else Color.Transparent,
-                shape = CircleShape
-            )
-            .padding(vertical = 7.dp),
+            .height(66.dp)
+            .clickable { onSelect(page) },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = page.label,
-            tint = if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant
+            tint = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = page.label,
-            color = if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 10.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             letterSpacing = 0.1.sp
