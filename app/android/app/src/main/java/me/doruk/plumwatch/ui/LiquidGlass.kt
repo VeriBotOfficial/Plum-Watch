@@ -1,19 +1,28 @@
 package me.doruk.plumwatch.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button as MaterialButton
 import androidx.compose.material3.ButtonDefaults as MaterialButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -92,7 +101,8 @@ fun PlumActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    loading: Boolean = false
 ) {
     MaterialButton(
         onClick = onClick,
@@ -104,12 +114,53 @@ fun PlumActionButton(
             contentColor = MaterialTheme.colorScheme.onPrimary
         )
     ) {
-        if (icon != null) {
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(17.dp),
+                color = MaterialTheme.colorScheme.onPrimary,
+                strokeWidth = 2.dp
+            )
+        } else if (icon != null) {
             androidx.compose.material3.Icon(icon, contentDescription = null)
         }
-        androidx.compose.material3.Text(
-            text = label,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+        if (loading || icon != null) Spacer(Modifier.width(8.dp))
+        AnimatedContent(
+            targetState = label,
+            label = "plum-action-button-label"
+        ) { animatedLabel ->
+            Text(
+                text = animatedLabel,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+fun PlumProgressLabel(
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(18.dp),
+            color = MaterialTheme.colorScheme.primary,
+            strokeWidth = 2.dp
         )
+        Spacer(Modifier.width(10.dp))
+        AnimatedContent(
+            targetState = label,
+            label = "plum-progress-label"
+        ) { animatedLabel ->
+            Text(
+                text = animatedLabel,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }

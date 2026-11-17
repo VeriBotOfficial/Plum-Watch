@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,6 +58,7 @@ import me.doruk.plumwatch.data.AppUpdateCheckResult
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.data.AppUpdateRepository
 import me.doruk.plumwatch.watch.BleWatchManager
+import me.doruk.plumwatch.watch.WatchDevice
 
 private enum class AppPage(val label: String) {
     WATCH("My Watch"),
@@ -72,7 +74,10 @@ fun PlumWatchApp(
     uiStyle: String,
     onUiStyleChange: (String) -> Unit,
     updateDownloadState: AppUpdateDownloadState,
-    onInstallUpdate: (AppUpdateInfo) -> Unit
+    onInstallUpdate: (AppUpdateInfo) -> Unit,
+    onAssociateWatch: (WatchDevice) -> Unit,
+    onRemoveWatch: () -> Unit,
+    onUpdateAvailable: (AppUpdateInfo) -> Unit
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -87,12 +92,34 @@ fun PlumWatchApp(
     }
     @Suppress("DEPRECATION")
     val currentVersionCode = packageInfo?.versionCode ?: 1
-    val currentVersionName = packageInfo?.versionName ?: "0.1.0"
+    val currentVersionName = packageInfo?.versionName ?: "26.0.1"
 
     var checkingUpdates by remember { mutableStateOf(false) }
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(currentVersionCode) {
+        checkingUpdates = true
+        try {
+            when (val result = AppUpdateRepository.check(currentVersionCode)) {
+                is AppUpdateCheckResult.UpToDate -> {
+                    availableUpdate = null
+                    updateMessage = null
+                }
+                is AppUpdateCheckResult.UpdateAvailable -> {
+                    availableUpdate = result.update
+                    updateMessage = "A new version is ready to install."
+                    onUpdateAvailable(result.update)
+                }
+                is AppUpdateCheckResult.Failed -> {
+                    // Startup checks are quiet; the manual check surfaces actionable errors.
+                }
+            }
+        } finally {
+            checkingUpdates = false
+        }
+    }
 
     val checkUpdates: () -> Unit = {
         if (!checkingUpdates && !updateDownloadState.isDownloading &&
@@ -111,6 +138,7 @@ fun PlumWatchApp(
                         is AppUpdateCheckResult.UpdateAvailable -> {
                             availableUpdate = result.update
                             updateMessage = "A new version is ready to install."
+                            onUpdateAvailable(result.update)
                         }
                         is AppUpdateCheckResult.Failed -> {
                             updateMessage = result.message
@@ -190,8 +218,12 @@ fun PlumWatchApp(
                             state = watchState,
                             onStartScan = startScan,
                             onStopScan = watchManager::stopScan,
-                            onConnect = watchManager::connect,
-                            onDisconnect = { watchManager.disconnect(forgetDevice = true) },
+                            onConnect = { device ->
+                                watchManager.connect(device)
+                                onAssociateWatch(device)
+                            },
+                            onReconnect = watchManager::reconnectSavedDevice,
+                            onRemoveWatch = onRemoveWatch,
                             onOpenWatchfaces = { page = AppPage.WATCHFACES }
                         )
                         AppPage.WATCHFACES -> WatchfacesScreen()

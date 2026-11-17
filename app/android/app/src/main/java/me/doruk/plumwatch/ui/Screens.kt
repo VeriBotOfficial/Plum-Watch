@@ -4,8 +4,13 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -103,7 +108,8 @@ fun MyWatchScreen(
     onStartScan: () -> Unit,
     onStopScan: () -> Unit,
     onConnect: (WatchDevice) -> Unit,
-    onDisconnect: () -> Unit,
+    onReconnect: () -> Unit,
+    onRemoveWatch: () -> Unit,
     onOpenWatchfaces: () -> Unit
 ) {
     val context = LocalContext.current
@@ -120,22 +126,32 @@ fun MyWatchScreen(
     ) {
         PageTitle("My Watch")
 
-        when {
-            state.isConnected && state.connectedDevice != null -> {
-                ConnectedWatchCard(
-                    device = state.connectedDevice,
-                    onRemove = { showRemoveDialog = true }
-                )
-            }
+        val connectionPresentation = when {
+            state.isConnected -> "connected"
+            state.isConnecting -> "connecting"
+            state.savedDevice != null -> "reconnecting"
+            else -> "disconnected"
+        }
 
-            state.isConnecting -> {
-                ConnectingWatchCard(
-                    deviceName = state.pendingDevice?.name ?: "Your watch"
+        AnimatedContent(
+            targetState = connectionPresentation,
+            label = "watch-connection-card"
+        ) { presentation ->
+            when (presentation) {
+                "connected" -> state.connectedDevice?.let { device ->
+                    ConnectedWatchCard(device = device)
+                }
+                "connecting" -> ConnectingWatchCard(
+                    deviceName = state.pendingDevice?.name ?: state.savedDevice?.name ?: "Your watch"
                 )
-            }
-
-            else -> {
-                DisconnectedWatchCard(
+                "reconnecting" -> state.savedDevice?.let { device ->
+                    ReconnectingWatchCard(
+                        deviceName = device.name,
+                        connectionMessage = state.connectionMessage,
+                        onReconnect = onReconnect
+                    )
+                }
+                else -> DisconnectedWatchCard(
                     scanning = state.isScanning,
                     onClick = if (state.isScanning) onStopScan else onStartScan
                 )
@@ -157,7 +173,14 @@ fun MyWatchScreen(
             }
         }
 
-        if (state.discoveredDevices.isNotEmpty()) {
+        AnimatedVisibility(
+            visible = state.savedDevice == null &&
+                !state.isConnected &&
+                !state.isConnecting &&
+                state.discoveredDevices.isNotEmpty(),
+            enter = fadeIn(tween(180)) + expandVertically(tween(220)),
+            exit = fadeOut(tween(140)) + shrinkVertically(tween(180))
+        ) {
             NearbyDevicesSection(
                 devices = state.discoveredDevices,
                 pendingDevice = state.pendingDevice,
@@ -201,17 +224,47 @@ fun MyWatchScreen(
                 }
             }
         }
+
+        AnimatedVisibility(
+            visible = state.savedDevice != null,
+            enter = fadeIn(tween(180)),
+            exit = fadeOut(tween(140))
+        ) {
+            TextButton(
+                onClick = { showRemoveDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.DeleteOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text("Remove device", modifier = Modifier.padding(start = 7.dp))
+            }
+        }
     }
 
     if (showRemoveDialog) {
         AppAlertDialog(
             onDismissRequest = { showRemoveDialog = false },
-            title = { Text("Remove this watch?") },
+            title = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Remove this watch?")
+                    Text(
+                        "This removes the saved watch from Plum Watch and turns off automatic reconnection.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+                }
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showRemoveDialog = false
-                        onDisconnect()
+                        onRemoveWatch()
                     }
                 ) {
                     Text("Remove", color = MaterialTheme.colorScheme.error)
@@ -272,7 +325,8 @@ private fun DisconnectedWatchCard(
                 onClick = onClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(52.dp),
+                loading = scanning
             )
         }
     }
@@ -288,12 +342,10 @@ private fun ConnectingWatchCard(deviceName: String) {
             modifier = Modifier.padding(22.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(28.dp),
-                color = MaterialTheme.colorScheme.primary,
-                strokeWidth = 2.5.dp
+            PlumProgressLabel(
+                label = "Connecting",
+                modifier = Modifier.width(132.dp)
             )
-            Spacer(modifier = Modifier.width(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     "Connecting",
@@ -312,10 +364,46 @@ private fun ConnectingWatchCard(deviceName: String) {
 }
 
 @Composable
-private fun ConnectedWatchCard(
-    device: WatchDevice,
-    onRemove: () -> Unit
+private fun ReconnectingWatchCard(
+    deviceName: String,
+    connectionMessage: String,
+    onReconnect: () -> Unit
 ) {
+    AppSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(27.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(13.dp)
+        ) {
+            PlumProgressLabel(label = "Reconnecting")
+            Text(
+                deviceName,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                connectionMessage,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+            TextButton(
+                onClick = onReconnect,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(17.dp))
+                Text("Try again", modifier = Modifier.padding(start = 6.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConnectedWatchCard(device: WatchDevice) {
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(29.dp),
@@ -372,17 +460,6 @@ private fun ConnectedWatchCard(
                 }
             }
 
-            TextButton(
-                onClick = onRemove,
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Icon(
-                    Icons.Outlined.DeleteOutline,
-                    contentDescription = null,
-                    modifier = Modifier.size(17.dp)
-                )
-                Text("Remove device", modifier = Modifier.padding(start = 6.dp))
-            }
         }
     }
 }
