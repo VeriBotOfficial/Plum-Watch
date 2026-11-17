@@ -401,7 +401,7 @@ class BleWatchManager(context: Context) {
             val remoteDevice = bluetoothAdapter.getRemoteDevice(device.address)
             bluetoothGatt = remoteDevice.connectGatt(
                 appContext,
-                reconnecting,
+                false,
                 gattCallback,
                 BluetoothDevice.TRANSPORT_LE
             )
