@@ -1,13 +1,7 @@
+
 name: Android build
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "app/android/**"
-  pull_request:
-    paths:
-      - "app/android/**"
   workflow_dispatch:
 
 permissions:
@@ -107,7 +101,7 @@ jobs:
         run: sh ./gradlew --no-daemon assembleDebug
 
       - name: Publish latest APK to repository
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.signing.outputs.configured == 'true'
+        if: steps.signing.outputs.configured == 'true'
         run: |
           APK_FILE="$RUNNER_TEMP/plum-watch-debug.apk"
           UPDATE_FILE="$RUNNER_TEMP/update.json"
@@ -127,7 +121,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Publish on top of the latest main, not the possibly stale event checkout.
           git fetch origin main
           git reset --hard origin/main
           mkdir -p app/android/build
@@ -143,7 +136,7 @@ jobs:
           fi
 
       - name: Upload stable debug APK artifact
-        if: always() && steps.signing.outputs.configured == 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: plum-watch-debug-apk
