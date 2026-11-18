@@ -347,7 +347,7 @@ class MainActivity : ComponentActivity() {
         watchManager.resumeConnection()
 
         if (updateDownloadState.value.isOpeningInstaller) {
-            updateDownloadState.value = AppUpdateDownloadState()
+            updateDownloadState.value = updateDownloadState.value.copy(isOpeningInstaller = false)
         }
 
         val update = pendingUpdate
@@ -420,7 +420,8 @@ class MainActivity : ComponentActivity() {
 
                 updateDownloadState.value = AppUpdateDownloadState(
                     progress = 1f,
-                    isOpeningInstaller = true
+                    isOpeningInstaller = true,
+                    isDownloaded = true
                 )
                 clearActiveDownload()
 
