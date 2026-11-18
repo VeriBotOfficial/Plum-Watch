@@ -1,6 +1,6 @@
-# Plum Watch · Android app
+# Plum Watch Android app
 
-A lightweight Android companion app for HK-series watches. This project is the app foundation; the custom watch firmware and vendor-specific command protocol are separate stages.
+A lightweight Android companion app for HK-series watches or any watch flashed with plumOS.
 
 ## Build
 
@@ -40,11 +40,11 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Current app structure
 
-- **My Watch** — scans nearby BLE devices, maintains a Bluetooth LE GATT connection, discovers services, and uses standard Bluetooth SIG profiles when the watch exposes them: battery level (0x180F), heart-rate measurement (0x180D), and Find Watch alert (0x1802).
+- **My Watch** — scans nearby BLE devices and maintains a Bluetooth LE GATT connection
 - **Watchfaces** — reads the Git tree under `/watchfaces/`, finds each folder's ZIP archive and preview image, and downloads the archive to `Downloads/Plum Watchfaces/`.
-- **Settings** — separate System / Light / Dark theme and Classic / Liquid Glass interface preferences, app version, update check, and developer credits for Doruk Çavdar and Troy Mitchell.
+- **Settings** — Various settings for the app.
 
-The floating navigation bar uses the backdrop renderer and sample tab components from [Kyant0/AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) (Apache-2.0), with `io.github.kyant0:backdrop:2.0.1` and `io.github.kyant0:shapes:1.2.1`. Liquid Glass mode changes only the floating bottom bar. Cards, tiles, dialogs and regular buttons remain Material 3 surfaces to keep the rest of the app responsive. The Interface setting is a two-option selector for Classic and Liquid Glass navigation.
+The floating navigation bar uses the backdrop renderer and sample tab components from [Kyant0/AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) (Apache-2.0), with `io.github.kyant0:backdrop:2.0.1` and `io.github.kyant0:shapes:1.2.1`.
 
 ## Connecting an HK watch
 
@@ -71,16 +71,9 @@ watchfaces/
 
 Accepted preview formats are PNG, JPG, JPEG, and WebP. Each folder must contain both an archive and an image to appear in the app. The app chooses a preview named `preview.*`, `cover.*`, or `thumbnail.*` first when present.
 
-No watchfaces are included yet.
-
-## GitHub visibility note
-
-The watchface catalogue and update manifest are read from the public GitHub repository. Do not embed a personal access token in the APK.
-
 ## Package
 
 - Application ID: `me.doruk.plumwatch`
 - Minimum Android version: Android 8.0 (API 26)
 - Compile SDK: 37
 - Target SDK: 37
-- Version: 0.1.0
