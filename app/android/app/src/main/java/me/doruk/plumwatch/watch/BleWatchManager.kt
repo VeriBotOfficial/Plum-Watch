@@ -597,49 +597,57 @@ class BleWatchManager(context: Context) {
         if (!archiveFile.isFile || archiveFile.length() <= 0L) {
             throw IllegalArgumentException("The watchface ZIP file is empty or unavailable.")
         }
+
+        // WFPUSH2's byte-aligned payload is: ZIP bytes, zero padding to 4 bytes,
+        // then CRC-32/MPEG-2 (little-endian). The CRC is part of the transferred file.
         val archiveSize = archiveFile.length()
         val paddingBytes = ((4L - (archiveSize % 4L)) % 4L).toInt()
-        val fileSize = archiveSize + paddingBytes
-        if (fileSize > 0xFFFFFFFFL) {
-            throw IllegalArgumentException("This watchface archive is too large for the SiFli transfer protocol.")
+        val alignedArchiveSize = archiveSize + paddingBytes
+        val transferSize = alignedArchiveSize + 4L
+        require(transferSize <= 0xFFFFFFFFL) {
+            "This watchface archive is too large for the SiFli transfer protocol."
+        }
+
+        val fileNameBytes = targetFileName.toByteArray(StandardCharsets.UTF_8)
+        require(fileNameBytes.isNotEmpty() && fileNameBytes.size <= 0xFFFF) {
+            "The watchface file name is invalid."
         }
 
         while (sifliIncomingMessages.tryReceive().isSuccess) Unit
         runCatching { gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH) }
         requestSifliMtu(gatt)
 
-        val md5 = withContext(Dispatchers.IO) { calculateMd5Ascii(archiveFile, paddingBytes) }
-        val fileNameBytes = targetFileName.toByteArray(StandardCharsets.UTF_8)
-        require(fileNameBytes.isNotEmpty() && fileNameBytes.size <= 0xFFFF) {
-            "The watchface file name is invalid."
-        }
+        val crc32 = withContext(Dispatchers.IO) { calculateCrc32Mpeg2(archiveFile, paddingBytes) }
+        val crcBytes = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(crc32.toInt()).array()
+        val safeBlockLength = (SIFLI_MAX_DATA_LENGTH - (SIFLI_MAX_DATA_LENGTH % 4)).coerceAtLeast(4)
 
         try {
             val startPayload = ByteBuffer.allocate(7).order(ByteOrder.LITTLE_ENDIAN)
                 .putShort(SIFLI_WATCHFACE_FILE_TYPE_CUSTOMIZED.toShort())
                 .put(SIFLI_PHONE_TYPE_ANDROID.toByte())
-                .putInt(fileSize.toInt())
+                .putInt(transferSize.toInt())
                 .array()
             sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_START_REQ, startPayload)
             val startResponse = awaitSifliProtocolResponse(SIFLI_MSG_START_RSP)
             ensureSifliSuccess(startResponse, "The watch rejected the watchface transfer request.")
             val maxBlockLength = if (startResponse.size >= 6) {
-                readUnsignedShort(startResponse, 4).coerceIn(1, SIFLI_MAX_DATA_LENGTH)
+                readUnsignedShort(startResponse, 4).coerceIn(4, SIFLI_MAX_DATA_LENGTH)
             } else {
                 SIFLI_MAX_DATA_LENGTH
-            }
+            }.let { minOf(it - (it % 4), safeBlockLength).coerceAtLeast(4) }
 
-            val fileBlocks = ((fileSize + maxBlockLength - 1L) / maxBlockLength).toInt()
-            val infoPayload = ByteBuffer.allocate(4 + md5.size).order(ByteOrder.LITTLE_ENDIAN)
+            // SiFli's WFPUSH2 file-info request carries the block count. MD5 is optional
+            // in the SDK; the byte-aligned WFPUSH2 sender uses CRC32 in the file stream.
+            val fileBlocks = ((transferSize + maxBlockLength - 1L) / maxBlockLength).toInt()
+            val infoPayload = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN)
                 .putInt(fileBlocks)
-                .put(md5)
                 .array()
             sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_FILE_INFO_REQ, infoPayload)
             val infoResponse = awaitSifliProtocolResponse(SIFLI_MSG_FILE_INFO_RSP)
             ensureSifliSuccess(infoResponse, "The watch rejected the watchface file information.")
 
             val fileStartPayload = ByteBuffer.allocate(6 + fileNameBytes.size).order(ByteOrder.LITTLE_ENDIAN)
-                .putInt(fileSize.toInt())
+                .putInt(transferSize.toInt())
                 .putShort(fileNameBytes.size.toShort())
                 .put(fileNameBytes)
                 .array()
@@ -652,35 +660,55 @@ class BleWatchManager(context: Context) {
             withContext(Dispatchers.IO) {
                 archiveFile.inputStream().buffered().use { input ->
                     var blockIndex = 0
-                    while (sentBytes < fileSize) {
-                        val requestedBytes = minOf(maxBlockLength.toLong(), fileSize - sentBytes).toInt()
+                    while (sentBytes < transferSize) {
+                        val requestedBytes = minOf(maxBlockLength.toLong(), transferSize - sentBytes).toInt()
                         val block = ByteArray(requestedBytes)
-                        val archiveBytesForBlock = minOf(
-                            requestedBytes.toLong(),
-                            (archiveSize - archiveBytesRead).coerceAtLeast(0L)
-                        ).toInt()
                         var offset = 0
-                        while (offset < archiveBytesForBlock) {
-                            val count = input.read(block, offset, archiveBytesForBlock - offset)
-                            if (count < 0) throw IllegalStateException("The watchface ZIP ended unexpectedly.")
-                            offset += count
+                        while (offset < requestedBytes) {
+                            val absoluteOffset = sentBytes + offset
+                            when {
+                                absoluteOffset < archiveSize -> {
+                                    val readable = minOf(
+                                        (requestedBytes - offset).toLong(),
+                                        archiveSize - absoluteOffset
+                                    ).toInt()
+                                    val count = input.read(block, offset, readable)
+                                    if (count < 0) throw IllegalStateException("The watchface ZIP ended unexpectedly.")
+                                    offset += count
+                                    archiveBytesRead += count
+                                }
+                                absoluteOffset < alignedArchiveSize -> {
+                                    val zeroCount = minOf(
+                                        (requestedBytes - offset).toLong(),
+                                        alignedArchiveSize - absoluteOffset
+                                    ).toInt()
+                                    offset += zeroCount // ByteArray is already zero-filled.
+                                }
+                                else -> {
+                                    val crcOffset = (absoluteOffset - alignedArchiveSize).toInt()
+                                    val crcCount = minOf(requestedBytes - offset, 4 - crcOffset)
+                                    System.arraycopy(crcBytes, crcOffset, block, offset, crcCount)
+                                    offset += crcCount
+                                }
+                            }
                         }
-                        // The zero-initialized tail supplies WFPUSH2's required 4-byte alignment padding.
-                        archiveBytesRead += archiveBytesForBlock
+
                         val blockPayload = ByteBuffer.allocate(4 + block.size).order(ByteOrder.LITTLE_ENDIAN)
                             .putInt(blockIndex)
                             .put(block)
                             .array()
-
                         withContext(Dispatchers.Main.immediate) {
                             sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_FILE_SEND_DATA, blockPayload)
                             val dataResponse = awaitSifliProtocolResponse(SIFLI_MSG_FILE_SEND_DATA_RSP)
-                            ensureSifliSuccess(dataResponse, "The watch rejected watchface data block " + blockIndex + ".")
+                            ensureSifliSuccess(
+                                dataResponse,
+                                "The watch rejected watchface data block " + blockIndex + "."
+                            )
                         }
                         sentBytes += requestedBytes
                         blockIndex++
                         withContext(Dispatchers.Main.immediate) {
-                            onProgress((sentBytes.toDouble() / fileSize.toDouble()).toFloat().coerceIn(0f, 1f))
+                            onProgress((sentBytes.toDouble() / transferSize.toDouble()).toFloat().coerceIn(0f, 1f))
                         }
                     }
                 }
@@ -689,7 +717,9 @@ class BleWatchManager(context: Context) {
                 throw IllegalStateException("The complete watchface ZIP could not be read.")
             }
 
-            sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_FILE_SEND_END_REQ, byteArrayOf())
+            sendSifliProtocolMessage(
+                gatt, characteristic, SIFLI_MSG_FILE_SEND_END_REQ, byteArrayOf(0, 0)
+            )
             val fileEndResponse = awaitSifliProtocolResponse(SIFLI_MSG_FILE_SEND_END_RSP)
             ensureSifliSuccess(fileEndResponse, "The watch could not finish writing the watchface file.")
 
@@ -710,6 +740,39 @@ class BleWatchManager(context: Context) {
         } finally {
             runCatching { gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED) }
         }
+    }
+
+    private fun calculateCrc32Mpeg2(file: File, paddingBytes: Int): Long {
+        var crc = 0xFFFFFFFFL
+        val polynomial = 0x04C11DB7L
+        file.inputStream().buffered().use { input ->
+            val buffer = ByteArray(16 * 1024)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                for (index in 0 until count) {
+                    crc = crc xor ((buffer[index].toLong() and 0xFFL) shl 24)
+                    repeat(8) {
+                        crc = if ((crc and 0x80000000L) != 0L) {
+                            ((crc shl 1) xor polynomial) and 0xFFFFFFFFL
+                        } else {
+                            (crc shl 1) and 0xFFFFFFFFL
+                        }
+                    }
+                }
+            }
+        }
+        repeat(paddingBytes) {
+            crc = crc xor 0L
+            repeat(8) {
+                crc = if ((crc and 0x80000000L) != 0L) {
+                    ((crc shl 1) xor polynomial) and 0xFFFFFFFFL
+                } else {
+                    (crc shl 1) and 0xFFFFFFFFL
+                }
+            }
+        }
+        return crc and 0xFFFFFFFFL
     }
 
     private suspend fun sendSifliProtocolMessage(
