@@ -113,7 +113,9 @@ fun PlumDownloadButton(
     enabled: Boolean = true,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    showActivityIndicator: Boolean = false
+    showActivityIndicator: Boolean = false,
+    downloadingLabel: String = "Downloading…",
+    successLabel: String = "Downloaded"
 ) {
     val shape = RoundedCornerShape(18.dp)
     val targetProgress = when {
@@ -141,8 +143,8 @@ fun PlumDownloadButton(
         else -> MaterialTheme.colorScheme.primary
     }
     val displayedLabel = when {
-        downloaded -> "Downloaded"
-        downloading -> "Downloading…"
+        downloaded -> successLabel
+        downloading -> downloadingLabel
         else -> label
     }
     val indicatorVisible = downloading || showActivityIndicator
