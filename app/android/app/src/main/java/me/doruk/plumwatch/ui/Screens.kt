@@ -666,12 +666,11 @@ private fun SectionHeading(title: String) {
 
 private enum class SettingsCategory(
     val title: String,
-    val subtitle: String,
     val icon: ImageVector
 ) {
-    APPEARANCE("Appearance", "Theme and interface style", Icons.Outlined.Palette),
-    UPDATES("App updates", "Version and software updates", Icons.Outlined.Download),
-    ABOUT("About", "App details and developers", Icons.Outlined.Info)
+    APPEARANCE("Appearance", Icons.Outlined.Palette),
+    UPDATES("App updates", Icons.Outlined.Download),
+    ABOUT("About", Icons.Outlined.Info)
 }
 
 @Composable
@@ -760,15 +759,7 @@ private fun SettingsHomeScreen(
             .padding(top = 27.dp, bottom = 126.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            PageTitle("Settings")
-            Text(
-                "Personalise your Plum Watch experience.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp,
-                lineHeight = 18.sp
-            )
-        }
+        PageTitle("Settings")
 
         Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
             SettingsGroupLabel("PREFERENCES")
@@ -862,23 +853,13 @@ private fun SettingsCategoryRow(
             )
         }
 
-        Column(
+        Text(
+            text = category.title,
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Text(
-                text = category.title,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = category.subtitle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                lineHeight = 15.sp
-            )
-        }
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
 
         if (value != null) {
             Text(
@@ -901,7 +882,6 @@ private fun SettingsCategoryRow(
 @Composable
 private fun SettingsDetailHeader(
     title: String,
-    subtitle: String,
     onBack: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
@@ -933,15 +913,7 @@ private fun SettingsDetailHeader(
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            PageTitle(title)
-            Text(
-                subtitle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                lineHeight = 17.sp
-            )
-        }
+        PageTitle(title)
     }
 }
 
@@ -974,7 +946,6 @@ private fun SettingsCategoryPage(
             SettingsCategory.APPEARANCE -> {
                 SettingsDetailHeader(
                     title = "Appearance",
-                    subtitle = "Choose the look and feel of Plum Watch.",
                     onBack = onBack
                 )
                 AppearanceSettingsContent(
@@ -987,7 +958,6 @@ private fun SettingsCategoryPage(
             SettingsCategory.UPDATES -> {
                 SettingsDetailHeader(
                     title = "App updates",
-                    subtitle = "Your app version and available updates.",
                     onBack = onBack
                 )
                 UpdateSettingsContent(
@@ -1003,7 +973,6 @@ private fun SettingsCategoryPage(
             SettingsCategory.ABOUT -> {
                 SettingsDetailHeader(
                     title = "About",
-                    subtitle = "The people behind Plum Watch.",
                     onBack = onBack
                 )
                 AboutSettingsContent(appVersion = appVersion)
@@ -1031,12 +1000,7 @@ private fun AppearanceSettingsContent(
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                Text(
-                    "Colour scheme",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ThemeChoice(
                         label = "System",
                         icon = Icons.Outlined.SettingsBrightness,
@@ -1336,16 +1300,14 @@ private fun InterfaceStyleChoice(
     ) {
         InterfaceChoiceCard(
             label = "Classic",
-            description = "Original navigation",
-            icon = Icons.Outlined.Widgets,
+             icon = Icons.Outlined.Widgets,
             selected = uiStyle == "classic",
             modifier = Modifier.weight(1f),
             onClick = { onUiStyleChange("classic") }
         )
         InterfaceChoiceCard(
             label = "Liquid Glass",
-            description = "Floating glass bar",
-            icon = Icons.Outlined.Layers,
+             icon = Icons.Outlined.Layers,
             selected = uiStyle == "glass",
             modifier = Modifier.weight(1f),
             onClick = { onUiStyleChange("glass") }
@@ -1356,8 +1318,7 @@ private fun InterfaceStyleChoice(
 @Composable
 private fun InterfaceChoiceCard(
     label: String,
-    description: String,
-    icon: ImageVector,
+     icon: ImageVector,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -1377,7 +1338,7 @@ private fun InterfaceChoiceCard(
 
     Surface(
         onClick = onClick,
-        modifier = modifier.height(112.dp),
+        modifier = modifier.height(96.dp),
         shape = RoundedCornerShape(19.dp),
         color = containerColor,
         border = BorderStroke(1.dp, borderColor)
@@ -1416,14 +1377,7 @@ private fun InterfaceChoiceCard(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-                Text(
-                    text = description,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+             }
         }
     }
 }
