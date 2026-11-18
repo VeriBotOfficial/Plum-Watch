@@ -347,7 +347,7 @@ private fun WatchfaceDetailScreen(
             !watchState.isConnected -> "Connect your watch"
             !watchState.supportsSifliWatchface -> "Transfer unavailable"
             transferError != null -> "Try again"
-            alreadySent -> "Sent to watch"
+            alreadySent -> "Transfer complete"
             else -> "Add to watch"
         }
 
@@ -362,7 +362,7 @@ private fun WatchfaceDetailScreen(
             },
             modifier = Modifier.fillMaxWidth(),
             downloadingLabel = transferPhase,
-            successLabel = "Sent to watch"
+            successLabel = "Transfer complete"
         )
 
         if (!watchState.isConnected) {
@@ -394,10 +394,10 @@ private fun WatchfaceDetailScreen(
     if (showResendDialog) {
         MaterialAlertDialog(
             onDismissRequest = { showResendDialog = false },
-            title = { Text("Send this watchface again?") },
+            title = { Text("Transfer this watchface again?") },
             text = {
                 Text(
-                    "Send the " + watchface.name + " ZIP to the connected watch again?",
+                    "Transfer the " + watchface.name + " ZIP to the connected watch again?",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
@@ -407,7 +407,7 @@ private fun WatchfaceDetailScreen(
                     alreadySent = false
                     startTransfer()
                 }) {
-                    Text("Send again")
+                    Text("Transfer again")
                 }
             },
             dismissButton = {
