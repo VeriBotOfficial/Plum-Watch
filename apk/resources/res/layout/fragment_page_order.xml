@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.wakeup.commonui.expand.RefreshSlideLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.jwenfeng.library.pulltorefresh.PullToRefreshLayout
+        android:gravity="center"
+        android:id="@+id/layout_refresh"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_order"
+            android:visibility="visible"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_gravity="center"
+            android:id="@+id/iv_empty"
+            android:visibility="gone"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_nodata"/>
+    </com.jwenfeng.library.pulltorefresh.PullToRefreshLayout>
+</com.wakeup.commonui.expand.RefreshSlideLayout>

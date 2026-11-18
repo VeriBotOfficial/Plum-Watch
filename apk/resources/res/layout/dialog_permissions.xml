@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@drawable/shape_sheet_dialog_bg"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+    <View
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/shape_d8d8d8_4"
+        android:layout_width="@dimen/dp_36"
+        android:layout_height="@dimen/dp_6"
+        android:layout_marginTop="@dimen/dp_12"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="16dp"
+        android:textStyle="bold"
+        android:textColor="@color/textBlack"
+        android:id="@+id/tv_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:layout_marginHorizontal="22dp"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="14dp"
+        android:textColor="@color/textBlack"
+        android:id="@+id/tv_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:layout_marginHorizontal="22dp"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="14dp"
+        android:textColor="@color/white"
+        android:gravity="center"
+        android:id="@+id/tv_btn"
+        android:background="@drawable/shape_ff7300_r6"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginHorizontal="22dp"
+        android:layout_marginVertical="22dp"/>
+</androidx.appcompat.widget.LinearLayoutCompat>

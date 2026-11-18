@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:background="@drawable/shape_radius_e7e7e7_stroke"
+    android:layout_width="@dimen/dp_40"
+    android:layout_height="@dimen/dp_30"
+    android:layout_margin="@dimen/dp_6">
+    <View
+        android:layout_gravity="center"
+        android:id="@+id/icon"
+        android:background="@drawable/history_tag_expend_icon"
+        android:layout_width="@dimen/dp_10"
+        android:layout_height="@dimen/dp_5"/>
+</FrameLayout>

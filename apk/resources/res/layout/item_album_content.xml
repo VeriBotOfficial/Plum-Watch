@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp">
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/iv_album"
+        android:layout_width="128dp"
+        android:layout_height="128dp"
+        android:scaleType="centerCrop"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="12dp"
+        android:textColor="@color/white"
+        android:layout_gravity="end|bottom"
+        android:id="@+id/tv_video_duration"
+        android:visibility="visible"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:layout_marginEnd="4dp"/>
+    <androidx.appcompat.widget.AppCompatImageView
+        android:layout_gravity="end"
+        android:id="@+id/iv_select_status"
+        android:visibility="gone"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="4dp"/>
+    <com.airbnb.lottie.LottieAnimationView
+        android:layout_gravity="end|top"
+        android:id="@+id/iv_upgrade_anim"
+        android:visibility="gone"
+        android:layout_width="@dimen/dp_26"
+        android:layout_height="@dimen/dp_26"
+        android:layout_marginTop="@dimen/dp_4"
+        android:layout_marginEnd="@dimen/dp_7"
+        app:lottie_loop="true"
+        app:lottie_rawRes="@raw/glasses_album_img_loading"/>
+</androidx.cardview.widget.CardView>

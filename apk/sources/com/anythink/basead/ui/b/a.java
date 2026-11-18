@@ -1,0 +1,39 @@
+package com.anythink.basead.ui.b;
+
+import android.graphics.Canvas;
+import android.graphics.ColorFilter;
+import android.graphics.Paint;
+import android.graphics.RadialGradient;
+import android.graphics.Shader;
+import android.graphics.drawable.Drawable;
+
+/* JADX INFO: loaded from: classes7.dex */
+public final class a extends Drawable {
+
+    /* JADX INFO: renamed from: a, reason: collision with root package name */
+    Paint f3198a = new Paint();
+
+    @Override // android.graphics.drawable.Drawable
+    public final int getOpacity() {
+        return -2;
+    }
+
+    @Override // android.graphics.drawable.Drawable
+    public final void setAlpha(int r1) {
+    }
+
+    @Override // android.graphics.drawable.Drawable
+    public final void setColorFilter(ColorFilter colorFilter) {
+    }
+
+    @Override // android.graphics.drawable.Drawable
+    public final void draw(Canvas canvas) {
+        canvas.drawColor(-13750739);
+        if (canvas.getHeight() <= 0 || canvas.getWidth() <= 0) {
+            return;
+        }
+        float fMax = Math.max(canvas.getHeight(), canvas.getWidth()) / 2;
+        this.f3198a.setShader(new RadialGradient(canvas.getWidth() / 2, canvas.getHeight() / 2, fMax, -1, 0, Shader.TileMode.CLAMP));
+        canvas.drawCircle(canvas.getWidth() / 2, canvas.getHeight() / 2, fMax, this.f3198a);
+    }
+}

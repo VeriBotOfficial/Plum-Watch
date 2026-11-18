@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>添加桌面组件</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --section-bg: #f7f7f7;
+      --text: #1a1a2e;
+      --muted: #8a8a8e;
+      --hint: #b9b9bf;
+      --accent: #ff2d55;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+    /* 底部预留 100px + safe-area，避免「去添加」固定按钮压住最后一段教程内容 */
+    .page { padding: 24px 20px calc(110px + var(--safe-bottom)); max-width: 480px; margin: 0 auto; }
+
+    /* ===== 第一节：组件预览 ===== */
+    .section-title { font-size: 20px; font-weight: 700; line-height: 1.3; }
+    .section-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+    .preview-card {
+      margin-top: 20px;
+      background: var(--section-bg);
+      border-radius: 16px;
+      padding: 28px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .preview-card img {
+      width: 168px;
+      height: 168px;
+      object-fit: contain;
+      filter: drop-shadow(0 6px 16px rgba(122, 46, 11, 0.18));
+    }
+    .pager {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 16px;
+    }
+    .pager-dot {
+      width: 16px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--hint);
+      transition: all 0.2s;
+    }
+    .pager-dot.active {
+      width: 20px;
+      background: var(--text);
+    }
+
+    /* ===== 分节线 ===== */
+    .divider {
+      height: 8px;
+      background: var(--section-bg);
+      margin: 28px -20px 24px;
+    }
+
+    /* ===== 第二节：手动添加教程 ===== */
+    .howto-title { font-size: 20px; font-weight: 700; line-height: 1.3; }
+    .lead {
+      font-size: 15px;
+      color: var(--text);
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+    .step { margin-top: 22px; }
+    .step-head {
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .step-num { color: var(--text); }
+    .step-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+      line-height: 1.6;
+    }
+    .step-bullets {
+      list-style: none;
+      padding: 0;
+      margin: 14px 0 0;
+    }
+    .step-bullets li {
+      position: relative;
+      padding-left: 16px;
+      margin-top: 10px;
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .step-bullets li::before {
+      content: "•";
+      position: absolute;
+      left: 4px;
+      color: var(--text);
+      font-weight: 700;
+    }
+    .step-bullets b { font-weight: 600; }
+    .step-bullets .b-desc { color: var(--muted); font-weight: 400; }
+
+    /* 演示「桌面组件选择器」示意图 */
+    .picker-demo {
+      margin-top: 18px;
+      background: var(--section-bg);
+      border-radius: 16px;
+      padding: 20px 16px;
+    }
+    .picker-app {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .picker-app-icon {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #FF6A2C, #FF3D7F);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 16px; font-weight: 700;
+    }
+    .picker-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      align-items: stretch;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .picker-row::-webkit-scrollbar { display: none; }
+    .picker-card {
+      flex-shrink: 0;
+      width: 92px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .picker-card-img {
+      width: 92px; height: 92px;
+      background: #e9e9ec;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .picker-card.target .picker-card-img {
+      background: transparent;
+      border: 1.5px dashed #555;
+      padding: 4px;
+    }
+    .picker-card.target .picker-card-img img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      border-radius: 10px;
+    }
+    .picker-card-name {
+      font-size: 12px;
+      color: var(--text);
+      margin-top: 8px;
+      text-align: center;
+    }
+    .picker-card-size {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ===== 底部 CTA ===== */
+    .cta-wrap {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      padding: 12px 20px calc(12px + var(--safe-bottom));
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 30%);
+    }
+    .cta {
+      width: 100%;
+      height: 50px;
+      border-radius: 25px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 17px;
+      font-weight: 600;
+      border: none;
+      box-shadow: 0 6px 20px rgba(255, 45, 85, 0.3);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .cta:active { transform: scale(0.98); }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.78);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 100;
+      max-width: 280px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===== 燃力时刻 组件预览 ===== -->
+    <div class="section-title">燃力时刻</div>
+    <div class="section-desc">添加桌面组件，随时查看今日步数、卡路里和运动时长，运动数据一目了然。</div>
+
+    <div class="preview-card">
+      <img src="preview_sport.png" alt="燃力时刻 桌面组件预览" />
+    </div>
+    <div class="pager">
+      <div class="pager-dot active"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ===== 如何手动添加桌面组件 ===== -->
+    <div class="howto-title">如何手动添加桌面组件</div>
+    <div class="lead">以添加「燃力时刻」为例：</div>
+
+    <div class="step">
+      <div class="step-head"><span class="step-num">1.</span> 进入桌面设置</div>
+      <div class="step-sub">回到手机桌面，两指捏合屏幕或在桌面上长按空白区域。</div>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><span class="step-num">2.</span> 找到"组件"或"添加"图标</div>
+      <div class="step-sub">（不同机型上叫法存在差异）</div>
+      <ul class="step-bullets">
+        <li><b>如果您的机型上展示内容为"组件"或"添加"：</b><span class="b-desc">点击对应图标进入原子中心页，滑动找到本应用图标并点击，左右/上下滑动找到「燃力时刻」。</span></li>
+        <li><b>如果您的机型上展示内容为"桌面组件"：</b><span class="b-desc">点击图标并左右滑动找到「燃力时刻」。</span></li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><span class="step-num">3.</span> 选择并添加</div>
+      <div class="step-sub">长按组件并将其拖动到桌面上，或直接点击小组件添加。</div>
+
+      <div class="picker-demo">
+        <div class="picker-app">
+          <span>WearfitPro</span>
+        </div>
+        <div class="picker-row">
+          <div class="picker-card target">
+            <div class="picker-card-img">
+              <img src="preview_sport.png" alt="燃力时刻" />
+            </div>
+            <div class="picker-card-name">燃力时刻</div>
+            <div class="picker-card-size">2 × 2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 底部 CTA ===== -->
+  <div class="cta-wrap">
+    <button class="cta" id="ctaBtn">去添加</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (() => {
+    const bridge = window.android_common;
+    const isAndroid = !!(bridge && typeof bridge.isInApp === "function" && bridge.isInApp());
+    const ctaBtn = document.getElementById("ctaBtn");
+    const toastEl = document.getElementById("toast");
+
+    function toast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add("show");
+      setTimeout(() => toastEl.classList.remove("show"), 2000);
+    }
+
+    ctaBtn.addEventListener("click", () => {
+      if (isAndroid && typeof bridge.pinDailySportWidget === "function") {
+        const ok = bridge.pinDailySportWidget();
+        if (!ok) {
+          toast("当前桌面不支持一键添加，请按上方步骤手动添加");
+        }
+        // 拉起系统弹窗后由用户决定是否添加，不主动 finish
+      } else {
+        toast("请按上方步骤手动添加到桌面");
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

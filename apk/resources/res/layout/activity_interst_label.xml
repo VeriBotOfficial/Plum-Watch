@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@color/white"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.wakeup.commonui.MyTitleBar
+        android:id="@+id/title_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:menuText="跳过"
+        app:menuTextColor="@color/color_999999"
+        app:titleText="选择你的兴趣标签"/>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_i_l"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginBottom="12dp"
+        android:paddingHorizontal="16dp"
+        app:layout_constraintBottom_toTopOf="@+id/tv_i_l_next"
+        app:layout_constraintTop_toBottomOf="@+id/title_bar"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textColor="@color/bg"
+        android:gravity="center"
+        android:id="@+id/tv_i_l_next"
+        android:background="@drawable/shape_ffd9b9_r6"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginBottom="24dp"
+        android:text="@string/d_select_ok"
+        android:layout_marginHorizontal="23dp"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

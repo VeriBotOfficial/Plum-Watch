@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@android:id/background"
+        android:drawable="@drawable/shape_progressbar_ai_bg_r6"/>
+    <item android:id="@android:id/progress">
+        <clip android:drawable="@drawable/shape_7644ff_r6"/>
+    </item>
+</layer-list>

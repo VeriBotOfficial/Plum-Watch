@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.AppCompatTextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:textSize="@dimen/dp_14"
+    android:textColor="@color/color_3D3D3D"
+    android:orientation="vertical"
+    android:id="@+id/dialog_del_des"
+    android:background="@color/white"
+    android:padding="@dimen/dp_22"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"/>

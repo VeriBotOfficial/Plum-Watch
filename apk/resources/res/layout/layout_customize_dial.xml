@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@color/color_f6f6f6"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <RelativeLayout
+        android:layout_gravity="center_horizontal"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_margin="30dp">
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/iv_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:layout_centerInParent="true"
+            app:srcCompat="@drawable/ic_device_jztx"/>
+        <ImageView
+            android:id="@+id/iv_style_top"
+            android:visibility="invisible"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:scaleType="fitXY"
+            android:layout_alignTop="@+id/iv_bg"
+            android:layout_centerHorizontal="true"/>
+        <ImageView
+            android:id="@+id/iv_style_center"
+            android:visibility="invisible"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:scaleType="fitXY"
+            android:layout_centerInParent="true"/>
+        <ImageView
+            android:id="@+id/iv_style_bottom"
+            android:visibility="invisible"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:scaleType="fitXY"
+            android:layout_alignBottom="@+id/iv_bg"
+            android:layout_centerHorizontal="true"/>
+    </RelativeLayout>
+</androidx.appcompat.widget.LinearLayoutCompat>

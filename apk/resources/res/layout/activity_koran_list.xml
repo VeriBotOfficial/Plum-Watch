@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:id="@+id/religion_parent_layout"
+    android:background="@drawable/bg_religion_setting"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.wakeup.commonui.MyTitleBar
+        android:id="@+id/koran_list_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:titleColor="@color/white"
+        app:titleText="@string/religion_title"/>
+    <include
+        android:id="@+id/koran_search"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/dp_21"
+        android:layout_marginStart="@dimen/dp_24"
+        android:layout_marginEnd="@dimen/dp_24"
+        layout="@layout/include_search"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:background="@drawable/bg_under_line_green"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/dp_1"
+        android:layout_marginTop="@dimen/dp_24"
+        android:layout_marginBottom="@dimen/dp_12"
+        android:layout_marginStart="@dimen/dp_24"
+        android:layout_marginEnd="@dimen/dp_24"/>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/koran_list_rv"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingStart="@dimen/dp_24"
+        android:paddingEnd="@dimen/dp_24"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"/>
+</androidx.appcompat.widget.LinearLayoutCompat>

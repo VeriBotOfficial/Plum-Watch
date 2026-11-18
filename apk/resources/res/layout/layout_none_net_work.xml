@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:src="@drawable/icon_none_network"
+        android:layout_marginHorizontal="@dimen/dp_81"/>
+    <TextView
+        android:textSize="@dimen/sp_14"
+        android:textColor="@color/color_333333"
+        android:layout_gravity="center"
+        android:id="@+id/tv_try_refresh"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/dp_8"
+        android:text="@string/jacket_m_net_err_a"
+        android:drawableEnd="@drawable/icon_try_refresh"/>
+</LinearLayout>

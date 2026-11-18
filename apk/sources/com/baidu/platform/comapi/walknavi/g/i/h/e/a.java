@@ -1,0 +1,54 @@
+package com.baidu.platform.comapi.walknavi.g.i.h.e;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
+/* JADX INFO: compiled from: FileUtils.java */
+/* JADX INFO: loaded from: classes15.dex */
+public final class a {
+    public static void a(File file) {
+        a(file, true);
+    }
+
+    public static boolean b(File file) {
+        if (file != null && file.exists()) {
+            return file.delete();
+        }
+        return false;
+    }
+
+    public static void c(File file) {
+        File parentFile;
+        if (file == null || (parentFile = file.getParentFile()) == null || parentFile.exists()) {
+            return;
+        }
+        parentFile.mkdirs();
+    }
+
+    public static FileOutputStream d(File file) throws IOException {
+        b(file);
+        c(file);
+        file.createNewFile();
+        return new FileOutputStream(file);
+    }
+
+    public static void a(File file, boolean z) {
+        if (file == null || !file.isDirectory()) {
+            return;
+        }
+        File[] fileArrListFiles = file.listFiles();
+        if (fileArrListFiles != null && fileArrListFiles.length > 0) {
+            for (File file2 : fileArrListFiles) {
+                if (file2.isDirectory()) {
+                    a(file2, z);
+                } else {
+                    file2.delete();
+                }
+            }
+        }
+        if (z) {
+            file.delete();
+        }
+    }
+}

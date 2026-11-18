@@ -1,0 +1,17 @@
+[
+  {
+    "componentName": "Daily Activities",
+    "componentShapeType": 2,
+    "componentSource": 2,
+    "componentType": 3,
+    "deviceType": 1,
+    "id": 361,
+    "isUserComponent": 1,
+    "jumpVo": {
+      "extendInfo": "",
+      "jumpInfo": "58",
+      "jumpType": 1
+    },
+    "orderNum": 0
+  }
+]

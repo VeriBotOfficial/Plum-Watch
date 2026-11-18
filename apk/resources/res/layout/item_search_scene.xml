@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/item_koran_content"
+    android:background="@drawable/shape_18b24a_r4"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/dp_77"
+    android:layout_marginTop="@dimen/dp_12">
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="@dimen/sp_10"
+        android:textColor="@color/white"
+        android:gravity="center"
+        android:id="@+id/item_scene_order_number"
+        android:background="@drawable/ic_order_number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/dp_10"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="@dimen/sp_16"
+        android:textColor="@color/white"
+        android:gravity="start|center_vertical"
+        android:id="@+id/item_search_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/dp_12"
+        app:layout_constraintBottom_toTopOf="@+id/item_search_scene_tv"
+        app:layout_constraintStart_toEndOf="@+id/item_scene_order_number"
+        app:layout_constraintTop_toTopOf="parent"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="@dimen/sp_12"
+        android:textColor="@color/color_9BDDC6"
+        android:gravity="start|center_vertical"
+        android:id="@+id/item_search_scene_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/item_search_tv"
+        app:layout_constraintTop_toBottomOf="@+id/item_search_tv"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>健康日记</title>
+<style>
+  :root {
+    --primary: #FF6633;
+    --primary-light: #FFF2EE;
+    --primary-soft: rgba(255, 102, 51, 0.08);
+    --bg: #F5F5F5;
+    --card: #FFFFFF;
+    --text: #1A1A1A;
+    --text-sec: #888888;
+    --text-third: #BBBBBB;
+    --divider: #F0F0F0;
+    --radius: 16px;
+    --radius-sm: 12px;
+    --green: #4CD964;
+    --green-light: #EAFBEE;
+    --green-text: #2D9F40;
+    --blue: #5AC8FA;
+    --blue-light: #E8F6FE;
+    --blue-text: #2A8FC4;
+    --orange: #FF9500;
+    --orange-light: #FFF4E5;
+    --orange-text: #C67400;
+    --red: #FF3B30;
+    --red-light: #FFECEB;
+    --red-text: #CC2F26;
+    --purple: #7B68EE;
+    --purple-light: #F0EEFF;
+    --purple-text: #5B4BC4;
+    --pink-light: #FFF0F5;
+    --shadow: 0 2px 12px rgba(0,0,0,0.04);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    background: var(--bg); color: var(--text);
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== Date Nav ===== */
+  .date-nav {
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px 16px 6px; gap: 8px; position: relative;
+  }
+  .date-nav .arrow {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--card); border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: var(--shadow);
+    transition: transform 0.15s;
+  }
+  .date-nav .arrow:active { transform: scale(0.9); }
+  .date-nav .arrow svg { width: 16px; height: 16px; stroke: var(--text-sec); stroke-width: 2.5; fill: none; }
+  .date-nav .date-text { font-size: 16px; color: var(--text); font-weight: 600; }
+
+  /* ===== Score Card ===== */
+  .score-card {
+    background: var(--card); margin: 10px 16px; border-radius: var(--radius);
+    padding: 20px; box-shadow: var(--shadow);
+    animation: fadeIn 0.35s ease both;
+  }
+  .score-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+
+  .score-ring-wrap { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+  .score-ring-wrap svg { width: 80px; height: 80px; transform: rotate(-90deg); }
+  .score-ring-bg { fill: none; stroke: var(--divider); stroke-width: 6; }
+  .score-ring-fill {
+    fill: none; stroke-width: 6; stroke-linecap: round;
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .score-ring-fill.excellent { stroke: var(--green); }
+  .score-ring-fill.good { stroke: var(--blue); }
+  .score-ring-fill.fair { stroke: var(--orange); }
+  .score-ring-fill.poor { stroke: var(--red); }
+
+  .score-center {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 800; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .score-info { flex: 1; }
+  .score-label { font-size: 12px; color: var(--text-sec); margin-bottom: 4px; }
+  .score-level {
+    font-size: 20px; font-weight: 700;
+  }
+  .score-level.excellent { color: var(--green-text); }
+  .score-level.good { color: var(--blue-text); }
+  .score-level.fair { color: var(--orange-text); }
+  .score-level.poor { color: var(--red-text); }
+  .score-change { font-size: 12px; color: var(--text-third); margin-top: 2px; }
+
+  /* ===== Metrics Grid ===== */
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .metric {
+    border-radius: var(--radius-sm); padding: 12px 8px; text-align: center;
+  }
+  .metric.steps-bg { background: var(--green-light); }
+  .metric.sleep-bg { background: var(--purple-light); }
+  .metric.hr-bg { background: var(--red-light); }
+  .metric.bo-bg { background: var(--blue-light); }
+
+  .metric-icon { font-size: 20px; margin-bottom: 6px; }
+  .metric-value { font-size: 17px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  .metric-label { font-size: 10px; color: var(--text-sec); margin-top: 3px; }
+
+  /* ===== AI Card ===== */
+  .ai-card {
+    background: var(--card); margin: 10px 16px; border-radius: var(--radius);
+    padding: 16px; box-shadow: var(--shadow);
+    animation: fadeIn 0.35s 0.08s ease both;
+  }
+  .ai-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .ai-icon {
+    width: 32px; height: 32px; border-radius: 10px;
+    background: linear-gradient(135deg, #FF6633, #FF8F66);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .ai-icon svg { width: 18px; height: 18px; fill: #fff; }
+  .ai-title { font-size: 15px; font-weight: 600; color: var(--text); flex: 1; }
+  .ai-badge {
+    font-size: 10px; color: var(--primary); background: var(--primary-light);
+    padding: 2px 8px; border-radius: 6px; font-weight: 500;
+  }
+  .ai-text {
+    font-size: 14px; color: #666; line-height: 1.8; letter-spacing: 0.2px;
+  }
+
+  /* ===== Timeline Card ===== */
+  .section-title {
+    font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-icon {
+    width: 24px; height: 24px; border-radius: 7px;
+    background: var(--orange-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    border: 2px solid var(--card);
+    box-shadow: 0 0 0 1.5px currentColor;
+  }
+  .tl-time {
+    font-size: 12px; color: var(--text-sec); width: 38px; flex-shrink: 0;
+    font-weight: 500; font-variant-numeric: tabular-nums;
+  }
+  .tl-text { font-size: 13px; color: #555; line-height: 1.4; }
+
+  /* ===== Actions ===== */
+  .actions {
+    display: flex; gap: 10px; padding: 6px 16px 16px;
+    animation: fadeIn 0.35s 0.16s ease both;
+  }
+  .action-btn {
+    flex: 1; padding: 13px; border-radius: var(--radius-sm);
+    text-align: center; font-size: 14px; font-weight: 600;
+    cursor: pointer; border: none;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: transform 0.15s;
+  }
+  .action-btn:active { transform: scale(0.96); }
+  .action-btn svg { width: 16px; height: 16px; }
+  .action-share {
+    background: var(--primary); color: #fff;
+  }
+  .action-ask {
+    background: var(--card); color: var(--text);
+    box-shadow: var(--shadow);
+  }
+
+  /* ===== List View ===== */
+  .diary-list { padding: 0 16px; }
+  .diary-item {
+    background: var(--card); border-radius: var(--radius-sm);
+    padding: 14px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 14px; cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: transform 0.15s;
+  }
+  .diary-item:active { transform: scale(0.98); }
+  .diary-date-col {
+    text-align: center; min-width: 44px;
+    background: var(--bg); border-radius: 10px; padding: 8px 6px;
+  }
+  .diary-day {
+    font-size: 20px; font-weight: 800; color: var(--text);
+    line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .diary-month { font-size: 10px; color: var(--text-sec); margin-top: 3px; }
+  .diary-info { flex: 1; min-width: 0; }
+  .diary-score-badge {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    padding: 3px 10px; border-radius: 8px;
+  }
+  .diary-summary {
+    font-size: 12px; color: var(--text-sec); margin-top: 5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .diary-arrow svg { width: 14px; height: 14px; stroke: var(--text-third); stroke-width: 2.5; fill: none; }
+
+  .empty { text-align: center; padding: 50px 20px; color: var(--text-third); font-size: 14px; }
+
+  #list-view { display: none; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Detail View ===== -->
+<div id="detail-view">
+
+  <div class="date-nav">
+    <span class="arrow" onclick="changeDate(-1)">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </span>
+    <span class="date-text" id="date-display">--</span>
+    <span class="arrow" onclick="changeDate(1)">
+      <svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg>
+    </span>
+    <span style="position:absolute;right:16px;font-size:13px;color:var(--primary);cursor:pointer;" onclick="showList()">历史记录 ›</span>
+  </div>
+
+  <!-- Score Card -->
+  <div class="score-card">
+    <div class="score-header">
+      <div class="score-ring-wrap">
+        <svg viewBox="0 0 80 80">
+          <circle class="score-ring-bg" cx="40" cy="40" r="34"/>
+          <circle class="score-ring-fill" id="score-ring" cx="40" cy="40" r="34"
+                  stroke-dasharray="213.6" stroke-dashoffset="213.6"/>
+        </svg>
+        <div class="score-center" id="score-number">--</div>
+      </div>
+      <div class="score-info">
+        <div class="score-label">健康评分</div>
+        <div class="score-level" id="score-level">--</div>
+        <div class="score-change" id="score-change"></div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric steps-bg">
+        <div class="metric-icon">🚶</div>
+        <div class="metric-value" id="m-steps">--</div>
+        <div class="metric-label">步数</div>
+      </div>
+      <div class="metric sleep-bg">
+        <div class="metric-icon">😴</div>
+        <div class="metric-value" id="m-sleep">--</div>
+        <div class="metric-label">睡眠</div>
+      </div>
+      <div class="metric hr-bg">
+        <div class="metric-icon">❤️</div>
+        <div class="metric-value" id="m-hr">--</div>
+        <div class="metric-label">心率</div>
+      </div>
+      <div class="metric bo-bg">
+        <div class="metric-icon">💧</div>
+        <div class="metric-value" id="m-bo">--</div>
+        <div class="metric-label">血氧</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Insight -->
+  <div class="ai-card">
+    <div class="ai-header">
+      <div class="ai-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 110 2h-1.07A7 7 0 0113 22h-2a7 7 0 01-6.93-6H3a1 1 0 110-2h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2zm-1 9a5 5 0 00-5 5 5 5 0 005 5h2a5 5 0 005-5 5 5 0 00-5-5h-2zm-1 3a1 1 0 110 2 1 1 0 010-2zm4 0a1 1 0 110 2 1 1 0 010-2z"/></svg>
+      </div>
+      <span class="ai-title">AI 健康助手</span>
+      <span class="ai-badge">基于你的数据</span>
+    </div>
+    <div class="ai-text" id="ai-insight">加载中...</div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="action-btn action-share" onclick="shareDiary()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+      分享日记
+    </button>
+  </div>
+
+</div>
+
+<!-- ===== List View ===== -->
+<div id="list-view">
+  <div style="padding:10px 16px 6px;display:flex;align-items:center;">
+    <span style="font-size:13px;color:var(--primary);cursor:pointer;" onclick="showDetail()">‹ 返回今日</span>
+  </div>
+  <div id="diary-list" class="diary-list"><div class="empty">加载中...</div></div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search)
+const userToken = params.get('token') || ''
+const API_MAP = {
+  test: 'http://43.137.73.74/healthDiary/api',
+  prod: 'https://howear.iwhop.cn/healthDiary/api',
+}
+const API = API_MAP[params.get('env')] || API_MAP.prod
+let currentDate = getYesterday()
+
+// ===== 埋点工具 =====
+function trackEvent(eventName, eventParams) {
+  try {
+    var extend = JSON.stringify(Object.assign({ event: eventName, timestamp: Date.now() }, eventParams || {}))
+    var actionType = (eventName.indexOf('_click') !== -1 || eventName.indexOf('Click') !== -1) ? 'click' : 'exposure'
+    // H5 WebView 容器 bridge (android_common)
+    if (window.android_common && window.android_common.eventReporting) {
+      window.android_common.eventReporting(eventName, actionType, 'healthDiary', extend)
+    }
+    // 小程序容器 bridge (android_environment)
+    if (window.android_environment && window.android_environment.eventReporting) {
+      window.android_environment.eventReporting(eventName, actionType, 'healthDiary', extend)
+    }
+    console.log('[Track]', eventName, actionType, extend)
+  } catch(e) { console.warn('[Track] error:', e) }
+}
+
+function authFetch(url, opts = {}) {
+  const headers = { ...(opts.headers || {}), 'token': userToken }
+  return fetch(url, { ...opts, headers })
+}
+
+const RING_C = 2 * Math.PI * 34 // ~213.6
+
+function getYesterday() {
+  const d = new Date(); d.setDate(d.getDate() - 1)
+  return d.toISOString().split('T')[0]
+}
+function fmtDate(s) {
+  const d = new Date(s)
+  return d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0')
+}
+function changeDate(delta) {
+  const d = new Date(currentDate); d.setDate(d.getDate() + delta)
+  if (d > new Date()) return
+  var fromDate = currentDate
+  currentDate = d.toISOString().split('T')[0]
+  trackEvent('healthDiary_dateChange', { fromDate: fromDate, toDate: currentDate, direction: delta > 0 ? 'next' : 'prev' })
+  loadDiary()
+}
+function showList() {
+  document.getElementById('detail-view').style.display = 'none'
+  document.getElementById('list-view').style.display = 'block'
+  trackEvent('healthDiary_historyClick', {})
+  loadList()
+}
+function showDetail() {
+  document.getElementById('detail-view').style.display = 'block'
+  document.getElementById('list-view').style.display = 'none'
+}
+function shareDiary() {
+  var scoreEl = document.getElementById('score-number')
+  var scoreVal = scoreEl ? scoreEl.textContent.trim() : '0'
+  trackEvent('healthDiary_shareClick', { score: parseInt(scoreVal) || 0, date: currentDate })
+
+  var btn = document.querySelector('.action-share')
+  var origHtml = btn.innerHTML
+  btn.disabled = true
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg> 生成中...'
+
+  generateShareCard().then(function(base64) {
+    if (window.android_common && window.android_common.shareImg) {
+      window.android_common.shareImg(base64)
+      trackEvent('healthDiary_shareSuccess', { platform: 'native', date: currentDate })
+      btn.innerHTML = origHtml
+      btn.disabled = false
+    } else {
+      var a = document.createElement('a')
+      a.href = 'data:image/png;base64,' + base64
+      a.download = 'health_diary_' + currentDate + '.png'
+      a.click()
+      trackEvent('healthDiary_shareSuccess', { platform: 'download', date: currentDate })
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> 已保存'
+      setTimeout(function() { btn.innerHTML = origHtml; btn.disabled = false }, 2000)
+    }
+  }).catch(function() {
+    btn.innerHTML = origHtml
+    btn.disabled = false
+  })
+}
+
+function generateShareCard() {
+  return new Promise(function(resolve) {
+    var canvas = document.createElement('canvas')
+    var w = 600, h = 800
+    canvas.width = w
+    canvas.height = h
+    var ctx = canvas.getContext('2d')
+
+    // 先填满整个画布为白色（防止圆角外透明变黑）
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, w, h)
+
+    // 顶部渐变条
+    var grad = ctx.createLinearGradient(0, 0, w, 0)
+    grad.addColorStop(0, '#FF6633')
+    grad.addColorStop(1, '#FF9966')
+    ctx.fillStyle = grad
+    roundRect(ctx, 0, 0, w, 80, 20)
+    ctx.fill()
+    ctx.fillRect(0, 40, w, 40)
+
+    // App名
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = 'bold 22px sans-serif'
+    ctx.fillText('WearfitPro 健康日记', 30, 50)
+
+    // 日期
+    ctx.fillStyle = '#999999'
+    ctx.font = '18px sans-serif'
+    ctx.fillText(fmtDate(currentDate), 30, 120)
+
+    // 评分
+    var scoreEl = document.getElementById('score-number')
+    var levelEl = document.getElementById('score-level')
+    var score = scoreEl ? scoreEl.textContent.trim() : '--'
+    var level = levelEl ? levelEl.textContent.trim() : '--'
+    var scoreNum = parseInt(score) || 0
+    var scoreColor = scoreNum >= 85 ? '#34C759' : scoreNum >= 70 ? '#5AC8FA' : scoreNum >= 50 ? '#FF9500' : '#FF3B30'
+
+    // 评分圆环
+    var cx = 80, cy = 170, r = 40
+    ctx.lineWidth = 6
+    ctx.strokeStyle = '#E8E8E8'
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, Math.PI * 2)
+    ctx.stroke()
+    if (scoreNum > 0) {
+      ctx.strokeStyle = scoreColor
+      ctx.beginPath()
+      ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (scoreNum / 100) * Math.PI * 2)
+      ctx.stroke()
+    }
+    ctx.fillStyle = '#222222'
+    ctx.font = 'bold 32px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(score, cx, cy + 11)
+    ctx.textAlign = 'left'
+
+    // 等级和标签
+    ctx.fillStyle = scoreColor
+    ctx.font = 'bold 26px sans-serif'
+    ctx.fillText(level, 140, 160)
+
+    ctx.fillStyle = '#999999'
+    ctx.font = '15px sans-serif'
+    ctx.fillText('健康评分', 140, 185)
+
+    // 四个指标
+    var metrics = [
+      { icon: '🚶', label: '步数', id: 'm-steps' },
+      { icon: '😴', label: '睡眠', id: 'm-sleep' },
+      { icon: '❤️', label: '心率', id: 'm-hr' },
+      { icon: '💧', label: '血氧', id: 'm-bo' }
+    ]
+    var mx = 30
+    metrics.forEach(function(m, i) {
+      var val = document.getElementById(m.id)
+      var v = val ? val.textContent : '--'
+      var bx = mx + i * 140
+
+      ctx.fillStyle = '#F5F5F5'
+      roundRect(ctx, bx, 230, 125, 80, 12)
+      ctx.fill()
+
+      ctx.font = '20px sans-serif'
+      ctx.fillStyle = '#222222'
+      ctx.fillText(m.icon + ' ' + v, bx + 12, 262)
+
+      ctx.font = '13px sans-serif'
+      ctx.fillStyle = '#999999'
+      ctx.fillText(m.label, bx + 12, 295)
+    })
+
+    // AI 洞察
+    ctx.fillStyle = '#F8F8F8'
+    roundRect(ctx, 30, 340, w - 60, 300, 14)
+    ctx.fill()
+
+    ctx.fillStyle = '#7B68EE'
+    ctx.font = 'bold 16px sans-serif'
+    ctx.fillText('🤖 AI 健康助手', 50, 375)
+
+    var insight = document.getElementById('ai-insight')
+    var text = insight ? insight.textContent : ''
+    ctx.fillStyle = '#555555'
+    ctx.font = '15px sans-serif'
+    wrapText(ctx, text, 50, 410, w - 120, 22)
+
+    // 底部水印
+    ctx.fillStyle = '#CCCCCC'
+    ctx.font = '14px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('由 WearfitPro 生成 · ' + currentDate, w / 2, h - 30)
+    ctx.textAlign = 'left'
+
+    // 导出 base64（去掉 data:image/png;base64, 前缀）
+    var dataUrl = canvas.toDataURL('image/png')
+    resolve(dataUrl.replace('data:image/png;base64,', ''))
+  })
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+}
+
+function wrapText(ctx, text, x, y, maxW, lineH) {
+  var chars = text.split('')
+  var line = ''
+  var ly = y
+  for (var i = 0; i < chars.length && ly < y + 250; i++) {
+    var test = line + chars[i]
+    if (ctx.measureText(test).width > maxW) {
+      ctx.fillText(line, x, ly)
+      line = chars[i]
+      ly += lineH
+    } else {
+      line = test
+    }
+  }
+  if (line) ctx.fillText(line, x, ly)
+}
+function getLevelClass(level) {
+  return level === '优秀' ? 'excellent' : level === '良好' ? 'good' : level === '一般' ? 'fair' : 'poor'
+}
+
+function animateScore(score) {
+  var ring = document.getElementById('score-ring')
+  var offset = RING_C - (score / 100) * RING_C
+  ring.style.transition = 'none'
+  ring.setAttribute('stroke-dashoffset', RING_C)
+  ring.getBoundingClientRect()
+  ring.style.transition = 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
+  ring.setAttribute('stroke-dashoffset', offset)
+
+  var numEl = document.getElementById('score-number')
+  var cur = 0, step = Math.max(1, Math.floor(score / 25))
+  var t = setInterval(function() {
+    cur += step
+    if (cur >= score) { cur = score; clearInterval(t) }
+    numEl.textContent = cur
+  }, 30)
+}
+
+async function loadDiary() {
+  document.getElementById('date-display').textContent = fmtDate(currentDate)
+  try {
+    var r = await authFetch(API + '/diary/' + currentDate)
+    var d = await r.json()
+    if (!d.data) {
+      r = await authFetch(API + '/diary/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: currentDate })
+      })
+      d = await r.json()
+    }
+    var v = d.data
+    if (!v) { document.getElementById('ai-insight').textContent = '暂无数据'; return }
+
+    var score = v.health_score || v.healthScore || 0
+    var level = v.score_level || v.scoreLevel || '--'
+    var cls = getLevelClass(level)
+
+    var ring = document.getElementById('score-ring')
+    ring.className.baseVal = 'score-ring-fill ' + cls
+    animateScore(score)
+
+    var lEl = document.getElementById('score-level')
+    lEl.textContent = level
+    lEl.className = 'score-level ' + cls
+
+    document.getElementById('m-steps').textContent = (v.steps || 0).toLocaleString()
+    document.getElementById('m-sleep').textContent = (v.sleep_hours || v.sleepHours || 0).toFixed(1) + 'h'
+    document.getElementById('m-hr').textContent = (v.heart_rate || v.heartRate || '--')
+    document.getElementById('m-bo').textContent = (v.blood_oxygen || v.bloodOxygen || '--')
+    var aiText = v.ai_insight || v.aiInsight || '暂无分析'
+    document.getElementById('ai-insight').textContent = aiText
+
+    // 埋点：页面加载 + 评分展示 + AI 洞察展示
+    trackEvent('healthDiary_pageView', { date: currentDate })
+    trackEvent('healthDiary_scoreView', { score: score, level: level, date: currentDate })
+    if (aiText && aiText !== '暂无分析' && aiText !== '加载失败') {
+      trackEvent('healthDiary_aiInsightView', { hasInsight: true, insightLength: aiText.length, date: currentDate })
+    }
+  } catch (e) { document.getElementById('ai-insight').textContent = '加载失败'; console.error(e) }
+}
+
+async function loadList() {
+  try {
+    var r = await authFetch(API + '/diary/list')
+    var d = await r.json()
+    var list = d.data || []
+    var el = document.getElementById('diary-list')
+    if (!list.length) { el.innerHTML = '<div class="empty">暂无日记记录</div>'; return }
+    el.innerHTML = list.map(function(d) {
+      var date = new Date(d.diary_date)
+      var level = d.score_level
+      var cls = getLevelClass(level)
+      var bgs = { excellent: 'var(--green-light)', good: 'var(--blue-light)', fair: 'var(--orange-light)', poor: 'var(--red-light)' }
+      var colors = { excellent: 'var(--green-text)', good: 'var(--blue-text)', fair: 'var(--orange-text)', poor: 'var(--red-text)' }
+      return '<div class="diary-item" onclick="trackEvent(\'healthDiary_listItemClick\',{date:\'' + d.diary_date + '\',score:' + d.health_score + '});currentDate=\'' + d.diary_date + '\';showDetail();loadDiary()">' +
+        '<div class="diary-date-col"><div class="diary-day">' + date.getDate() + '</div><div class="diary-month">' + (date.getMonth() + 1) + '月</div></div>' +
+        '<div class="diary-info">' +
+        '<span class="diary-score-badge" style="background:' + (bgs[cls] || '#f5f5f5') + ';color:' + (colors[cls] || '#666') + '">' + d.health_score + '分 · ' + level + '</span>' +
+        '<div class="diary-summary">步数' + (d.steps || 0).toLocaleString() + ' · 睡眠' + (d.sleep_hours || 0).toFixed(1) + 'h · 心率' + (d.heart_rate || '--') + '</div>' +
+        '</div>' +
+        '<div class="diary-arrow"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></div>' +
+        '</div>'
+    }).join('')
+  } catch (e) { console.error(e) }
+}
+
+loadDiary()
+</script>
+</body>
+</html>

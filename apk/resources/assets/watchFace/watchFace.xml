@@ -1,0 +1,21 @@
+<!-- 猫咪表盘 -->
+<!--<dial title="watchFace" description="main clock" size="454 454" version="2.0" preview_img="/watchFace/preview_img.png" ambient_period="10">-->
+<dial ambient_period="60000" normal_peroid="16" title="watch" zh_title="表盘" description="序列帧表盘" size="466 466" version="3.0" watch_version="1.0.0" preview_img="/watchFace/preview_img.png" watch_type="2" uuid="3">
+    <element layer="background">
+        <static_img index="1" position="0 0" img_names="/watchFace/bg.png" display_mode="always"/>
+        <sequence_img index="2" position="0 0" display_mode="normal" interval="200">
+            <imgs names="/watchFace/frame_1.png,/watchFace/frame_2.png,/watchFace/frame_3.png,/watchFace/frame_4.png,/watchFace/frame_5.png,/watchFace/frame_6.png,/watchFace/frame_7.png,/watchFace/frame_8.png,/watchFace/frame_9.png,/watchFace/frame_10.png,/watchFace/frame_11.png,/watchFace/frame_12.png,/watchFace/frame_13.png,/watchFace/frame_14.png,/watchFace/frame_15.png" repeat="true"/>
+        </sequence_img>
+        <static_img index="3" position="209 186" rotate="0" img_names="/watchFace/time.png" display_mode="normal" language="255"/>
+        <static_img index="4" position="175 270" rotate="0" img_names="/watchFace/date.png" display_mode="normal" language="255"/>
+    </element>
+    <element layer="date">
+        <digital_img index="1" bind_data="80" display_mode="normal" space="0" align="center" align_pos="151 269" integer_length="0" img_names="/watchFace/date_082.png,/watchFace/date_083.png,/watchFace/date_084.png,/watchFace/date_085.png,/watchFace/date_086.png,/watchFace/date_087.png,/watchFace/date_088.png,/watchFace/date_089.png,/watchFace/date_090.png,/watchFace/date_091.png" decimal_precision="0" is_periodic="false" time_intervals="0-24"/>
+        <digital_img index="2" bind_data="70" display_mode="normal" space="0" align="center" align_pos="208 269" integer_length="0" img_names="/watchFace/date_082.png,/watchFace/date_083.png,/watchFace/date_084.png,/watchFace/date_085.png,/watchFace/date_086.png,/watchFace/date_087.png,/watchFace/date_088.png,/watchFace/date_089.png,/watchFace/date_090.png,/watchFace/date_091.png" decimal_precision="0" is_periodic="false" time_intervals="0-24"/>
+        <option_img index="3" bind_data="83" display_mode="normal" position="239 269" img_names="/watchFace/date_092.png,/watchFace/date_093.png,/watchFace/date_094.png,/watchFace/date_095.png,/watchFace/date_096.png,/watchFace/date_097.png,/watchFace/date_098.png" is_periodic="false" language="255" time_intervals="0-24"/>
+    </element>
+    <element layer="time">
+        <digital_img index="1" bind_data="1" display_mode="normal" space="0" align="center" align_pos="161 185" integer_length="2" img_names="/watchFace/time_109.png,/watchFace/time_110.png,/watchFace/time_111.png,/watchFace/time_112.png,/watchFace/time_113.png,/watchFace/time_114.png,/watchFace/time_115.png,/watchFace/time_116.png,/watchFace/time_117.png,/watchFace/time_118.png" decimal_precision="0" is_periodic="true" time_intervals="0-24"/>
+        <digital_img index="2" bind_data="6" display_mode="normal" space="0" align="center" align_pos="291 185" integer_length="2" img_names="/watchFace/time_109.png,/watchFace/time_110.png,/watchFace/time_111.png,/watchFace/time_112.png,/watchFace/time_113.png,/watchFace/time_114.png,/watchFace/time_115.png,/watchFace/time_116.png,/watchFace/time_117.png,/watchFace/time_118.png" decimal_precision="0" is_periodic="true" time_intervals="0-24"/>
+    </element>
+</dial>

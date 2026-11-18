@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>盲盒预估</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #fff; color: #333; padding: 20px; }
+
+.title { font-size: 14px; font-weight: 700; padding: 4px 10px; background: #FDE8D0; display: inline-block; margin-bottom: 2px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 8px 12px; border: 1px solid #ddd; }
+th { background: #f5f5f5; font-weight: 600; text-align: left; }
+td { text-align: left; }
+
+.group-label { background: #fff; font-weight: 600; border-bottom: 1px solid #ddd; }
+.sum-row td { font-weight: 600; }
+.sum-val { background: #D6E4F0; font-weight: 700; }
+
+.sub-info { font-size: 12px; color: #999; margin-top: 12px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="title">盲盒预估</div>
+
+<table>
+  <tr>
+    <th></th>
+    <th></th>
+    <th colspan="3" style="text-align:center;">新用户（9,738人）</th>
+    <th colspan="3" style="text-align:center;">老用户（日活210,000）</th>
+  </tr>
+  <tr>
+    <th>参与次数</th>
+    <th>单价</th>
+    <th>参与比例</th>
+    <th>参与人数</th>
+    <th>金额</th>
+    <th>参与比例</th>
+    <th>参与人数</th>
+    <th>金额</th>
+  </tr>
+  <tr>
+    <td>1次</td>
+    <td>¥8.80</td>
+    <td>3%</td>
+    <td>292</td>
+    <td>¥2,570</td>
+    <td>0.10%</td>
+    <td>210</td>
+    <td>¥1,848</td>
+  </tr>
+  <tr>
+    <td>2连抽</td>
+    <td>¥15.80</td>
+    <td>1.5%</td>
+    <td>146</td>
+    <td>¥2,307</td>
+    <td>0.05%</td>
+    <td>105</td>
+    <td>¥1,659</td>
+  </tr>
+  <tr>
+    <td>5连抽</td>
+    <td>¥34.80</td>
+    <td>0.5%</td>
+    <td>49</td>
+    <td>¥1,705</td>
+    <td>0.02%</td>
+    <td>42</td>
+    <td>¥1,462</td>
+  </tr>
+  <tr class="sum-row">
+    <td>收入预估合计</td>
+    <td></td>
+    <td>5%</td>
+    <td>487</td>
+    <td class="sum-val">¥6,582</td>
+    <td>0.17%</td>
+    <td>357</td>
+    <td class="sum-val">¥4,969</td>
+  </tr>
+</table>
+
+<br>
+<table>
+  <tr>
+    <th colspan="2" style="background:#FDE8D0;">增收评估</th>
+  </tr>
+  <tr><td>当前7天收入</td><td>¥3,400</td></tr>
+  <tr><td>盲盒7天新增收入</td><td style="font-weight:700;color:#ff7300;">¥11,551</td></tr>
+  <tr><td>盲盒后7天总收入</td><td style="font-weight:700;">¥14,951</td></tr>
+  <tr><td style="font-weight:700;">7天增收比例</td><td style="font-weight:700;color:#08c261;">+340%</td></tr>
+  <tr><td colspan="2" style="background:#f5f5f5;"></td></tr>
+  <tr><td>当前月收入</td><td>¥60,000</td></tr>
+  <tr><td>盲盒月新增收入</td><td style="font-weight:700;color:#ff7300;">¥49,669</td></tr>
+  <tr><td>盲盒后月总收入</td><td style="font-weight:700;">¥109,669</td></tr>
+  <tr><td style="font-weight:700;">月增收比例</td><td style="font-weight:700;color:#08c261;">+83%</td></tr>
+</table>
+
+<div class="sub-info">
+  新用户基数：7天新注册 9,738 人<br>
+  老用户基数：日活 210,000 人（按日活计算，未去重）<br>
+  7天增收比例 = 盲盒收入 ¥11,551 ÷ 当前7天收入 ¥3,400 = +340%<br>
+  月增收 = 7天盲盒收入 ¥11,551 × 4.3周 = ¥49,669<br>
+  月增收比例 = ¥49,669 ÷ ¥60,000 = +83%
+</div>
+
+</body>
+</html>

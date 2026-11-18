@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:background="@drawable/shape_f6f7f9_r4"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="16dp"
+    android:layout_marginHorizontal="@dimen/dp_20"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="6dp">
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="14dp"
+        android:textColor="@color/color_333333"
+        android:ellipsize="end"
+        android:id="@+id/tv_chat_text_case"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="预防流感为主题的PPT，学术会议上展示"
+        android:maxLines="2"
+        android:layout_weight="1"
+        android:layout_marginEnd="10dp"/>
+    <androidx.appcompat.widget.AppCompatImageView
+        android:layout_gravity="center_vertical"
+        android:background="@drawable/ic_arrowgrey_right"
+        android:layout_width="12dp"
+        android:layout_height="16dp"/>
+</androidx.appcompat.widget.LinearLayoutCompat>

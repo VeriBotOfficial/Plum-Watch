@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@color/color_f4f6f8"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.wakeup.commonui.MyTitleBar
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:titleText="@string/string_agent"/>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:background="@drawable/shape_white_r16"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/dp_0"
+        android:layout_margin="@dimen/dp_14"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/topBar"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

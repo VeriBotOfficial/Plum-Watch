@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <com.wakeup.commonui.MyTitleBar
+            android:id="@+id/mTopBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:background="@color/transp"/>
+        <com.jwenfeng.library.pulltorefresh.PullToRefreshLayout
+            android:id="@+id/mPullToRefreshLayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/mRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+        </com.jwenfeng.library.pulltorefresh.PullToRefreshLayout>
+    </LinearLayout>
+    <ImageView
+        android:id="@+id/ivEmptyData"
+        android:visibility="gone"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@drawable/ic_nodata"
+        android:layout_centerInParent="true"/>
+</RelativeLayout>

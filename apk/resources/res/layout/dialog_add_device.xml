@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_marginBottom="@dimen/dp_10">
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="@dimen/sp_16"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:gravity="center"
+        android:id="@+id/tv_add_device_scan"
+        android:background="@drawable/shape_ffffff_r12_top"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/dp_56"
+        android:text="@string/device_management_scan_to_add"/>
+    <View
+        android:id="@+id/black_line"
+        android:background="#808080"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/dp_0_5"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="@dimen/sp_16"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:gravity="center"
+        android:id="@+id/tv_add_device_shoudong"
+        android:background="@drawable/shape_ffffff_r12_bottom"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/dp_56"
+        android:text="@string/device_management_manual_add"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="@dimen/sp_16"
+        android:textStyle="bold"
+        android:textColor="@color/color_fff76814"
+        android:gravity="center"
+        android:id="@+id/tv_add_device_cancel"
+        android:background="@drawable/shape_ffffff_r12"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/dp_56"
+        android:layout_marginTop="@dimen/dp_8"
+        android:text="@string/btn_cancel"/>
+</LinearLayout>

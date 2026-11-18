@@ -1,0 +1,21 @@
+{
+  "name": "舒缓减压立体呼吸",
+  "maxDuration": 900,
+  "actions": [
+    {
+      "name": "nose inhale\nbelly bulging",
+      "duration": 4.0,
+      "anim": "zoom"
+    },
+    {
+      "name": "hold your breath",
+      "duration": 4.0,
+      "anim": "ripple"
+    },
+    {
+      "name": "nose exhale\nabdominal depression",
+      "duration": 4.0,
+      "anim": "narrow"
+    }
+  ]
+}

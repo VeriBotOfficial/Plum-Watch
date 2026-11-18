@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:gravity="center_vertical"
+        android:layout_gravity="center"
+        android:orientation="horizontal"
+        android:background="@drawable/shape_pace_bg"
+        android:layout_width="match_parent"
+        android:layout_height="20dp">
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:orientation="horizontal"
+            android:id="@+id/view_pace_process"
+            android:layout_width="100dp"
+            android:layout_height="20dp"
+            android:paddingHorizontal="12dp">
+            <androidx.appcompat.widget.AppCompatTextView
+                android:textSize="12dp"
+                android:textColor="@color/white"
+                android:gravity="center"
+                android:id="@+id/tv_number"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/dp_0"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
+            <androidx.appcompat.widget.AppCompatTextView
+                android:textSize="12dp"
+                android:textColor="@color/white"
+                android:gravity="center"
+                android:id="@+id/tv_pace"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/dp_0"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.appcompat.widget.LinearLayoutCompat>
+</FrameLayout>

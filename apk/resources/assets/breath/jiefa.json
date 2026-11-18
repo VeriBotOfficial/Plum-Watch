@@ -1,0 +1,16 @@
+{
+  "name": "Relief from fatigue and refreshing reverse breathing",
+  "maxDuration": 900,
+  "actions": [
+    {
+      "name": "nose inhale\nabdominal depression",
+      "duration": 5,
+      "anim": "zoom"
+    },
+    {
+      "name": "nose exhale\nbelly bulging",
+      "duration": 5,
+      "anim": "narrow"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:background="@drawable/bg_mini_audio_book"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <TextView
+        android:textSize="19sp"
+        android:textColor="@color/color_ffffff"
+        android:id="@+id/mini_audio_book_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="13dp"
+        android:text="@string/sub_view_mini_audio_book_title"
+        android:layout_marginHorizontal="13dp"/>
+    <TextView
+        android:textSize="12sp"
+        android:textColor="@color/color_80ffffff"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/sub_view_mini_audio_book_desc"
+        android:layout_below="@+id/mini_audio_book_title"
+        android:layout_marginHorizontal="13dp"/>
+    <ImageView
+        android:layout_width="14dp"
+        android:layout_height="16dp"
+        android:layout_marginBottom="15dp"
+        android:src="@drawable/icon_mini_music_play"
+        android:layout_alignParentBottom="true"
+        android:layout_marginStart="15dp"/>
+</RelativeLayout>

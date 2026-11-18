@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:background="@drawable/shape_ai_energy_expend_bg"
+        android:layout_width="wrap_content"
+        android:layout_height="21dp"
+        android:paddingHorizontal="4dp">
+        <androidx.appcompat.widget.AppCompatImageView
+            android:background="@drawable/ic_ai_energy_expend"
+            android:layout_width="14dp"
+            android:layout_height="14dp"/>
+        <androidx.appcompat.widget.AppCompatTextView
+            android:textSize="12dp"
+            android:textColor="#ff7300"
+            android:id="@+id/tv_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+        <androidx.appcompat.widget.AppCompatTextView
+            android:textSize="12dp"
+            android:textColor="#ff7300"
+            android:id="@+id/tv_unit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+    </androidx.appcompat.widget.LinearLayoutCompat>
+</FrameLayout>

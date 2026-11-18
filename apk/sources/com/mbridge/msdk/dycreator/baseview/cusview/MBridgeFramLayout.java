@@ -1,0 +1,55 @@
+package com.mbridge.msdk.dycreator.baseview.cusview;
+
+import android.animation.AnimatorSet;
+import android.content.Context;
+import android.util.AttributeSet;
+import android.widget.FrameLayout;
+
+/* JADX INFO: loaded from: classes2.dex */
+public class MBridgeFramLayout extends FrameLayout {
+
+    /* JADX INFO: renamed from: a, reason: collision with root package name */
+    private AnimatorSet f11390a;
+
+    public MBridgeFramLayout(Context context) {
+        super(context);
+    }
+
+    @Override // android.view.ViewGroup, android.view.View
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        AnimatorSet animatorSet = this.f11390a;
+        if (animatorSet != null) {
+            try {
+                animatorSet.start();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Override // android.view.ViewGroup, android.view.View
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        AnimatorSet animatorSet = this.f11390a;
+        if (animatorSet != null) {
+            try {
+                animatorSet.cancel();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void setAnimatorSet(AnimatorSet animatorSet) {
+        this.f11390a = animatorSet;
+    }
+
+    public MBridgeFramLayout(Context context, AttributeSet attributeSet) {
+        super(context, attributeSet);
+    }
+
+    public MBridgeFramLayout(Context context, AttributeSet attributeSet, int r3) {
+        super(context, attributeSet, r3);
+    }
+}

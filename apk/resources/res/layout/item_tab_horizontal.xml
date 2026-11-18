@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/item_tab_horizontal_layout"
+    android:layout_width="@dimen/dp_230"
+    android:layout_height="@dimen/dp_130"
+    android:layout_marginTop="@dimen/dp_10"
+    android:layout_marginStart="@dimen/dp_14"
+    app:cardCornerRadius="@dimen/dp_12"
+    app:cardElevation="0dp">
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/item_tab_horizontal_iv"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"/>
+</androidx.cardview.widget.CardView>

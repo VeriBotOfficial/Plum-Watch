@@ -1,0 +1,21 @@
+{
+  "name": "4-7-8 soothe the nerves and help sleep",
+  "maxDuration": 900,
+  "actions": [
+    {
+      "name": "nose inhale\nbelly bulging",
+      "duration": 4.0,
+      "anim": "zoom"
+    },
+    {
+      "name": "hold your breath",
+      "duration": 7.0,
+      "anim": "ripple"
+    },
+    {
+      "name": "mouth exhale\nabdominal depression",
+      "duration": 8.0,
+      "anim": "narrow"
+    }
+  ]
+}

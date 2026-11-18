@@ -1,0 +1,48 @@
+package com.facebook.ads.redexgen.core;
+
+import java.util.Arrays;
+import org.tensorflow.lite.schema.BuiltinOptions;
+
+/* JADX INFO: renamed from: com.facebook.ads.redexgen.X.Zt, reason: case insensitive filesystem */
+/* JADX INFO: loaded from: assets/audience_network.dex */
+public enum EnumC2708Zt {
+    A05(0),
+    A04(1),
+    A03(2);
+
+    public static byte[] A01;
+    public int A00;
+
+    public static String A01(int r2, int r3, int r4) {
+        byte[] bArrCopyOfRange = Arrays.copyOfRange(A01, r2, r2 + r3);
+        for (int r1 = 0; r1 < bArrCopyOfRange.length; r1++) {
+            bArrCopyOfRange[r1] = (byte) ((bArrCopyOfRange[r1] ^ r4) ^ 120);
+        }
+        return new String(bArrCopyOfRange);
+    }
+
+    public static void A02() {
+        A01 = new byte[]{BuiltinOptions.AbsOptions, BuiltinOptions.ZerosLikeOptions, BuiltinOptions.SquaredDifferenceOptions, BuiltinOptions.BidirectionalSequenceRNNOptions, BuiltinOptions.ReverseV2Options, BuiltinOptions.FloorDivOptions, BuiltinOptions.ZerosLikeOptions, BuiltinOptions.AddNOptions, BuiltinOptions.UnidirectionalSequenceLSTMOptions, BuiltinOptions.PowOptions, BuiltinOptions.MaximumMinimumOptions, 58, BuiltinOptions.LogicalOrOptions, 58, BuiltinOptions.LessOptions, BuiltinOptions.ExpOptions, BuiltinOptions.LogicalOrOptions, 22, 13, 16, 19, 6, 0, 10, 5, 10, 6, 7};
+    }
+
+    static {
+        A02();
+    }
+
+    EnumC2708Zt(int r3) {
+        this.A00 = r3;
+    }
+
+    public static EnumC2708Zt A00(int r5) {
+        for (EnumC2708Zt enumC2708Zt : values()) {
+            if (enumC2708Zt.A00 == r5) {
+                return enumC2708Zt;
+            }
+        }
+        return A04;
+    }
+
+    public final int A04() {
+        return this.A00;
+    }
+}

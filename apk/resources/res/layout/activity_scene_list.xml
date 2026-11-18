@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:id="@+id/religion_parent_layout"
+    android:background="@drawable/bg_scene"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.wakeup.commonui.MyTitleBar
+        android:id="@+id/scene_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:titleColor="@color/white"
+        app:titleText="@string/religion_muslim_title"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="@dimen/sp_12"
+        android:textColor="@color/white"
+        android:id="@+id/scene_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/dp_10"
+        app:layout_constraintBottom_toBottomOf="@+id/scene_title"
+        app:layout_constraintEnd_toEndOf="@+id/scene_title"
+        app:layout_constraintStart_toStartOf="@+id/scene_title"/>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/scene_rv"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/scene_subtitle"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

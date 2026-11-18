@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@color/white"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.wakeup.commonui.MyTitleBar
+        android:id="@+id/mTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:titleText="@string/theme_market"/>
+    <com.flyco.tablayout.SlidingTabLayout
+        android:layout_gravity="center_horizontal"
+        android:id="@+id/mSlidingTabLayout"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/dp_50"
+        app:tl_indicator_color="@color/color_ec7445"
+        app:tl_indicator_corner_radius="1.5dp"
+        app:tl_indicator_height="@dimen/dp_2"
+        app:tl_indicator_margin_bottom="10dp"
+        app:tl_indicator_width="@dimen/dp_30"
+        app:tl_textSelectColor="@color/color_ec7445"
+        app:tl_textUnselectColor="@color/color_333333"
+        app:tl_textsize="@dimen/sp_16"/>
+    <androidx.viewpager.widget.ViewPager
+        android:id="@+id/mViewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintBottom_toTopOf="@+id/music_play_fragment"
+        app:layout_constraintTop_toTopOf="parent"/>
+</LinearLayout>

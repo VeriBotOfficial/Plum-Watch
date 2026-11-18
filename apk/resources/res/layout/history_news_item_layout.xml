@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:background="@drawable/shape_ffffff_r8"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/dp_8"
+    android:layout_marginHorizontal="@dimen/dp_8"
+    android:paddingHorizontal="@dimen/dp_16"
+    android:paddingVertical="@dimen/dp_12">
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="@dimen/sp_14"
+        android:textColor="@color/color_333333"
+        android:id="@+id/tv_history_news_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="这是一条XXXXXX的分析报告"
+        android:layout_weight="1"/>
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/tv_history_news_delete"
+        android:background="@drawable/ic_history_item_delete"
+        android:layout_width="@dimen/dp_20"
+        android:layout_height="@dimen/dp_20"/>
+</LinearLayout>

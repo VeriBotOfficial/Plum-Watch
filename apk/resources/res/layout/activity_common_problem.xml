@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.wakeup.commonui.MyTitleBar
+        android:id="@+id/mTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:titleText="@string/device_tip_1015"/>
+    <TextView
+        android:textSize="15sp"
+        android:textColor="@color/black"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="35dp"
+        android:text="@string/device_tip_1016"
+        android:layout_marginHorizontal="17.5dp"
+        app:layout_constraintTop_toBottomOf="@+id/mTopBar"/>
+    <TextView
+        android:textSize="13sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:text="@string/device_tip_1017"
+        android:layout_marginStart="17.5dp"
+        app:layout_constraintTop_toBottomOf="@+id/tv_content1"/>
+    <TextView
+        android:textSize="15sp"
+        android:textColor="@color/black"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="35dp"
+        android:text="@string/device_tip_1018"
+        android:layout_marginHorizontal="17.5dp"
+        app:layout_constraintTop_toBottomOf="@+id/tv_content3"/>
+    <TextView
+        android:textSize="13sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:text="@string/device_tip_1019"
+        android:layout_marginHorizontal="17.5dp"
+        app:layout_constraintTop_toBottomOf="@+id/tv_content4"/>
+</androidx.appcompat.widget.LinearLayoutCompat>

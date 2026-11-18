@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:startColor="@color/diabetes_purple_dark"
+        android:endColor="@color/diabetes_purple_primary"
+        android:angle="135"/>
+    <corners android:radius="16dp"/>
+</shape>

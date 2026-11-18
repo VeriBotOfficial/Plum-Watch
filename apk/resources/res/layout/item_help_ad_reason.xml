@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:id="@+id/ll_main"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="48dp"
+    android:paddingHorizontal="15dp">
+    <TextView
+        android:textSize="14sp"
+        android:textColor="#ff333333"
+        android:id="@+id/tv_reason"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"/>
+    <androidx.appcompat.widget.AppCompatCheckBox
+        android:id="@+id/cb_reason"
+        android:background="@drawable/select_switch_upload_log"
+        android:focusable="false"
+        android:clickable="false"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:button="@null"/>
+</LinearLayout>

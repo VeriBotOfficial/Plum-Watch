@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="12dp">
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="16dp"
+        android:textColor="@color/color_333333"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:id="@+id/tv_i_l_item"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:maxHeight="40dp"
+        android:maxLines="2"
+        android:paddingVertical="12dp"/>
+</androidx.appcompat.widget.LinearLayoutCompat>

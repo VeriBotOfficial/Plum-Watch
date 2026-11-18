@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <FrameLayout
+        android:id="@+id/splash_bg_clip"
+        android:visibility="invisible"
+        android:clipChildren="true"
+        android:clipToPadding="true"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <ImageView
+            android:id="@+id/splash_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/bg_splash_device"
+            android:scaleType="centerCrop"
+            android:importantForAccessibility="no"/>
+        <TextView
+            android:textSize="@dimen/sp_16"
+            android:textColor="@color/white"
+            android:gravity="center"
+            android:layout_gravity="bottom"
+            android:id="@+id/btn_splash_login"
+            android:background="@drawable/shape_gradient_ff3d2f_f76814_left_right"
+            android:visibility="visible"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/dp_52"
+            android:layout_marginBottom="@dimen/dp_52"
+            android:text="@string/login_bind_device"
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="@dimen/dp_16"
+            android:layout_marginEnd="@dimen/dp_16"/>
+    </FrameLayout>
+</RelativeLayout>

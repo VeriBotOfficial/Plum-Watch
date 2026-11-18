@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@color/color_f6f6f6"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:orientation="vertical"
+        android:background="@drawable/shape_white_r12"
+        android:padding="@dimen/dp_16"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/dp_12"
+        android:layout_marginHorizontal="@dimen/dp_12">
+        <TextView
+            android:textSize="@dimen/dp_16"
+            android:textStyle="bold"
+            android:textColor="@color/textBlack"
+            android:id="@+id/tv4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/blood_oxygen_desc_1"/>
+        <TextView
+            android:textSize="@dimen/dp_14"
+            android:textColor="@color/color_666666"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/dp_6"
+            android:text="@string/blood_oxygen_desc_2"/>
+        <include layout="@layout/item_blood_oxygen_info"/>
+    </androidx.appcompat.widget.LinearLayoutCompat>
+</LinearLayout>

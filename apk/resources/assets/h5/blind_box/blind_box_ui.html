@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>表盘盲盒</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --dial-radius:50%;
+  --price-card-gap:10px;
+  --price-opt-py:clamp(8px,2.2vw,10px);
+  --price-opt-px:clamp(4px,1.4vw,6px);
+  --price-opt-radius:clamp(10px,2.6vw,12px);
+  --price-price-size:clamp(16px,4.4vw,18px);
+  --price-label-size:clamp(10px,2.7vw,11px);
+  --price-save-size:clamp(9px,2.4vw,10px);
+}
+body{font-family:-apple-system,"PingFang SC",sans-serif;background:#0a0a1a;color:#fff;min-height:100vh;overflow-x:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+
+/* WebView：div+onclick 按压/聚焦时去掉系统蓝框，并抑制触摸高亮 */
+.price-opt,#bonusSection,.thumb-wrap,.thumb-item,.owned-card,.nav-right{-webkit-tap-highlight-color:transparent}
+.price-opt:focus,.price-opt:focus-visible,
+#bonusSection:focus,#bonusSection:focus-visible,
+.thumb-wrap:focus,.thumb-wrap:focus-visible,
+.thumb-item:focus,.thumb-item:focus-visible,
+.owned-card:focus,.owned-card:focus-visible,
+.nav-right:focus,.nav-right:focus-visible{outline:none}
+.price-opt:focus-visible,#bonusSection:focus-visible,.thumb-wrap:focus-visible,.thumb-item:focus-visible,.owned-card:focus-visible,.nav-right:focus-visible,.nav-back:focus-visible,.btn-draw:focus-visible,.btn-install:focus-visible,.btn-again:focus-visible,.btn-back:focus-visible{box-shadow:0 0 0 2px rgba(255,215,0,.35)}
+
+.page{display:none;min-height:100vh;flex-direction:column}
+.page.active{display:flex}
+
+.nav{display:flex;align-items:center;padding:12px 16px;position:relative;z-index:10}
+.nav-back{width:32px;height:32px;border:none;background:none;color:#fff;font-size:22px;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;-webkit-appearance:none;appearance:none}
+.nav-back:focus,.nav-back:focus-visible{outline:none}
+.nav-back:active{background:transparent;box-shadow:none;outline:none}
+.nav-title{flex:1;text-align:center;font-size:17px;font-weight:600}
+.nav-right{font-size:13px;color:#FFD700;cursor:pointer;white-space:nowrap;padding:4px 0}
+
+/* ── 玩法页 ── */
+/* ── 已集齐页 ── */
+.owned-page{background:linear-gradient(180deg,#1a0a2e,#0a0a1a);flex:1;overflow-y:auto;padding:16px}
+.owned-empty{text-align:center;color:#556;padding:60px 0;font-size:14px}
+.owned-list{display:flex;flex-direction:column;gap:12px}
+.owned-card{display:flex;align-items:center;gap:14px;background:#12122a;border-radius:12px;padding:12px;cursor:pointer;transition:all .2s}
+.owned-card:active{background:#1a1a3a}
+.owned-card-img{width:70px;height:70px;border-radius:var(--dial-radius);overflow:hidden;flex-shrink:0;border:1.5px solid #FFD70044;background:#1a1a3a;display:flex;align-items:center;justify-content:center}
+.owned-card-img img{width:100%;height:100%;object-fit:contain;object-position:center;display:block}
+.owned-card-info{flex:1}
+.owned-card-name{font-size:15px;font-weight:600;color:#fff;margin-bottom:4px}
+.owned-card-rarity{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px}
+.owned-card-btn{font-size:12px;color:#FFD700;white-space:nowrap;padding:6px 14px;border:1px solid #FFD70055;border-radius:16px}
+
+.rules-page{background:linear-gradient(180deg,#1a0a2e,#0a0a1a);flex:1;overflow-y:auto}
+.rules-content{padding:12px 24px;line-height:1.8;color:#ccd}
+.rules-content h2{font-size:18px;color:#FFD700;margin:0 0 10px;font-weight:600}
+.rules-content h3{font-size:15px;color:#fff;margin:16px 0 8px;font-weight:600}
+.rules-content p{font-size:13px;color:#99aabb;margin:6px 0}
+.rules-content .highlight{color:#FFD700}
+.rules-content table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
+.rules-content th{background:#1a1a3a;color:#FFD700;padding:8px;text-align:left;font-weight:500}
+.rules-content td{padding:8px;border-bottom:1px solid #1a1a3a;color:#99aabb}
+
+.home-bg{flex:1;background:linear-gradient(180deg,#1a0a2e 0%,#0d1b3e 40%,#0a0a1a 100%);display:flex;flex-direction:column;align-items:center;padding:0 20px;overflow-y:auto}
+
+.stars{position:fixed;top:0;left:0;right:0;height:300px;pointer-events:none;overflow:hidden}
+.star{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;animation:twinkle 3s infinite}
+@keyframes twinkle{0%,100%{opacity:.2}50%{opacity:1}}
+
+.box-title{margin-top:20px;font-size:22px;font-weight:700;text-align:center;background:linear-gradient(135deg,#FFD700,#FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.box-subtitle{font-size:13px;color:#8899bb;margin-top:6px;margin-bottom:20px}
+
+/* ── 表盘展示区（大图+缩略图） ── */
+.preview-stage{width:100%;max-width:360px;margin:0 auto 16px;position:relative}
+
+/* 大图 */
+.preview-main{width:220px;margin:0 auto 12px;position:relative;transition:all .3s}
+.preview-main img{width:100%;height:auto;display:block;border-radius:var(--dial-radius)}
+.preview-main .pm-name{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:12px;padding:3px 12px;border-radius:8px;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);color:#fff;white-space:nowrap;z-index:1}
+.preview-main .pm-rarity{position:absolute;top:10px;right:10px;font-size:10px;font-weight:600;padding:2px 10px;border-radius:8px;z-index:1}
+
+/* 缩略图行 */
+.preview-thumbs{display:flex;justify-content:center;gap:8px;padding:0 10px}
+.thumb-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
+.thumb-item{width:56px;height:56px;border-radius:calc(var(--dial-radius) * 0.5);overflow:hidden;cursor:pointer;transition:all .2s;opacity:.4;position:relative}
+.thumb-item.active{opacity:1}
+.thumb-item img{width:100%;height:100%;object-fit:contain;display:block}
+.thumb-item .thumb-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#888;background:#1a1a3a}
+.thumb-rarity{font-size:8px;font-weight:600;padding:1px 6px;border-radius:6px;white-space:nowrap}
+
+/* ── 价格选择 ── */
+.price-section{width:100%;max-width:360px;margin-bottom:16px}
+.price-label{font-size:13px;color:#8899bb;margin-bottom:10px}
+.price-options{display:flex;justify-content:space-between}
+.price-opt{flex:0 0 calc((100% - (var(--price-card-gap) * 2)) / 3);background:#1a1a3a;border:1.5px solid #333366;border-radius:var(--price-opt-radius);padding:var(--price-opt-py) var(--price-opt-px);text-align:center;cursor:pointer;transition:all .2s;position:relative;min-width:0}
+.price-opt.selected{border-color:#FFD700;background:#1a1a2e;box-shadow:0 0 16px #FFD70022}
+.price-opt .p-price{font-size:var(--price-price-size);font-weight:700;color:#FFD700}
+.price-opt .p-label{font-size:var(--price-label-size);color:#8899bb;margin-top:2px}
+.price-opt .p-tag{position:absolute;top:-8px;right:-4px;background:#ff3333;color:#fff;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:600}
+.price-opt .p-save{font-size:var(--price-save-size);color:#ff7300;margin-top:2px}
+
+.btn-draw{width:100%;max-width:360px;height:52px;border:none;border-radius:26px;font-size:17px;font-weight:700;color:#1a0a2e;cursor:pointer;position:relative;overflow:hidden;background:linear-gradient(135deg,#FFD700,#FFA500);box-shadow:0 4px 20px #FFD70044;transition:all .2s;outline:none;-webkit-tap-highlight-color:transparent;-webkit-appearance:none;appearance:none}
+.btn-draw:active{transform:none;filter:brightness(0.98)}
+.btn-draw:disabled{opacity:.5;cursor:not-allowed}
+.btn-draw:focus{outline:none}
+.btn-draw:focus-visible{outline:none}
+.btn-draw .shimmer{position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,#ffffff55,transparent);animation:shimmer 2s infinite}
+@keyframes shimmer{0%{left:-100%}100%{left:100%}}
+
+/* ── 开盒动画 ── */
+.open-page{background:linear-gradient(180deg,#1a0a2e 0%,#0a0a1a 100%);align-items:center;justify-content:center;position:relative;overflow:hidden}
+.open-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:320px;height:320px;display:flex;align-items:center;justify-content:center}
+.open-box{width:100%;height:100%;position:relative;display:flex;align-items:center;justify-content:center}
+.open-box-inner{width:200px;border-radius:var(--dial-radius);overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;z-index:2;border:3px solid #FFD700;box-shadow:0 0 30px #FFD70033}
+.open-box-inner img{width:100%;height:auto;display:block}
+.open-glow-ring{position:absolute;top:50%;left:50%;width:280px;height:280px;margin-left:-140px;margin-top:-140px;border-radius:50%;border:2px solid #FFD70033;opacity:0}
+.open-particles{position:absolute;top:50%;left:50%;width:320px;height:320px;margin-left:-160px;margin-top:-160px}
+.particle{position:absolute;width:6px;height:6px;border-radius:50%;top:50%;left:50%}
+.light-burst{position:absolute;top:50%;left:50%;width:320px;height:320px;margin-left:-160px;margin-top:-160px;opacity:0;pointer-events:none}
+.light-ray{position:absolute;top:50%;left:50%;width:3px;height:100px;transform-origin:bottom center;border-radius:2px}
+
+/* 动画阶段 */
+.open-stage-shake{animation:shakeBox .6s ease-in-out}
+@keyframes shakeBox{0%,100%{transform:rotate(0)}25%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}75%{transform:rotate(-3deg)}}
+.open-stage-burst .open-box-inner{animation:burstReveal .6s ease-out forwards}
+@keyframes burstReveal{0%{transform:scale(1);box-shadow:0 0 30px #FFD70033}40%{transform:scale(1.15);box-shadow:0 0 60px #FFD70066}100%{transform:scale(1);box-shadow:0 0 20px #FFD70022}}
+.open-stage-burst .open-glow-ring{animation:expandRing .8s ease-out forwards}
+@keyframes expandRing{0%{transform:scale(.4);opacity:1}100%{transform:scale(1.3);opacity:0}}
+.light-burst.active{animation:lightBurst .6s ease-out forwards}
+@keyframes lightBurst{0%{opacity:0;transform:scale(.3)}30%{opacity:1}100%{opacity:0;transform:scale(1.2)}}
+
+/* 底部背景光 */
+.open-bg-glow{position:absolute;top:50%;left:50%;width:400px;height:400px;margin-left:-200px;margin-top:-200px;border-radius:50%;background:radial-gradient(circle,#FFD70010 0%,transparent 60%);pointer-events:none;animation:bgGlow 1.5s ease-in-out infinite}
+@keyframes bgGlow{0%,100%{transform:scale(1);opacity:.4}50%{transform:scale(1.1);opacity:.8}}
+
+/* ── 结果页 ── */
+.result-page{background:linear-gradient(180deg,#1a0a2e 0%,#0d1b3e 50%,#0a0a1a 100%);padding:0 24px;overflow-y:auto}
+
+.result-glow{display:none}
+
+.result-center{display:flex;flex-direction:column;align-items:center;padding:10px 0}
+
+.result-rarity{font-size:12px;font-weight:600;padding:5px 20px;border-radius:14px;display:inline-block;letter-spacing:2px;margin-bottom:20px}
+.r-legend{background:#FFF0E0;color:#E67300}
+.r-epic{background:#F3E8FF;color:#7B2FBE}
+.r-rare{background:#E8F7FF;color:#0088CC}
+.r-fine{background:#E8F8EE;color:#08A050}
+.r-normal{background:#2a2a3a;color:#999}
+
+.result-dial-wrap{width:220px;margin-bottom:20px;animation:resultAppear .6s ease-out;position:relative}
+@keyframes resultAppear{0%{transform:scale(.3) rotateY(90deg);opacity:0}100%{transform:scale(1) rotateY(0);opacity:1}}
+.result-dial-wrap::before{content:'';position:absolute;inset:-12px;border-radius:var(--dial-radius);background:linear-gradient(135deg,#FFD70033,#FFA50022,#FFD70011);filter:blur(10px);z-index:-1;animation:dialGlow 2s ease-in-out infinite}
+@keyframes dialGlow{0%,100%{opacity:.5}50%{opacity:1}}
+
+.result-name{font-size:17px;font-weight:600;text-align:center;margin-bottom:20px}
+.result-count{font-size:12px;color:#FFD700;margin-bottom:20px;padding:3px 12px;border-radius:10px;background:#FFD70011}
+
+.result-btns{width:100%;max-width:320px;display:flex;flex-direction:column;gap:0;padding-bottom:30px;margin:0 auto}
+.btn-install{width:100%;height:50px;border:none;border-radius:25px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1a0a2e;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px #FFD70044;outline:none;-webkit-tap-highlight-color:transparent;-webkit-appearance:none;appearance:none}
+.btn-install:active{transform:none;filter:none}
+.btn-install:focus,.btn-install:focus-visible{outline:none;box-shadow:0 4px 16px #FFD70044}
+.btn-again{width:100%;height:50px;border:1.5px solid #FFD70055;border-radius:25px;background:#FFD70008;color:#FFD700;font-size:16px;font-weight:600;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;-webkit-appearance:none;appearance:none}
+.btn-again:active{background:#FFD70008}
+.btn-again:focus,.btn-again:focus-visible{outline:none}
+.btn-back{width:100%;height:50px;border:none;border-radius:25px;background:transparent;color:#8899bb;font-size:14px;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;-webkit-appearance:none;appearance:none}
+.btn-back:focus,.btn-back:focus-visible{outline:none}
+/* 结果页按钮间距：安装按钮与继续购买按钮固定 10dp */
+#pageResult .btn-install{margin-bottom:10px}
+#pageResult .btn-again{margin-top:0}
+
+.toast{position:fixed;bottom:20%;left:50%;transform:translateX(-50%);background:#1a1a3acc;backdrop-filter:blur(10px);border:1px solid #FFD70044;border-radius:20px;padding:8px 20px;font-size:13px;color:#FFD700;z-index:100;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1}
+
+/* ── 小屏适配（<=360） ── */
+@media (max-width: 360px) {
+  .home-bg { padding: 0 14px; }
+  .preview-stage { margin-bottom: 12px; }
+  #bonusSection { padding: 8px 10px !important; margin-top: 10px !important; }
+  #bonusSection > div { gap: 0 !important; }
+  #bonusTextWrap { margin-left: 10px !important; }
+  #bonusImg { width: 52px !important; height: 52px !important; }
+  #bonusNameText { font-size: 13px !important; }
+  #bonusProgress { font-size: 10px !important; }
+
+  .price-section { max-width: 100%; margin-bottom: 12px; }
+  .price-label { margin-bottom: 8px; font-size: 12px; }
+  .price-options { justify-content: space-between; }
+  .price-opt { padding: var(--price-opt-py) var(--price-opt-px); border-radius: var(--price-opt-radius); }
+  .price-opt .p-price { font-size: var(--price-price-size); }
+  .price-opt .p-label { font-size: var(--price-label-size); }
+  .price-opt .p-save { font-size: var(--price-save-size); }
+  .price-opt .p-badge { transform: scale(0.92); transform-origin: right top; }
+
+  .btn-draw { height: 48px; border-radius: 24px; font-size: 15px; }
+}
+
+/* ── 超窄屏兜底（<=320） ── */
+@media (max-width: 320px) {
+  .home-bg { padding: 0 10px; }
+  .price-section { margin-bottom: 10px; }
+  .price-options { justify-content: space-between; }
+  .price-section { --price-card-gap: 8px; }
+  .price-opt { padding: 7px 3px; }
+  .price-opt .p-price { font-size: 15px; line-height: 1.1; }
+  .price-opt .p-label { font-size: 9px; white-space: nowrap; }
+  .price-opt .p-save {
+    font-size: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- ==================== 主页 ==================== -->
+<div class="page active" id="pageHome">
+  <div class="stars" id="stars"></div>
+  <div class="nav">
+    <button class="nav-back" onclick="goBack()">&#x2039;</button>
+    <div class="nav-title">表盘盲盒</div>
+    <div class="nav-right" onclick="showPage('pageRules')">玩法</div>
+  </div>
+
+  <div class="home-bg">
+    <div class="box-title">拆盒有惊喜 腕上新风格</div>
+    <div class="box-subtitle">每次必得新款 &middot; 集齐全套 5 款</div>
+
+    <!-- 表盘展示 -->
+    <div class="preview-stage">
+      <div class="preview-main" id="previewMain"></div>
+      <div class="preview-thumbs" id="previewThumbs"></div>
+      <!-- 限定款 -->
+      <div id="bonusSection" style="display:none;margin-top:12px;background:#1a1a2e;border:1px solid #FFD70033;border-radius:12px;padding:10px 12px;cursor:pointer" onclick="onBonusClick()">
+        <div style="display:flex;align-items:center;gap:0">
+          <div id="bonusImg" style="width:60px;height:60px;border-radius:var(--dial-radius);overflow:hidden;border:1.5px solid #FFD70066;flex-shrink:0"></div>
+          <div id="bonusTextWrap" style="flex:1;min-width:0;margin-left:10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+              <span style="font-size:11px;color:#FFD700;font-weight:600">🎁 集齐5款免费送</span>
+            </div>
+            <div id="bonusNameText" style="font-size:14px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+            <div id="bonusProgress" style="font-size:11px;color:#8899bb;margin-top:2px">已集齐 0/5</div>
+          </div>
+          <div id="bonusArrow" style="font-size:18px;color:#FFD70066;flex-shrink:0;display:none">›</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 价格选择（付费版本） -->
+    <div class="price-section">
+      <div class="price-label">选择购买方式</div>
+      <div class="price-options">
+        <div class="price-opt selected" onclick="selectPrice(0, 0, 1)" id="priceOpt0">
+          <div class="p-price" id="priceText1">--</div>
+          <div class="p-label">单次</div>
+        </div>
+        <div class="price-opt" onclick="selectPrice(1, 0, 2)" id="priceOpt1">
+          <div class="p-badge">8.8折</div>
+          <div class="p-price" id="priceText2">--</div>
+          <div class="p-label">2连抽</div>
+          <div class="p-save">优惠档位</div>
+        </div>
+        <div class="price-opt" onclick="selectPrice(2, 0, 5)" id="priceOpt2">
+          <div class="p-badge">7.7折</div>
+          <div class="p-price" id="priceText5">--</div>
+          <div class="p-label">5连抽</div>
+          <div class="p-save">优惠档位 · 保底稀有</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 购买按钮 -->
+    <button class="btn-draw" id="btnDraw" onclick="startDraw()">
+      <span class="shimmer"></span>
+      <span id="btnDrawText">价格加载中...</span>
+    </button>
+
+    <!-- 规则简要 -->
+    <div style="width:100%;max-width:360px;margin:20px 0 30px">
+      <div style="font-size:12px;color:#556688;text-align:center;line-height:1.8">
+        每次必得新款 · 不会重复 · 集齐即止<br>
+        5连抽必出传说
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 开盒动画 ==================== -->
+<div class="page" id="pageOpen">
+  <div class="open-page" style="flex:1;display:flex">
+    <div class="open-bg-glow"></div>
+    <div class="open-center">
+      <div class="open-box" id="openBox">
+        <div class="open-glow-ring" id="glowRing"></div>
+        <div class="light-burst" id="lightBurst"></div>
+        <div class="open-particles" id="particles"></div>
+        <div class="open-box-inner" id="openBoxInner"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 结果页 ==================== -->
+<div class="page" id="pageResult">
+  <div class="nav">
+    <button class="nav-back" onclick="showPage('pageHome')">&#x2039;</button>
+    <div class="nav-title">恭喜获得</div>
+  </div>
+  <div class="result-page" style="flex:1">
+    <div class="result-center">
+      <div class="result-rarity" id="resultRarity">传说</div>
+      <div class="result-dial-wrap" id="resultDialWrap"></div>
+      <div class="result-name" id="resultName">祥麟游龙</div>
+      <div class="result-count" id="resultCount"></div>
+    </div>
+    <div class="result-btns">
+      <button class="btn-install" id="btnInstall" onclick="onInstall()">安装到手表</button>
+      <button class="btn-again" id="btnAgain">开启下一个</button>
+      <button class="btn-back" onclick="onResultBack()">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 已集齐页 ==================== -->
+<div class="page" id="pageOwned">
+  <div class="nav">
+    <button class="nav-back" onclick="showPage('pageHome')">&#x2039;</button>
+    <div class="nav-title">我的表盘</div>
+    <div style="width:32px"></div>
+  </div>
+  <div class="owned-page">
+    <div id="ownedList" class="owned-list"></div>
+  </div>
+</div>
+
+<!-- ==================== 玩法页 ==================== -->
+<div class="page" id="pageRules">
+  <div class="nav">
+    <button class="nav-back" onclick="showPage('pageHome')">&#x2039;</button>
+    <div class="nav-title">玩法</div>
+    <div style="width:32px"></div>
+  </div>
+  <div class="rules-page">
+    <div class="rules-content">
+      <h2>表盘盲盒玩法</h2>
+      <p>表盘盲盒包含 <span class="highlight">5 款精选付费表盘</span>，每次购买随机获得一款，不会重复。集齐 5 款还可 <span class="highlight">免费获赠 1 款限定表盘</span>。</p>
+
+      <h3>购买方式</h3>
+      <table>
+        <tr><th>档位</th><th>价格</th><th>说明</th></tr>
+        <tr><td>单次</td><td class="highlight" id="rulePrice1">--</td><td>随机获得 1 个表盘</td></tr>
+        <tr><td>2 连抽</td><td class="highlight" id="rulePrice2">--</td><td>连续获得 2 个表盘（8.8折）</td></tr>
+        <tr><td>5 连抽</td><td class="highlight" id="rulePrice5">--</td><td>一次集齐全部 5 款（7.7折）</td></tr>
+      </table>
+      <p>· 剩余不足 2 款时，仅可购买单次</p>
+      <p>· 剩余不足 5 款时，5 连抽不可用</p>
+
+      <h3>稀有度</h3>
+      <p>5 款表盘按销量排名对应不同稀有度，越稀有越难抽到：</p>
+      <table>
+        <tr><th>稀有度</th><th>概率</th></tr>
+        <tr><td><span style="color:#E67300">传说</span>（销量第1）</td><td>5%</td></tr>
+        <tr><td><span style="color:#7B2FBE">史诗</span>（销量第2）</td><td>8%</td></tr>
+        <tr><td><span style="color:#0088CC">稀有</span>（销量第3）</td><td>15%</td></tr>
+        <tr><td><span style="color:#08A050">精良</span>（销量第4）</td><td>27%</td></tr>
+        <tr><td><span style="color:#999">普通</span>（销量第5）</td><td>45%</td></tr>
+      </table>
+
+      <h3>不重复</h3>
+      <p>· 每次购买必定获得一款 <span class="highlight">未拥有</span> 的表盘，绝不重复</p>
+      <p>· 集齐全部 5 款后自动停止购买</p>
+
+      <h3>集齐赠送</h3>
+      <p>· 集齐 5 款表盘后，<span class="highlight">免费赠送 1 款限定表盘</span></p>
+      <p>· 在盲盒首页点击底部限定款区域可查看进度和领取</p>
+
+      <h3>5连抽必出传说</h3>
+      <p>· 购买 5 连抽一次集齐全部 5 款，必定包含 <span style="color:#E67300">传说</span> 级表盘</p>
+
+      <h3>安装</h3>
+      <p>· 抽到表盘后点击「安装到手表」直接安装</p>
+      <p>· 也可在限定款区域进入「我的表盘」页面安装已获得的表盘</p>
+      <p>· 安装过程中请保持蓝牙连接，勿操作手机和手表</p>
+
+      <h3>其他</h3>
+      <p>· 表盘根据绑定手表型号自动匹配（方屏/圆屏）</p>
+      <p>· 更换手表后，盲盒表盘可能不同</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// 关闭长按文本菜单（复制/分享/全选/网页搜索/翻译等）
+document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+document.addEventListener('selectstart', function(e){ e.preventDefault(); });
+// ── 盲盒指定表盘配置（按稀有度从低到高） ──
+// Disable long-press text menu actions.
+document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+document.addEventListener('selectstart', function(e){ e.preventDefault(); });
+var blindBoxSlots = [
+  { keyword:'祥麟游龙',     rarity:'普通', rarityClass:'r-normal', prob:45, desc:'经典游龙纹饰\n沉稳大气的日常之选' },
+  { keyword:'臻享赤焰红龙', rarity:'精良', rarityClass:'r-fine',   prob:27, desc:'赤焰红龙主题\n热情似火的经典配色' },
+  { keyword:'橄榄商务龙机械',rarity:'稀有', rarityClass:'r-rare',   prob:15, desc:'商务机械风格\n低调沉稳的橄榄绿龙纹' },
+  { keyword:'玄武腾龙机械', rarity:'史诗', rarityClass:'r-epic',    prob:8,  desc:'玄武腾龙机械\n精工细作，品质卓越' },
+  { keyword:'云白腾龙机械', rarity:'传说', rarityClass:'r-legend',  prob:5,  desc:'云白腾龙限定\n稀世珍藏，彰显不凡品味' }
+];
+
+// ── 表盘数据（从原生 API 加载后填充） ──
+var dials = [];
+var _lastApiDials = [];
+
+function isApiDialPurchased(d) {
+  if (!d) return false;
+  return d.isPurchased === 1 || d.isPurchased === '1' || d.isPurchased === true;
+}
+
+/** 根据 dialPool 前 5 个表盘的 isPurchased 同步已购态（0 未购 / 1 已购） */
+function applyOwnedFromApiDialList(apiDials) {
+  if (!apiDials || !apiDials.length) return;
+  var changed = false;
+  for (var i = 0; i < Math.min(5, apiDials.length); i++) {
+    if (isApiDialPurchased(apiDials[i])) {
+      if (!owned[i]) changed = true;
+      owned[i] = true;
+    }
+  }
+  if (changed) {
+    console.log('✅✅✅✅✅ [blind_box_ui] applyOwnedFromApiDialList owned=' + JSON.stringify(owned));
+    saveOwned();
+  }
+}
+
+// ── 从原生 JS Bridge 加载真实表盘数据 ──
+function loadDialsFromNative() {
+  try {
+    var rarities = [
+      { rarity:'传说', rarityClass:'r-legend', prob:5,  desc:'顶级表盘\n稀世珍藏' },
+      { rarity:'史诗', rarityClass:'r-epic',   prob:8,  desc:'臻品表盘\n卓越品质' },
+      { rarity:'稀有', rarityClass:'r-rare',   prob:15, desc:'精品表盘\n独特设计' },
+      { rarity:'精良', rarityClass:'r-fine',   prob:27, desc:'精选表盘\n品质之选' },
+      { rarity:'普通', rarityClass:'r-normal', prob:45, desc:'热门表盘\n高人气之选' }
+    ];
+
+    var apiDials = [];
+    if (window.blindBox && window.blindBox.getDialList) {
+      apiDials = JSON.parse(window.blindBox.getDialList() || '[]');
+    }
+    _lastApiDials = apiDials;
+
+    // 1. 检查是否有已锁定的表盘列表（首次打开后锁定）
+    if (window.blindBox && window.blindBox.getLockedDials) {
+      var lockedJson = window.blindBox.getLockedDials();
+      if (lockedJson) {
+        try {
+          var locked = JSON.parse(lockedJson);
+          if (locked.dials && locked.dials.length >= 5 && locked.bonus) {
+            console.log('使用已锁定的表盘列表(含bonus), count=' + locked.dials.length);
+            dials = locked.dials.map(function(d, i) {
+              return buildDial(i, d, rarities[i]);
+            });
+            bonusDial = locked.bonus || null;
+            applyOwnedFromApiDialList(apiDials);
+            return dials.length > 0;
+          }
+          console.log('忽略无bonus的锁定奖池，改为从API重建');
+        } catch(e) { console.log('parse locked error:', e); }
+      }
+    }
+
+    // 2. 未锁定，从 API 实时获取
+    if (apiDials && apiDials.length > 0) {
+        // 严格按服务端 / 原生注入 JSON 的自然顺序展示，禁止客户端按销量重排
+        var pool = apiDials.slice(0, 6);
+        console.log('✅✅✅✅✅ [blind_box_ui] use dial list natural order pool.len=' + pool.length);
+        var top5 = pool.slice(0, 5);
+        bonusDial = pool.length > 5 ? pool[5] : null;
+
+        dials = top5.map(function(d, i) {
+          return buildDial(i, d, rarities[i]);
+        });
+        applyOwnedFromApiDialList(pool);
+        // 首次加载后锁定表盘列表
+        if (dials.length > 0) {
+          lockDials();
+        }
+        return dials.length > 0;
+    }
+  } catch(e) {
+    console.log('loadDialsFromNative error:', e);
+  }
+  return false;
+}
+
+// 锁定当前表盘列表（首次购买时调用，后续不再变化）
+function lockDials() {
+  try {
+    // 仅在有 bonus（第6个限定款）时锁定，避免缓存不完整奖池导致“集齐赠送”不展示
+    if (window.blindBox && window.blindBox.saveLockedDials && bonusDial) {
+      var rawDials = dials.map(function(d) { return d.rawDial; });
+      var data = { dials: rawDials, bonus: bonusDial ? (bonusDial.rawDial || bonusDial) : null };
+      window.blindBox.saveLockedDials(JSON.stringify(data));
+      console.log('表盘列表已锁定(含bonus)');
+    }
+  } catch(e) { console.log('lockDials error:', e); }
+}
+
+// ── 匹配指定表盘，找不到则用销量最高的补位 ──
+function matchDialsToSlots(apiDials) {
+  // 5 个槽位，每个槽位对应一个稀有度
+  var slots = [null, null, null, null, null]; // 对应 blindBoxSlots[0..4]
+  var usedIds = {};
+
+  // 第一轮：按关键词匹配指定表盘到对应槽位
+  for (var i = 0; i < blindBoxSlots.length; i++) {
+    var slot = blindBoxSlots[i];
+    for (var j = 0; j < apiDials.length; j++) {
+      var d = apiDials[j];
+      if (!usedIds[d.id] && d.name && d.name.indexOf(slot.keyword) >= 0) {
+        usedIds[d.id] = true;
+        slots[i] = buildDial(i, d, slot);
+        console.log('匹配成功: 槽位' + i + ' ' + slot.keyword + ' → ' + d.name);
+        break;
+      }
+    }
+  }
+
+  // 第二轮：空槽位按 JSON 自然顺序补位
+  var matchedCount = slots.filter(function(s) { return s !== null; }).length;
+  console.log('关键词匹配: ' + matchedCount + '/5, 需补位: ' + (5 - matchedCount));
+
+  if (matchedCount < 5) {
+    var fillIdx = 0;
+    for (var i = 0; i < 5; i++) {
+      if (slots[i] === null) {
+        while (fillIdx < apiDials.length && usedIds[apiDials[fillIdx].id]) {
+          fillIdx++;
+        }
+        if (fillIdx < apiDials.length) {
+          var d = apiDials[fillIdx];
+          usedIds[d.id] = true;
+          slots[i] = buildDial(i, d, blindBoxSlots[i]);
+          console.log('补位: 槽位' + i + ' ' + blindBoxSlots[i].rarity + ' → ' + d.name);
+          fillIdx++;
+        }
+      }
+    }
+  }
+
+  return slots.filter(function(s) { return s !== null; });
+}
+
+function buildDial(index, apiDial, slotConfig) {
+  return {
+    id: index,
+    dialId: apiDial.id,
+    name: apiDial.name || '神秘表盘',
+    imgUrl: apiDial.imgUrl || '',
+    fileUrl: apiDial.fileUrl || '',
+    packageType: apiDial.packageType || 2,
+    fileSize: apiDial.fileSize || 0,
+    rawDial: apiDial,
+    rarity: slotConfig.rarity,
+    rarityClass: slotConfig.rarityClass,
+    prob: slotConfig.prob,
+    desc: slotConfig.desc
+  };
+}
+
+// ── 本地兜底数据（浏览器预览或 API 失败时使用） ──
+// 展示顺序与 loadDialsFromNative 成功路径一致：左起 传说→史诗→稀有→精良→普通
+function loadFallbackDials() {
+  var rarities = [
+    { rarity:'传说', rarityClass:'r-legend', prob:5,  desc:'顶级表盘\n稀世珍藏' },
+    { rarity:'史诗', rarityClass:'r-epic',   prob:8,  desc:'臻品表盘\n卓越品质' },
+    { rarity:'稀有', rarityClass:'r-rare',   prob:15, desc:'精品表盘\n独特设计' },
+    { rarity:'精良', rarityClass:'r-fine',   prob:27, desc:'精选表盘\n品质之选' },
+    { rarity:'普通', rarityClass:'r-normal', prob:45, desc:'热门表盘\n高人气之选' }
+  ];
+  var names = ['云白腾龙机械', '玄武腾龙机械', '橄榄商务龙机械', '臻享赤焰红龙', '祥麟游龙'];
+  dials = rarities.map(function(slot, i) {
+    return buildDial(i, { id:0, name:names[i], imgUrl:'', fileUrl:'' }, slot);
+  });
+  bonusDial = null;
+}
+
+// 从原生存储恢复已拥有的表盘
+var owned = {};
+function loadOwned() {
+  try {
+    if (window.blindBox && window.blindBox.getOwned) {
+      owned = JSON.parse(window.blindBox.getOwned() || '{}');
+    } else {
+      owned = {};
+    }
+  } catch(e) { owned = {}; }
+  applyOwnedFromApiDialList(_lastApiDials);
+}
+var _orderSavedForThisDraw = false;
+
+function saveOrderRecord(prize) {
+  // 每次购买只保存一条订单（按购买档位，不按单个表盘）
+  if (_orderSavedForThisDraw) return;
+  _orderSavedForThisDraw = true;
+  try {
+    if (window.blindBox && window.blindBox.saveOrder) {
+      var typeName = selectedCount === 1 ? '1次抽取' : selectedCount === 2 ? '2次连抽' : '5次连抽';
+      // 收集本次所有表盘名称
+      var dialNames = pendingDraws.map(function(p) { return p.name || ''; }).filter(function(n) { return n; }).join('、');
+      var dialImgUrls = pendingDraws.map(function(p) { return p.imgUrl || ''; }).filter(function(u) { return u; });
+      window.blindBox.saveOrder(JSON.stringify({
+        type: selectedCount,
+        typeName: typeName,
+        price: selectedPrice,
+        dialNames: dialNames,
+        dialImgUrls: dialImgUrls,
+        dialCount: pendingDraws.length,
+        time: new Date().toLocaleString(),
+        orderNo: 'BX' + Date.now(),
+        payWay: '支付宝'
+      }));
+    }
+  } catch(e) {}
+}
+
+function saveOwned() {
+  try {
+    var json = JSON.stringify(owned);
+    if (window.blindBox && window.blindBox.saveOwned) {
+      window.blindBox.saveOwned(json);
+    }
+    // 保存真实 dialId 列表（供详情页判断是否盲盒已购）
+    var dialIdList = [];
+    for (var key in owned) {
+      if (owned[key]) {
+        var d = dials[parseInt(key)];
+        if (d && d.dialId) dialIdList.push(d.dialId);
+      }
+    }
+    if (dialIdList.length > 0 && window.blindBox && window.blindBox.saveOwnedDialIds) {
+      window.blindBox.saveOwnedDialIds(dialIdList.join(','));
+    }
+    // 保存 fileUrl（详情页需要用）
+    var urlParts = [];
+    for (var key in owned) {
+      if (owned[key]) {
+        var d = dials[parseInt(key)];
+        if (d && d.dialId && d.fileUrl) urlParts.push(d.dialId + '=' + d.fileUrl);
+      }
+    }
+    if (urlParts.length > 0 && window.blindBox && window.blindBox.saveOwnedFileUrls) {
+      window.blindBox.saveOwnedFileUrls(urlParts.join('|'));
+    }
+  } catch(e) {}
+}
+var bonusDial = null; // 销量第6名，集齐5款送的限定款
+var priceConfig = null;
+var selectedPrice = 0;
+var selectedCount = 1;
+var totalDraws = 0;
+var drawsSinceLegend = 0;
+var isDrawing = false;
+var carouselIdx = 0;
+var carouselTimer = null;
+
+// 屏幕类型: 0=圆屏, 1或2=方屏
+var deviceScreenType = 0;
+function loadDeviceScreenType() {
+  try {
+    if (window.blindBox && window.blindBox.getDeviceInfo) {
+      var info = JSON.parse(window.blindBox.getDeviceInfo());
+      deviceScreenType = info.screenType || 0;
+    }
+  } catch(e) {}
+  // 设置 CSS 变量，方屏用方形(小圆角)，圆屏用圆形
+  var radius = deviceScreenType >= 1 ? '12px' : '50%';
+  document.documentElement.style.setProperty('--dial-radius', radius);
+}
+function getDialRadius() {
+  return deviceScreenType >= 1 ? '12px' : '50%';
+}
+
+// 购买后待开的抽奖队列
+var pendingDraws = [];  // 预抽好的结果队列
+var pendingTotal = 0;   // 本轮购买的总次数
+
+// ── 生成表盘 HTML（使用真实图片，根据屏幕类型调整形状） ──
+function buildDialHTML(d, size) {
+  size = size || 200;
+  var radius = getDialRadius();
+  var imgHtml = '';
+  if (d.imgUrl) {
+    imgHtml = '<img src="'+d.imgUrl+'" style="width:100%;height:100%;object-fit:contain;object-position:center;border-radius:'+radius+';" onerror="this.style.display=\'none\'">';
+  } else {
+    var colors = ['#D4A530','#558B2F','#4DD0E1','#E53935','#455A64'];
+    var c = colors[d.id % colors.length];
+    imgHtml = '<div style="width:100%;height:100%;border-radius:'+radius+';background:radial-gradient(circle,'+c+',#1a1a2e);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)">'+d.name+'</div>';
+  }
+  return '<div style="width:'+size+'px;height:'+size+'px;border-radius:'+radius+';overflow:hidden;position:relative;border:2px solid #FFD70066;box-shadow:0 4px 20px rgba(0,0,0,.3)">' +
+    imgHtml +
+    '<div style="position:absolute;bottom:'+Math.round(size*0.12)+'px;left:50%;transform:translateX(-50%);font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);color:#fff;white-space:nowrap">'+d.name+'</div>' +
+  '</div>';
+}
+
+// ── 表盘展示（大图+缩略图） ──
+var previewIdx = 0;
+
+function initCarousel() {
+  // 清除上一轮的 timer，防止多次 init 导致多个 timer 并行
+  if (carouselTimer) clearInterval(carouselTimer);
+  renderThumbs();
+  setPreviewIdx(0);
+  // 自动轮播：从第1个开始，依次到最后一个，再循环
+  carouselTimer = setInterval(function() {
+    setPreviewIdx((previewIdx + 1) % dials.length);
+  }, 3000);
+}
+
+function renderThumbs() {
+  var container = document.getElementById('previewThumbs');
+  var html = '';
+  var ownedCount = Object.keys(owned).length;
+
+  // 5个奖池表盘
+  dials.forEach(function(d, i) {
+    var isOwned = !!owned[d.id];
+    var imgHtml = d.imgUrl
+      ? '<img src="'+d.imgUrl+'">'
+      : '<div class="thumb-placeholder">'+d.name.substring(0,2)+'</div>';
+    html += '<div class="thumb-wrap" onclick="onThumbClick('+i+')">' +
+      '<div class="thumb-item' + (isOwned ? ' active' : '') + '" id="thumb'+i+'" style="' + (isOwned ? 'border-color:#08c261;opacity:1' : '') + '">' +
+        imgHtml +
+        (isOwned ? '<div style="position:absolute;bottom:1px;right:1px;width:14px;height:14px;background:#08c261;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff">✓</div>' : '') +
+      '</div>' +
+      '<div class="thumb-rarity '+d.rarityClass+'">'+d.rarity+'</div>' +
+    '</div>';
+  });
+
+  // 更新限定款区域
+  updateBonusSection();
+
+  container.innerHTML = html;
+}
+
+function updateBonusSection() {
+  if (!bonusDial) return;
+  var section = document.getElementById('bonusSection');
+  section.style.display = 'block';
+  section.onclick = onBonusClick;
+  section.style.cursor = 'pointer';
+
+  var ownedCount = Object.keys(owned).length;
+  var unlocked = ownedCount >= 5;
+
+  var imgDiv = document.getElementById('bonusImg');
+  imgDiv.innerHTML = bonusDial.imgUrl
+    ? '<img src="'+bonusDial.imgUrl+'" style="width:100%;height:100%;object-fit:contain;object-position:center;display:block">'
+    : '';
+
+  document.getElementById('bonusNameText').textContent = bonusDial.name || '限定表盘';
+
+  var arrow = document.getElementById('bonusArrow');
+  if (unlocked) {
+    document.getElementById('bonusProgress').innerHTML = '<span style="color:#08c261">🔓 已解锁，点击查看</span>';
+    section.style.borderColor = '#FFD700';
+    imgDiv.style.borderColor = '#FFD700';
+    arrow.style.display = '';
+  } else if (ownedCount > 0) {
+    document.getElementById('bonusProgress').innerHTML = '🔒 已集齐 ' + ownedCount + '/5';
+    arrow.style.display = '';
+  } else {
+    document.getElementById('bonusProgress').innerHTML = '🔒 已集齐 ' + ownedCount + '/5';
+    arrow.style.display = 'none';
+  }
+}
+
+function renderOwnedPage() {
+  var container = document.getElementById('ownedList');
+  var ownedCount = Object.keys(owned).length;
+
+  var html = '';
+
+  // 进度提示
+  html += '<div style="text-align:center;padding:12px 0;font-size:13px;color:#8899bb">已集齐 '+ownedCount+'/5</div>';
+
+  // 已拥有的表盘
+  dials.forEach(function(d) {
+    var isOwned = !!owned[d.id];
+    html += '<div class="owned-card" style="'+(isOwned?'':'opacity:0.4;pointer-events:none')+'" onclick="onOwnedCardClick('+d.id+')">' +
+      '<div class="owned-card-img">' +
+        (d.imgUrl ? '<img src="'+d.imgUrl+'">' : '') +
+      '</div>' +
+      '<div class="owned-card-info">' +
+        '<div class="owned-card-name">'+d.name+'</div>' +
+        '<span class="owned-card-rarity '+d.rarityClass+'">'+d.rarity+'</span>' +
+      '</div>' +
+      (isOwned ? '<div class="owned-card-btn">去安装 ›</div>' : '<div style="font-size:11px;color:#556">未获得</div>') +
+    '</div>';
+  });
+
+  // 限定款（集齐后可安装，未集齐显示锁）
+  if (bonusDial) {
+    var unlocked = ownedCount >= 5;
+    html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid #1a1a3a">';
+    html += '<div style="text-align:center;font-size:13px;color:#FFD700;margin-bottom:10px">🎁 集齐5款赠送</div>';
+    html += '<div class="owned-card" style="border:1px solid '+(unlocked?'#FFD700':'#FFD70033')+'" onclick="onBonusInstall()">' +
+      '<div class="owned-card-img" style="border-color:'+(unlocked?'#FFD700':'#FFD70044')+'">' +
+        (bonusDial.imgUrl ? '<img src="'+bonusDial.imgUrl+'" style="'+(unlocked?'':'filter:brightness(0.5)')+'">' : '') +
+      '</div>' +
+      '<div class="owned-card-info">' +
+        '<div class="owned-card-name" style="color:#FFD700">'+bonusDial.name+'</div>' +
+        '<span class="owned-card-rarity" style="background:#FFF0E0;color:#E67300">限定赠送</span>' +
+      '</div>' +
+      (unlocked
+        ? '<div class="owned-card-btn" style="background:#FFD700;color:#1a0a2e;border:none">安装 ›</div>'
+        : '<div style="font-size:11px;color:#556">🔒 集齐解锁</div>') +
+    '</div>';
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function onBonusInstall() {
+  var ownedCount = Object.keys(owned).length;
+  if (ownedCount >= 5 && bonusDial) {
+    if (window.blindBox && window.blindBox.installDial) {
+      window.blindBox.installDial(JSON.stringify(bonusDial));
+      showToast('正在安装限定款...');
+    }
+  } else {
+    showToast('集齐5款才能安装限定款');
+  }
+}
+
+function onOwnedCardClick(dialId) {
+  // 跳转到表盘详情页安装
+  var dial = null;
+  for (var i = 0; i < dials.length; i++) {
+    if (dials[i].id === dialId) { dial = dials[i]; break; }
+  }
+  if (dial && window.blindBox && window.blindBox.installDial) {
+    var dialData = dial.rawDial || { id: dial.dialId || 0 };
+    window.blindBox.installDial(JSON.stringify(dialData));
+  }
+}
+
+function onBonusClick() {
+  var ownedCount = Object.keys(owned).length;
+  if (ownedCount === 0) {
+    showToast('还没有抽到表盘，快去抽一个吧');
+  } else {
+    showPage('pageOwned');
+  }
+}
+
+function setPreviewIdx(idx) {
+  previewIdx = idx;
+  var d = dials[idx];
+  var main = document.getElementById('previewMain');
+  var imgHtml = d.imgUrl
+    ? '<img src="'+d.imgUrl+'">'
+    : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;background:#1a1a3a">'+d.name+'</div>';
+  main.innerHTML = imgHtml +
+    '<div class="pm-name">'+d.name+'</div>' +
+    '<div class="pm-rarity '+d.rarityClass+'">'+d.rarity+'</div>';
+
+  // 更新缩略图选中态
+  dials.forEach(function(_, i) {
+    var thumb = document.getElementById('thumb'+i);
+    if (thumb) thumb.className = 'thumb-item' + (i === idx ? ' active' : '');
+  });
+}
+
+function onThumbClick(idx) {
+  // 点击缩略图切换，重置自动轮播
+  clearInterval(carouselTimer);
+  setPreviewIdx(idx);
+  carouselTimer = setInterval(function() {
+    setPreviewIdx((previewIdx + 1) % dials.length);
+  }, 3000);
+}
+
+// ── 初始化 ──
+function init() {
+  createStars();
+  loadDeviceScreenType();
+  if (!loadPriceConfig()) {
+    showToast('价格加载失败，请稍后重试');
+    updateDrawButton();
+    return;
+  }
+  if (!loadDialsFromNative()) {
+    loadFallbackDials();
+  }
+  // 安卓先由 getDialList() 拉取 state 并回填 session owned，再读取 owned，避免首帧读到本地空缓存
+  loadOwned();
+  initCarousel();
+  updateDrawButton();
+  reportEvent('blindBox_page_open', JSON.stringify({ownedCount: Object.keys(owned).length, dialCount: dials.length}));
+}
+
+function createStars() {
+  var c = document.getElementById('stars');
+  for (var i = 0; i < 40; i++) {
+    var s = document.createElement('div');
+    s.className = 'star';
+    s.style.left = Math.random()*100+'%';
+    s.style.top = Math.random()*100+'%';
+    s.style.animationDelay = Math.random()*3+'s';
+    s.style.width = s.style.height = (1+Math.random()*2)+'px';
+    c.appendChild(s);
+  }
+}
+
+function formatPrice(price) {
+  var num = Number(price);
+  if (!isFinite(num) || num <= 0) return '--';
+  return '¥' + num.toFixed(2);
+}
+
+function loadPriceConfig() {
+  try {
+    if (!(window.blindBox && window.blindBox.getConfig)) return false;
+    var raw = window.blindBox.getConfig();
+    var cfg = JSON.parse(raw || '{}');
+    var prices = cfg.boxPrices || {};
+    var p1 = Number(prices['1']);
+    var p2 = Number(prices['2']);
+    var p5 = Number(prices['5']);
+    if (!(p1 > 0 && p2 > 0 && p5 > 0)) return false;
+    priceConfig = { 1: p1, 2: p2, 5: p5 };
+    document.getElementById('priceText1').textContent = formatPrice(p1);
+    document.getElementById('priceText2').textContent = formatPrice(p2);
+    document.getElementById('priceText5').textContent = formatPrice(p5);
+    document.getElementById('rulePrice1').textContent = formatPrice(p1);
+    document.getElementById('rulePrice2').textContent = formatPrice(p2);
+    document.getElementById('rulePrice5').textContent = formatPrice(p5);
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// ── 价格选择 ──
+function selectPrice(idx, price, count) {
+  var nextPrice = Number(price);
+  if (!(nextPrice > 0) && priceConfig && Number(priceConfig[count]) > 0) {
+    nextPrice = Number(priceConfig[count]);
+  }
+  if (!(nextPrice > 0)) {
+    showToast('价格加载失败，请稍后重试');
+    return;
+  }
+  var remaining = 5 - Object.keys(owned).length;
+  if (remaining <= 0) {
+    showToast('已集齐全部表盘，无法继续购买');
+    return;
+  }
+  if (count === 5 && remaining < 5) {
+    showToast('当前还剩' + remaining + '款未拥有，不足5款，无法购买5连抽');
+    return;
+  }
+  if (count === 2 && remaining < 2) {
+    showToast('当前还剩' + remaining + '款未拥有，无法购买2连抽，请选择单次');
+    return;
+  }
+  selectedPrice = nextPrice;
+  selectedCount = count;
+  document.querySelectorAll('.price-opt').forEach(function(e,i) {
+    e.classList.toggle('selected', i===idx);
+  });
+  var text = '购买 · ' + formatPrice(nextPrice);
+  if (count > remaining) text = '购买 · ' + formatPrice(nextPrice) + ' (实得'+remaining+'款)';
+  document.getElementById('btnDrawText').textContent = text;
+}
+
+// ── 购买并抽奖 ──
+function reportEvent(actionName, extendJson) {
+  try {
+    if (window.blindBox && window.blindBox.reportEvent) {
+      window.blindBox.reportEvent('click', actionName, extendJson || '');
+    }
+  } catch(e) {}
+}
+
+/** 下单用奖池表盘 id（与中奖结果无关，仅用于创建支付订单） */
+function resolvePayPoolDialId() {
+  for (var i = 0; i < dials.length; i++) {
+    if (dials[i].dialId > 0) return dials[i].dialId;
+  }
+  for (var j = 0; j < _lastApiDials.length; j++) {
+    var id = _lastApiDials[j].id;
+    if (id > 0) return id;
+  }
+  return 0;
+}
+
+function startDraw() {
+  if (!(selectedPrice > 0) || !priceConfig) {
+    showToast('价格加载失败，请稍后重试');
+    return;
+  }
+  var remaining = 5 - Object.keys(owned).length;
+  if (remaining <= 0) { showToast('已集齐全部表盘'); return; }
+  if (selectedCount === 5 && remaining < 5) {
+    showToast('当前还剩' + remaining + '款未拥有，不足5款，无法购买5连抽');
+    return;
+  }
+  if (selectedCount === 2 && remaining < 2) {
+    showToast('当前还剩' + remaining + '款未拥有，无法购买2连抽，请选择单次');
+    return;
+  }
+
+  // 如果有待开的盲盒，直接开下一个
+  if (pendingDraws.length > 0) {
+    openNextPending();
+    return;
+  }
+
+  reportEvent('blindBox_buy_click', JSON.stringify({price: selectedPrice, count: selectedCount, remaining: remaining}));
+
+  // 防止重复点击：禁用按钮
+  var btn = document.getElementById('btnDraw');
+  btn.disabled = true;
+  document.getElementById('btnDrawText').textContent = '支付中...';
+
+  if (window.blindBox && window.blindBox.pay) {
+    // 支付前不预抽；中奖表盘在 onPayResult 支付成功后再随机抽取
+    var actualCount = Math.min(selectedCount, remaining);
+    var payDialId = resolvePayPoolDialId();
+    var payName = '表盘盲盒 × ' + actualCount;
+    window.blindBox.pay(payDialId, payName, selectedPrice, String(payDialId));
+  } else {
+    doDrawAfterPay();
+  }
+}
+
+// 支付成功后执行抽奖（随机，与预览选中无关）
+function doDrawAfterPay() {
+  _orderSavedForThisDraw = false;
+  var remaining = 5 - Object.keys(owned).length;
+  var actualCount = Math.min(selectedCount, remaining);
+  if (actualCount <= 0) {
+    updateDrawButton();
+    return;
+  }
+
+  pendingDraws = [];
+  pendingTotal = actualCount;
+  var tempOwned = JSON.parse(JSON.stringify(owned));
+  for (var i = 0; i < actualCount; i++) {
+    var prize = pickPrizeFrom(tempOwned, i === actualCount - 1 && selectedCount >= 5);
+    pendingDraws.push(prize);
+    tempOwned[prize.id] = true;
+  }
+
+  for (var j = 0; j < pendingDraws.length; j++) {
+    owned[pendingDraws[j].id] = true;
+    totalDraws++;
+    drawsSinceLegend++;
+    if (pendingDraws[j].id === 0) drawsSinceLegend = 0;
+    saveOrderRecord(pendingDraws[j]);
+  }
+
+  var dialIdList = pendingDraws.map(function(p) { return p.dialId || 0; }).filter(function(id) { return id > 0; }).join(',');
+  if (dialIdList && window.blindBox && window.blindBox.syncBlindBoxOrder) {
+    window.blindBox.syncBlindBoxOrder(dialIdList);
+  }
+  saveOwned();
+
+  showToast('共 ' + pendingTotal + ' 次抽取机会');
+  setTimeout(function() { openNextPending(); }, 600);
+}
+
+// ── 逐个开盒 ──
+function openNextPending() {
+  if (pendingDraws.length === 0) {
+    isDrawing = false;
+    updateDrawButton();
+    return;
+  }
+  isDrawing = true;
+  var prize = pendingDraws.shift();
+  var opened = pendingTotal - pendingDraws.length;
+
+  showPage('pageOpen');
+  // 开盒动画用自适应图片
+  var openImg = prize.imgUrl
+    ? '<img src="'+prize.imgUrl+'">'
+    : buildDialHTML(prize, 194);
+  document.getElementById('openBoxInner').innerHTML = openImg;
+  playOpenAnimation(function() {
+    showResult(prize, opened, pendingTotal, pendingDraws.length);
+  });
+}
+
+
+function updateDrawButton() {
+  renderThumbs();
+  var btn = document.getElementById('btnDraw');
+  var remaining = 5 - Object.keys(owned).length;
+
+  // 根据剩余数量禁用不可用的购买选项
+  var opt1 = document.getElementById('priceOpt0'); // 单次
+  var opt2 = document.getElementById('priceOpt1'); // 2连抽
+  var opt5 = document.getElementById('priceOpt2'); // 5连抽
+  if (!priceConfig || !(priceConfig[1] > 0 && priceConfig[2] > 0 && priceConfig[5] > 0)) {
+    document.getElementById('btnDrawText').textContent = '价格加载失败，请稍后重试';
+    btn.disabled = true;
+    if (opt1) { opt1.style.opacity = '0.3'; opt1.style.pointerEvents = 'auto'; }
+    if (opt2) { opt2.style.opacity = '0.3'; opt2.style.pointerEvents = 'auto'; }
+    if (opt5) { opt5.style.opacity = '0.3'; opt5.style.pointerEvents = 'auto'; }
+    return;
+  }
+
+  if (remaining <= 0) {
+    document.getElementById('btnDrawText').textContent = '已集齐全部表盘';
+    btn.disabled = true;
+    if (opt1) { opt1.style.opacity = '0.3'; opt1.style.pointerEvents = 'auto'; }
+    if (opt2) { opt2.style.opacity = '0.3'; opt2.style.pointerEvents = 'auto'; }
+    if (opt5) { opt5.style.opacity = '0.3'; opt5.style.pointerEvents = 'auto'; }
+  } else if (pendingDraws.length > 0) {
+    document.getElementById('btnDrawText').textContent = '开启下一个 (' + pendingDraws.length + '/' + pendingTotal + ')';
+    btn.disabled = false;
+  } else {
+    btn.disabled = false;
+    // 恢复所有选项
+    if (opt1) { opt1.style.opacity = '1'; opt1.style.pointerEvents = 'auto'; }
+    if (opt2) { opt2.style.opacity = '1'; opt2.style.pointerEvents = 'auto'; }
+    if (opt5) { opt5.style.opacity = '1'; opt5.style.pointerEvents = 'auto'; }
+
+    // 剩余不足时弱化显示，但仍可点击以弹出说明（selectPrice 内校验）
+    if (remaining < 5) { opt5.style.opacity = '0.3'; opt5.style.pointerEvents = 'auto'; }
+    if (remaining < 2) { opt2.style.opacity = '0.3'; opt2.style.pointerEvents = 'auto'; }
+
+    // 自动选中合适的档位
+    if (remaining < 2) {
+      selectPrice(0, priceConfig[1], 1);
+    } else if (remaining < 5 && selectedCount === 5) {
+      selectPrice(1, priceConfig[2], 2);
+    } else {
+      var targetCount = selectedCount===1?1:selectedCount===2?2:5;
+      var targetPrice = priceConfig[targetCount];
+      selectPrice(
+        targetCount===1?0:targetCount===2?1:2,
+        targetPrice, targetCount
+      );
+    }
+  }
+}
+
+function pickPrize(guarantee5Rare) {
+  if (drawsSinceLegend >= 19 && !owned[0]) return dials[0];
+  if (guarantee5Rare) {
+    var rarePool = dials.filter(function(d) { return d.prob <= 15 && !owned[d.id]; });
+    if (rarePool.length > 0) return rarePool[Math.floor(Math.random() * rarePool.length)];
+  }
+  var available = dials.filter(function(d) { return !owned[d.id]; });
+  if (available.length === 0) return dials[4];
+  var totalProb = 0;
+  available.forEach(function(d) { totalProb += d.prob; });
+  var rand = Math.random() * totalProb;
+  var cumulative = 0;
+  for (var i = 0; i < available.length; i++) {
+    cumulative += available[i].prob;
+    if (rand <= cumulative) return available[i];
+  }
+  return available[available.length - 1];
+}
+
+// 预抽（不修改全局 owned）
+function pickPrizeFrom(tempOwned, guarantee5Rare) {
+  if (drawsSinceLegend >= 19 && !tempOwned[0]) return dials[0];
+  if (guarantee5Rare) {
+    var rarePool = dials.filter(function(d) { return d.prob <= 15 && !tempOwned[d.id]; });
+    if (rarePool.length > 0) return rarePool[Math.floor(Math.random() * rarePool.length)];
+  }
+  var available = dials.filter(function(d) { return !tempOwned[d.id]; });
+  if (available.length === 0) return dials[dials.length - 1];
+  var tp = 0;
+  available.forEach(function(d) { tp += d.prob; });
+  var r = Math.random() * tp, c = 0;
+  for (var i = 0; i < available.length; i++) {
+    c += available[i].prob;
+    if (r <= c) return available[i];
+  }
+  return available[available.length - 1];
+}
+
+// ── 开盒动画 ──
+function playOpenAnimation(callback) {
+  var box = document.getElementById('openBox');
+  var inner = document.getElementById('openBoxInner');
+  var ring = document.getElementById('glowRing');
+  var burst = document.getElementById('lightBurst');
+  var particles = document.getElementById('particles');
+
+  box.className = 'open-box';
+  inner.style.transform = '';
+  inner.style.opacity = '1';
+  ring.style.animation = 'none';
+  burst.className = 'light-burst';
+  particles.innerHTML = '';
+
+  setTimeout(function() { box.classList.add('open-stage-shake'); }, 200);
+  setTimeout(function() {
+    box.className = 'open-box open-stage-burst';
+    ring.style.animation = '';
+    createLightBurst(burst);
+    burst.classList.add('active');
+    createParticles(particles);
+  }, 900);
+  setTimeout(callback, 1800);
+}
+
+function createLightBurst(container) {
+  container.innerHTML = '';
+  var colors = ['#FFD700','#FFA500','#FF6B6B','#4FC3F7','#81C784','#E040FB'];
+  for (var i = 0; i < 16; i++) {
+    var ray = document.createElement('div');
+    ray.className = 'light-ray';
+    var len = 60 + Math.random() * 40;
+    ray.style.height = len + 'px';
+    ray.style.width = (1.5 + Math.random() * 2) + 'px';
+    ray.style.transform = 'rotate(' + (i * 22.5) + 'deg) translateY(-' + (len * 0.5) + 'px)';
+    ray.style.background = 'linear-gradient(to top,' + colors[i % colors.length] + '88,transparent)';
+    ray.style.opacity = (0.4 + Math.random() * 0.6).toString();
+    container.appendChild(ray);
+  }
+}
+
+function createParticles(container) {
+  var colors = ['#FFD700','#FFA500','#FF6B6B','#4FC3F7','#81C784','#E040FB'];
+  for (var i = 0; i < 24; i++) {
+    var p = document.createElement('div');
+    p.className = 'particle';
+    p.style.background = colors[i % colors.length];
+    p.style.width = p.style.height = (2 + Math.random()*4) + 'px';
+    var angle = Math.random() * Math.PI * 2;
+    var dist = 40 + Math.random() * 80;
+    var tx = Math.cos(angle) * dist;
+    var ty = Math.sin(angle) * dist;
+    p.style.transition = 'all .8s cubic-bezier(.25,.46,.45,.94)';
+    container.appendChild(p);
+    setTimeout(function(el, x, y) {
+      el.style.transform = 'translate('+x+'px,'+y+'px)';
+      el.style.opacity = '0';
+    }.bind(null, p, tx, ty), 50);
+  }
+}
+
+// ── 结果展示 ──
+function showResult(prize, openedIdx, totalBought, pendingLeft) {
+  currentPrize = prize;
+  reportEvent('blindBox_draw_result', JSON.stringify({dialId: prize.dialId, dialName: prize.name, rarity: prize.rarity, index: openedIdx, total: totalBought}));
+  // 重置安装按钮
+  var btnInstall = document.getElementById('btnInstall');
+  btnInstall.textContent = '安装到手表';
+  btnInstall.disabled = false;
+  showPage('pageResult');
+  document.getElementById('resultRarity').className = 'result-rarity ' + prize.rarityClass;
+  document.getElementById('resultRarity').textContent = prize.rarity;
+  // 结果页用自适应高度展示完整表盘
+  var imgHtml = prize.imgUrl
+    ? '<img src="'+prize.imgUrl+'" style="width:100%;height:auto;display:block;border-radius:'+getDialRadius()+'">'
+    : buildDialHTML(prize, 220);
+  document.getElementById('resultDialWrap').innerHTML = imgHtml;
+  document.getElementById('resultName').textContent = prize.name;
+
+  // 显示抽取进度
+  var countEl = document.getElementById('resultCount');
+  if (totalBought > 1) {
+    countEl.textContent = '第 ' + openedIdx + ' / ' + totalBought + ' 次抽取';
+    countEl.style.display = '';
+  } else {
+    countEl.style.display = 'none';
+  }
+
+  var btnAgain = document.getElementById('btnAgain');
+  if (pendingLeft > 0) {
+    // 还有待开的盲盒
+    btnAgain.style.display = '';
+    btnAgain.textContent = '开启下一个 (还剩' + pendingLeft + '个)';
+    btnAgain.onclick = function() {
+      showPage('pageHome');
+      updateDrawButton();
+      setTimeout(function() { openNextPending(); }, 300);
+    };
+  } else {
+    var remaining = 5 - Object.keys(owned).length;
+    if (remaining <= 0) {
+      btnAgain.style.display = 'none';
+    } else {
+      btnAgain.style.display = '';
+      btnAgain.textContent = '继续购买 · 还剩 ' + remaining + ' 款';
+      btnAgain.onclick = function() {
+        showPage('pageHome');
+        updateDrawButton();
+      };
+    }
+  }
+}
+
+// ── 当前展示的中奖表盘（用于安装） ──
+var currentPrize = null;
+
+function onInstall() {
+  if (!currentPrize) { showToast('安装失败'); return; }
+  var btn = document.getElementById('btnInstall');
+  btn.textContent = '安装中...';
+  btn.disabled = true;
+
+  // 跳转详情页安装（主站已记录购买，可直接安装）
+  reportEvent('blindBox_install_click', JSON.stringify({dialId: currentPrize.dialId, dialName: currentPrize.name, rarity: currentPrize.rarity}));
+  if (window.blindBox && window.blindBox.installDial) {
+    var dialData = currentPrize.rawDial || { id: currentPrize.dialId || 0 };
+    window.blindBox.installDial(JSON.stringify(dialData));
+    btn.textContent = '已打开详情页';
+    setTimeout(function() { btn.textContent = '安装到手表'; btn.disabled = false; }, 2000);
+  } else {
+    setTimeout(function() { btn.textContent = '安装成功 ✓'; btn.disabled = false; }, 1500);
+  }
+}
+
+// 原生回调: 安装进度
+window.onInstallProgress = function(percent) {
+  var btn = document.getElementById('btnInstall');
+  btn.textContent = '安装中... ' + percent + '%';
+};
+
+// 原生回调: 安装结果
+window.onInstallResult = function(success) {
+  var btn = document.getElementById('btnInstall');
+  btn.disabled = false;
+  if (success) {
+    btn.textContent = '安装成功 ✓';
+    showToast('已安装到手表');
+    setTimeout(function() {
+      if (pendingDraws.length > 0) {
+        openNextPending();
+      } else {
+        showPage('pageHome'); updateDrawButton();
+      }
+    }, 1000);
+  } else {
+    btn.textContent = '安装失败，点击重试';
+    showToast('安装失败，请检查手表连接');
+  }
+};
+
+function onResultBack() {
+  try {
+    // 先按正常路由切回首页
+    showPage('pageHome');
+    updateDrawButton();
+  } catch (e) {
+    console.log('onResultBack error:', e);
+  }
+  // 兜底：确保首页被激活（避免某些机型上结果页状态残留）
+  setTimeout(function() {
+    try {
+      var home = document.getElementById('pageHome');
+      if (home && !home.classList.contains('active')) {
+        document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+        home.classList.add('active');
+        updateDrawButton();
+      }
+    } catch (e2) {
+      console.log('onResultBack fallback error:', e2);
+    }
+  }, 0);
+}
+
+// ── 返回（调原生关闭页面） ──
+function goBack() {
+  if (window.blindBox && window.blindBox.closeActivity) {
+    window.blindBox.closeActivity();
+  } else {
+    history.back();
+  }
+}
+
+// ── 页面恢复可见时，自动重置按钮状态 ──
+// 解决支付宝/微信 SDK 返回后 JS 回调可能丢失的问题
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden) {
+    var btn = document.getElementById('btnDraw');
+    var text = document.getElementById('btnDrawText');
+    if (text && text.textContent === '支付中...') {
+      // 页面恢复可见但还在"支付中"，说明回调丢了，恢复按钮
+      setTimeout(function() {
+        // 延迟 1 秒再检查，给 onPayResult 回调一个执行窗口
+        if (text.textContent === '支付中...') {
+          btn.disabled = false;
+          updateDrawButton();
+        }
+      }, 1000);
+    }
+  }
+});
+// 同时监听 pageshow（iOS WebView 用 pageshow 而非 visibilitychange）
+window.addEventListener('pageshow', function() {
+  var btn = document.getElementById('btnDraw');
+  var text = document.getElementById('btnDrawText');
+  if (text && text.textContent === '支付中...') {
+    setTimeout(function() {
+      if (text.textContent === '支付中...') {
+        btn.disabled = false;
+        updateDrawButton();
+      }
+    }, 1000);
+  }
+});
+
+// ── 原生支付回调 ──
+window.onPayResult = function(success) {
+  reportEvent('blindBox_pay_result', JSON.stringify({success: success, price: selectedPrice, count: selectedCount}));
+  if (success) {
+    showToast('购买成功！');
+    doDrawAfterPay();
+  } else {
+    showToast('支付未完成');
+    var btn = document.getElementById('btnDraw');
+    btn.disabled = false;
+    updateDrawButton();
+  }
+};
+
+// ── 工具 ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  if (id === 'pageOwned') renderOwnedPage();
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2000);
+}
+
+init();
+</script>
+</body>
+</html>

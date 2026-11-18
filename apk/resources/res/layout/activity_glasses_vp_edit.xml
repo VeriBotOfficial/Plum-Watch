@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@color/color_f4f6f8"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.wakeup.commonui.MyTitleBar
+        android:id="@+id/title_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:titleText="@string/glasses_ai_manager"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="16dp"
+        android:textColor="@color/color_333333"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/glasses_f_selected"
+        android:layout_marginStart="16dp"/>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_vp_edit"
+        android:background="@drawable/shape_white_r12"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginHorizontal="8dp"
+        android:paddingVertical="16dp"/>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:textSize="16dp"
+        android:textColor="@color/color_333333"
+        android:id="@+id/tv_fun_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="@string/glasses_f_optional"
+        android:layout_marginStart="16dp"/>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_vp_edit_not"
+        android:background="@drawable/shape_white_r12"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginHorizontal="8dp"
+        android:paddingVertical="16dp"/>
+</androidx.appcompat.widget.LinearLayoutCompat>

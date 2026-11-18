@@ -1,0 +1,12 @@
+package com.google.android.gms.common.util;
+
+/* JADX INFO: compiled from: com.google.android.gms:play-services-basement@@18.9.0 */
+/* JADX INFO: loaded from: classes15.dex */
+public final class zzb {
+    public static int zza(int r1) {
+        if (r1 == -1) {
+            return -1;
+        }
+        return r1 / 1000;
+    }
+}

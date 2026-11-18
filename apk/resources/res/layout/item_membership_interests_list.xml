@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp">
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/ivLogo"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:src="@drawable/shape_bg_becomevip_1"/>
+    <TextView
+        android:textSize="12sp"
+        android:textColor="#ff666666"
+        android:ellipsize="end"
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"/>
+    <TextView
+        android:textSize="11sp"
+        android:textColor="@color/color_B4B4B4"
+        android:ellipsize="end"
+        android:id="@+id/tv_Title_line"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/dp_2"
+        android:minLines="2"/>
+</androidx.appcompat.widget.LinearLayoutCompat>

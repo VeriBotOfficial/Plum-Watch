@@ -1,0 +1,86 @@
+[
+  {
+    "id": 0,
+    "name": "第1天",
+    "day": 1,
+    "prizeType": "",
+    "prizeId": "",
+    "jumpTarget": "",
+    "point": 20,
+    "description": "20积分",
+    "languageId": 1,
+    "state": true
+  },
+  {
+    "id": 0,
+    "name": "第2天",
+    "day": 2,
+    "prizeType": "",
+    "prizeId": "",
+    "jumpTarget": "",
+    "point": 22,
+    "description": "22积分",
+    "languageId": 1,
+    "state": false
+  },
+  {
+    "id": 0,
+    "name": "第3天",
+    "day": 3,
+    "prizeType": "",
+    "prizeId": "",
+    "jumpTarget": "",
+    "point": 25,
+    "description": "25积分'\n'送你表盘兑换码，可以兑换表盘哦",
+    "languageId": 1,
+    "state": false
+  },
+  {
+    "id": 0,
+    "name": "第4天",
+    "day": 4,
+    "prizeType": "",
+    "prizeId": "",
+    "jumpTarget": "",
+    "point": 28,
+    "description": "28积分",
+    "languageId": 1,
+    "state": false
+  },
+  {
+    "id": 0,
+    "name": "第5天",
+    "day": 5,
+    "prizeType": "",
+    "prizeId": "",
+    "jumpTarget": "",
+    "point": 30,
+    "description": "30积分",
+    "languageId": 1,
+    "state": false
+  },
+  {
+    "id": 0,
+    "name": "第6天",
+    "day": 6,
+    "prizeType": "",
+    "prizeId": "",
+    "jumpTarget": "",
+    "point": 32,
+    "description": "32积分",
+    "languageId": 1,
+    "state": false
+  },
+  {
+    "id": 0,
+    "name": "第7天",
+    "day": 7,
+    "prizeType": "",
+    "prizeId": "",
+    "jumpTarget": "",
+    "point": 35,
+    "description": "35积分'\n'送你会员兑换码，可以兑换会员哦",
+    "languageId": 1,
+    "state": false
+  }
+]

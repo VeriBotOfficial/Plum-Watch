@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/dp_137"
+    android:layout_marginBottom="@dimen/dp_8">
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:cardCornerRadius="@dimen/dp_12"
+        app:cardElevation="@dimen/dp_0"
+        app:cardMaxElevation="@dimen/dp_0">
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_plan_default"
+            android:scaleType="centerCrop"/>
+    </androidx.cardview.widget.CardView>
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <ImageView
+            android:id="@+id/ivLock"
+            android:visibility="gone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_plan_lock"
+            android:layout_marginStart="16dp"/>
+        <TextView
+            android:textSize="15sp"
+            android:textColor="@color/white"
+            android:id="@+id/tvName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawablePadding="@dimen/dp_12"
+            android:layout_marginHorizontal="@dimen/dp_16"/>
+    </androidx.appcompat.widget.LinearLayoutCompat>
+</FrameLayout>

@@ -1,0 +1,116 @@
+package ai.onnxruntime;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import kotlinx.serialization.json.internal.AbstractJsonLexerKt;
+
+/* JADX INFO: loaded from: classes.dex */
+public final class OnnxModelMetadata {
+    private final Map<String, String> customMetadata;
+    private final String description;
+    private final String domain;
+    private final String graphDescription;
+    private final String graphName;
+    private final String producerName;
+    private final long version;
+
+    OnnxModelMetadata(String str, String str2, String str3, String str4, String str5, long j, String[] strArr) {
+        this.producerName = str == null ? "" : str;
+        this.graphName = str2 == null ? "" : str2;
+        this.graphDescription = str3 == null ? "" : str3;
+        this.domain = str4 == null ? "" : str4;
+        this.description = str5 == null ? "" : str5;
+        this.version = j;
+        if (strArr != null && strArr.length > 0) {
+            this.customMetadata = new HashMap();
+            if (strArr.length % 2 == 1) {
+                throw new IllegalStateException("Asked for keys and values, but received an odd number of elements.");
+            }
+            for (int r2 = 0; r2 < strArr.length; r2 += 2) {
+                this.customMetadata.put(strArr[r2], strArr[r2 + 1]);
+            }
+            return;
+        }
+        this.customMetadata = Collections.emptyMap();
+    }
+
+    OnnxModelMetadata(String str, String str2, String str3, String str4, String str5, long j, Map<String, String> map) {
+        this.producerName = str == null ? "" : str;
+        this.graphName = str2 == null ? "" : str2;
+        this.graphDescription = str3 == null ? "" : str3;
+        this.domain = str4 == null ? "" : str4;
+        this.description = str5 == null ? "" : str5;
+        this.version = j;
+        this.customMetadata = map == null ? Collections.emptyMap() : map;
+    }
+
+    public OnnxModelMetadata(OnnxModelMetadata onnxModelMetadata) {
+        Map<String, String> map;
+        this.producerName = onnxModelMetadata.producerName;
+        this.graphName = onnxModelMetadata.graphName;
+        this.graphDescription = onnxModelMetadata.graphDescription;
+        this.domain = onnxModelMetadata.domain;
+        this.description = onnxModelMetadata.description;
+        this.version = onnxModelMetadata.version;
+        if (onnxModelMetadata.customMetadata.isEmpty()) {
+            map = Collections.emptyMap();
+        } else {
+            map = new HashMap<>(getCustomMetadata());
+        }
+        this.customMetadata = map;
+    }
+
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        OnnxModelMetadata onnxModelMetadata = (OnnxModelMetadata) obj;
+        return this.version == onnxModelMetadata.version && this.producerName.equals(onnxModelMetadata.producerName) && this.graphName.equals(onnxModelMetadata.graphName) && this.graphDescription.equals(onnxModelMetadata.graphDescription) && this.domain.equals(onnxModelMetadata.domain) && this.description.equals(onnxModelMetadata.description) && this.customMetadata.equals(onnxModelMetadata.customMetadata);
+    }
+
+    public int hashCode() {
+        return Objects.hash(this.producerName, this.graphName, this.graphDescription, this.domain, this.description, Long.valueOf(this.version), this.customMetadata);
+    }
+
+    public String getProducerName() {
+        return this.producerName;
+    }
+
+    public String getGraphName() {
+        return this.graphName;
+    }
+
+    public String getGraphDescription() {
+        return this.graphDescription;
+    }
+
+    public String getDomain() {
+        return this.domain;
+    }
+
+    public String getDescription() {
+        return this.description;
+    }
+
+    public long getVersion() {
+        return this.version;
+    }
+
+    public Map<String, String> getCustomMetadata() {
+        return Collections.unmodifiableMap(this.customMetadata);
+    }
+
+    public Optional<String> getCustomMetadataValue(String str) {
+        return Optional.ofNullable(this.customMetadata.get(str));
+    }
+
+    public String toString() {
+        return "OnnxModelMetadata{producerName='" + this.producerName + "', graphName='" + this.graphName + "', graphDescription='" + this.graphDescription + "', domain='" + this.domain + "', description='" + this.description + "', version=" + this.version + ", customMetadata=" + this.customMetadata + AbstractJsonLexerKt.END_OBJ;
+    }
+}

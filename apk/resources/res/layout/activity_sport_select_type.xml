@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <TextView
+        android:textSize="@dimen/sp_16"
+        android:textColor="@color/color_333333"
+        android:layout_gravity="center"
+        android:id="@+id/tv_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/dp_51"
+        android:text="@string/sport_to_switch_data_type"/>
+    <TextView
+        android:textSize="@dimen/sp_60"
+        android:textStyle="bold"
+        android:textColor="@color/color_333333"
+        android:layout_gravity="center"
+        android:id="@+id/tv_val"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/dp_22"
+        android:text="2.32"/>
+    <TextView
+        android:textSize="@dimen/sp_14"
+        android:textColor="@color/color_333333"
+        android:layout_gravity="center"
+        android:id="@+id/tv_unit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/unit_gongli"/>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_type_sport"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="@dimen/dp_60"
+        android:layout_marginBottom="20dp"
+        android:layout_marginStart="@dimen/dp_30"
+        android:layout_marginEnd="@dimen/dp_30"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_unit"/>
+</LinearLayout>

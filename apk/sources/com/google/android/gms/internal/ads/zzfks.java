@@ -1,0 +1,22 @@
+package com.google.android.gms.internal.ads;
+
+import org.xmind.core.INotes;
+
+/* JADX INFO: compiled from: com.google.android.gms:play-services-ads@@23.6.0 */
+/* JADX INFO: loaded from: classes12.dex */
+public enum zzfks {
+    HTML(INotes.HTML),
+    NATIVE("native"),
+    JAVASCRIPT("javascript");
+
+    private final String zze;
+
+    zzfks(String str) {
+        this.zze = str;
+    }
+
+    @Override // java.lang.Enum
+    public final String toString() {
+        return this.zze;
+    }
+}

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@drawable/shape_ff7300_stroke_s8"
+    android:layout_width="@dimen/dp_32"
+    android:layout_height="@dimen/dp_32">
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="1dp"
+        android:elevation="@dimen/dp_0"
+        app:cardCornerRadius="@dimen/dp_8"
+        app:cardMaxElevation="@dimen/dp_0">
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/bg_iv"
+            android:background="@color/black"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+    </androidx.cardview.widget.CardView>
+</androidx.constraintlayout.widget.ConstraintLayout>

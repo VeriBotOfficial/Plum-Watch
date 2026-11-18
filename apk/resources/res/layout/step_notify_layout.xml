@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rl_step_notify_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ImageView
+        android:id="@+id/iv_logo"
+        android:background="@mipmap/ic_logo_small"
+        android:layout_width="16dp"
+        android:layout_height="14dp"/>
+    <TextView
+        android:textSize="12dp"
+        android:textColor="#333333"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:layout_marginStart="6dp"
+        android:layout_toEndOf="@+id/iv_logo"/>
+    <TextView
+        android:textSize="14dp"
+        android:textColor="#333333"
+        android:id="@+id/tv_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/tip_0925_2"
+        android:layout_below="@+id/iv_logo"/>
+</RelativeLayout>

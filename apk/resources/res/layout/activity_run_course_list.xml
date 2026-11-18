@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.wakeup.commonui.MyTitleBar
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:menuImage="@drawable/ic_run_course_calendar"
+        app:titleText="@string/run_course"/>
+    <com.flyco.tablayout.SlidingTabLayout
+        android:id="@+id/slidingTabLayout"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/dp_50"
+        app:layout_constraintTop_toBottomOf="@+id/topBar"
+        app:layout_scrollFlags="enterAlways|scroll"
+        app:tl_indicator_color="@color/color_ff7300"
+        app:tl_indicator_corner_radius="1.5dp"
+        app:tl_indicator_height="2dp"
+        app:tl_indicator_width="20dp"
+        app:tl_textSelectColor="@color/color_ff7300"
+        app:tl_textUnselectColor="@color/color_666666"
+        app:tl_textsize="@dimen/dp_16"
+        app:tl_underline_color="@color/white"/>
+    <androidx.viewpager.widget.ViewPager
+        android:id="@+id/mViewPager"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/slidingTabLayout"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

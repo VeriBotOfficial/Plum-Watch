@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>Wearfit Pro</title>
+    <!-- <link rel="stylesheet" href="styles.css"> -->
+</head>
+<body>
+<div class="container">
+    <div class="image-container">
+        <img class="img-down" src="./h5_noInter.png" alt="步骤1"/>
+        <div class="c-000">网页无法打开</div>
+        <div class="noInter">
+            网页无法加载，请检查网络
+        </div>
+    </div>
+</div>
+</body>
+</html>
+
+<script>
+    window.addEventListener("load", () => {
+	// 假设当前URL是 http://example.com?name=John&age=30
+    const urlParams = new URLSearchParams(window.location.search);
+    const language = urlParams.get('language'); // 获取name参数的值
+	if(language === "en") {
+	var noIntent = document.getElementsByClassName("noInter");
+	noIntent[0].innerText  = "The webpage cannot be loaded, please check the network";
+	var des = document.getElementsByClassName("c-000");
+	des[0].innerText  = "The webpage cannot be opened";
+	} 
+	} )
+
+</script>
+<style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+      width: 100%;
+      height: 100%;
+      font-size: 16px;
+    }
+    /* 小屏幕设备 */
+    @media (max-width: 414px) {
+      body {
+        font-size: 12px;
+      }
+    }
+  
+    /* 中等屏幕设备 */
+    @media (min-width: 415px) and (max-width: 1024px) {
+      body {
+        font-size: 14px;
+      }
+    }
+  
+    /* 大屏幕设备 */
+    @media (min-width: 1025px) {
+      body {
+        font-size: 14px;
+      }
+    }
+    .container {
+      /* width: 100%;
+      height: 100%; */
+      padding: 20px;
+      /* background-color: pink; */
+    }
+    .image-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      /* justify-content: center; */
+      align-items: center;
+    }
+    .img-down{
+      margin-top: 160px;
+      margin-bottom: 10px;
+      width: 70%;
+    }
+
+    .m-10 {
+      margin: 10px 0;
+    }
+    .c-000 {
+      color: #000;
+    }
+
+    .noInter {
+      margin-top: 20px;
+      color: #666;
+    }
+
+</style>
+

@@ -1,0 +1,191 @@
+[
+  {
+    "defaultImg": 0,
+    "deviceType": 99,
+    "fixedStatus": 0,
+    "functionName": "Listen to books",
+    "functionType": 8,
+    "groupId": 2,
+    "groupName": "Commonly used functions",
+    "img": [
+      "icon_json_listen"
+    ],
+    "isUserComponent": 1,
+    "jumpVo": {
+      "extendInfo": "0",
+      "jumpInfo": "65",
+      "jumpType": 1
+    },
+    "orderNum": 1000
+  },
+  {
+    "defaultImg": 0,
+    "deviceType": 99,
+    "fixedStatus": 0,
+    "functionName": "Information",
+    "functionType": 18,
+    "groupId": 2,
+    "groupName": "Commonly used functions",
+    "img": [
+      "icon_json_information"
+    ],
+    "isUserComponent": 1,
+    "jumpVo": {
+      "extendInfo": "0",
+      "jumpInfo": "73",
+      "jumpType": 1
+    },
+    "orderNum": 1002
+  },
+  {
+    "defaultImg": 0,
+    "deviceType": 99,
+    "fixedStatus": 0,
+    "functionName": "Movement",
+    "functionType": 9,
+    "groupId": 2,
+    "groupName": "Commonly used functions",
+    "img": [
+      "icon_json_sport"
+    ],
+    "isUserComponent": 1,
+    "jumpVo": {
+      "extendInfo": "0",
+      "jumpInfo": "66",
+      "jumpType": 1
+    },
+    "orderNum": 1003
+  },
+  {
+    "defaultImg": 0,
+    "deviceType": 99,
+    "fixedStatus": 0,
+    "functionName": "Plan",
+    "functionType": 12,
+    "groupId": 2,
+    "groupName": "Commonly used functions",
+    "img": [
+      "icon_json_plan"
+    ],
+    "isUserComponent": 1,
+    "jumpVo": {
+      "extendInfo": "0",
+      "jumpInfo": "69",
+      "jumpType": 1
+    },
+    "orderNum": 1004
+  },
+  {
+    "defaultImg": 0,
+    "deviceType": 99,
+    "fixedStatus": 0,
+    "functionName": "Fitness",
+    "functionType": 11,
+    "groupId": 2,
+    "groupName": "Commonly used functions",
+    "img": [
+      "icon_json_bodybuilding"
+    ],
+    "isUserComponent": 1,
+    "jumpVo": {
+      "extendInfo": "0",
+      "jumpInfo": "68",
+      "jumpType": 1
+    },
+    "orderNum": 1005
+  },
+  {
+    "defaultImg": 0,
+    "deviceType": 99,
+    "fixedStatus": 0,
+    "functionName": "Welfare",
+    "functionType": 17,
+    "groupId": 2,
+    "groupName": "Commonly used functions",
+    "img": [
+      "icon_json_welfare"
+    ],
+    "isUserComponent": 1,
+    "jumpVo": {
+      "extendInfo": "0",
+      "jumpInfo": "72",
+      "jumpType": 1
+    },
+    "orderNum": 1006
+  },
+  {
+    "defaultImg": 0,
+    "deviceType": 99,
+    "fixedStatus": 0,
+    "functionName": "Me and TA",
+    "functionType": 13,
+    "groupId": 2,
+    "groupName": "Commonly used functions",
+    "img": [
+      "icon_json_group"
+    ],
+    "isUserComponent": 1,
+    "jumpVo": {
+      "extendInfo": "0",
+      "jumpInfo": "1",
+      "jumpType": 1
+    },
+    "orderNum": 1007
+  },
+  {
+    "defaultImg": 0,
+    "deviceType": 99,
+    "fixedStatus": 0,
+    "functionName": "Health Report",
+    "functionType": 14,
+    "groupId": 2,
+    "groupName": "Commonly used functions",
+    "img": [
+      "icon_json_health_report"
+    ],
+    "isUserComponent": 1,
+    "jumpVo": {
+      "extendInfo": "0",
+      "jumpInfo": "28",
+      "jumpType": 1
+    },
+    "orderNum": 1008
+  },
+  {
+    "defaultImg": 0,
+    "deviceType": 99,
+    "fixedStatus": 0,
+    "functionName": "Health warning",
+    "functionType": 15,
+    "groupId": 2,
+    "groupName": "Commonly used functions",
+    "img": [
+      "icon_json_health_warning"
+    ],
+    "isUserComponent": 1,
+    "jumpVo": {
+      "extendInfo": "0",
+      "jumpInfo": "13",
+      "jumpType": 1
+    },
+    "orderNum": 1009
+  },
+  {
+    "defaultImg": 2131232025,
+    "deviceType": 99,
+    "fixedStatus": 0,
+    "functionName": "All",
+    "functionType": 0,
+    "groupId": 0,
+    "img": [
+      "ic_fullapplication"
+    ],
+    "isUserComponent": 0,
+    "jumpVo": {
+      "extendInfo": "",
+      "jumpInfo": "57",
+      "jumpType": 1
+    },
+    "orderNum": 100
+  }
+]

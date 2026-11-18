@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:paddingLeft="60dp"
+    android:paddingRight="60dp"
+    android:layout_width="match_parent"
+    android:layout_height="30dp">
+    <ImageView
+        android:id="@+id/iv_lastDate"
+        android:padding="8dp"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:src="@mipmap/ic_jiantou"/>
+    <TextView
+        android:textSize="16sp"
+        android:textColor="@color/color_666666"
+        android:gravity="center"
+        android:id="@+id/tv_date"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"/>
+    <ImageView
+        android:id="@+id/iv_nextDate"
+        android:padding="8dp"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:src="@mipmap/ic_jiantou"
+        android:rotation="180"/>
+</LinearLayout>

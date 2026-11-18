@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:visible="true"
+    android:oneshot="false">
+    <item
+        android:duration="300"
+        android:drawable="@drawable/ic_talk_translate_paly1"/>
+    <item
+        android:duration="300"
+        android:drawable="@drawable/ic_talk_translate_paly2"/>
+    <item
+        android:duration="300"
+        android:drawable="@drawable/ic_talk_translate_paly3"/>
+</animation-list>

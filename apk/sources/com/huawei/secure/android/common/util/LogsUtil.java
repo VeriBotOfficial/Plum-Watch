@@ -1,0 +1,311 @@
+package com.huawei.secure.android.common.util;
+
+import android.text.TextUtils;
+import android.util.Log;
+import java.util.regex.Pattern;
+
+/* JADX INFO: loaded from: classes2.dex */
+public class LogsUtil {
+
+    /* JADX INFO: renamed from: a, reason: collision with root package name */
+    private static final Pattern f10836a = Pattern.compile("[0-9]*[a-z|A-Z]*[一-龥]*");
+    private static final char b = '*';
+    private static final int c = 2;
+
+    private static class a extends Throwable {
+        private static final long d = 7129050843360571879L;
+
+        /* JADX INFO: renamed from: a, reason: collision with root package name */
+        private String f10837a;
+        private Throwable b;
+        private Throwable c;
+
+        public a(Throwable th) {
+            this.c = th;
+        }
+
+        public void a(Throwable th) {
+            this.b = th;
+        }
+
+        @Override // java.lang.Throwable
+        public synchronized Throwable getCause() {
+            Throwable th;
+            th = this.b;
+            if (th == this) {
+                th = null;
+            }
+            return th;
+        }
+
+        @Override // java.lang.Throwable
+        public String getMessage() {
+            return this.f10837a;
+        }
+
+        @Override // java.lang.Throwable
+        public String toString() {
+            Throwable th = this.c;
+            if (th == null) {
+                return "";
+            }
+            String name = th.getClass().getName();
+            if (this.f10837a == null) {
+                return name;
+            }
+            String str = name + ": ";
+            return this.f10837a.startsWith(str) ? this.f10837a : str + this.f10837a;
+        }
+
+        public void a(String str) {
+            this.f10837a = str;
+        }
+    }
+
+    private static String a(String str, boolean z) {
+        StringBuilder sb = new StringBuilder(512);
+        if (!TextUtils.isEmpty(str)) {
+            if (z) {
+                sb.append(a(str));
+            } else {
+                sb.append(str);
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String b(String str) {
+        if (TextUtils.isEmpty(str)) {
+            return str;
+        }
+        char[] charArray = str.toCharArray();
+        for (int r0 = 0; r0 < charArray.length; r0++) {
+            if (r0 % 2 == 0) {
+                charArray[r0] = b;
+            }
+        }
+        return new String(charArray);
+    }
+
+    public static void d(String str, String str2, boolean z) {
+        if (TextUtils.isEmpty(str2)) {
+            return;
+        }
+        Log.d(str, a(str2, z));
+    }
+
+    public static void e(String str, String str2, boolean z) {
+        if (TextUtils.isEmpty(str2)) {
+            return;
+        }
+        Log.e(str, a(str2, z));
+    }
+
+    public static Throwable getNewThrowable(Throwable th) {
+        if (th == null) {
+            return null;
+        }
+        a aVar = new a(th);
+        aVar.setStackTrace(th.getStackTrace());
+        aVar.a(b(th.getMessage()));
+        Throwable cause = th.getCause();
+        a aVar2 = aVar;
+        while (cause != null) {
+            a aVar3 = new a(cause);
+            aVar3.setStackTrace(cause.getStackTrace());
+            aVar3.a(b(cause.getMessage()));
+            aVar2.a(aVar3);
+            cause = cause.getCause();
+            aVar2 = aVar3;
+        }
+        return aVar;
+    }
+
+    public static void i(String str, String str2, boolean z) {
+        if (TextUtils.isEmpty(str2)) {
+            return;
+        }
+        Log.i(str, a(str2, z));
+    }
+
+    public static void w(String str, String str2, boolean z) {
+        if (TextUtils.isEmpty(str2)) {
+            return;
+        }
+        Log.w(str, a(str2, z));
+    }
+
+    public static void d(String str, String str2, String str3) {
+        if (TextUtils.isEmpty(str2) && TextUtils.isEmpty(str3)) {
+            return;
+        }
+        Log.d(str, a(str2, str3));
+    }
+
+    public static void e(String str, String str2, String str3) {
+        if (TextUtils.isEmpty(str2) && TextUtils.isEmpty(str3)) {
+            return;
+        }
+        Log.e(str, a(str2, str3));
+    }
+
+    public static void i(String str, String str2, String str3) {
+        if (TextUtils.isEmpty(str2) && TextUtils.isEmpty(str3)) {
+            return;
+        }
+        Log.i(str, a(str2, str3));
+    }
+
+    public static void w(String str, String str2, String str3) {
+        if (TextUtils.isEmpty(str2) && TextUtils.isEmpty(str3)) {
+            return;
+        }
+        Log.w(str, a(str2, str3));
+    }
+
+    public static void d(String str, String str2, String str3, Throwable th) {
+        if (TextUtils.isEmpty(str2) && TextUtils.isEmpty(str3)) {
+            return;
+        }
+        Log.d(str, a(str2, str3), getNewThrowable(th));
+    }
+
+    public static void e(String str, String str2, String str3, Throwable th) {
+        if (TextUtils.isEmpty(str2) && TextUtils.isEmpty(str3)) {
+            return;
+        }
+        Log.e(str, a(str2, str3), getNewThrowable(th));
+    }
+
+    public static void i(String str, String str2, String str3, Throwable th) {
+        if (TextUtils.isEmpty(str2) && TextUtils.isEmpty(str3)) {
+            return;
+        }
+        Log.i(str, a(str2, str3), getNewThrowable(th));
+    }
+
+    public static void w(String str, String str2, String str3, Throwable th) {
+        if (TextUtils.isEmpty(str2) && TextUtils.isEmpty(str3)) {
+            return;
+        }
+        Log.w(str, a(str2, str3), getNewThrowable(th));
+    }
+
+    private static String a(String str, String str2) {
+        StringBuilder sb = new StringBuilder(512);
+        if (!TextUtils.isEmpty(str)) {
+            sb.append(str);
+        }
+        if (!TextUtils.isEmpty(str2)) {
+            sb.append(a(str2));
+        }
+        return sb.toString();
+    }
+
+    public static void d(String str, String str2) {
+        if (TextUtils.isEmpty(str2)) {
+            return;
+        }
+        Log.d(str, a(str2, false));
+    }
+
+    public static void e(String str, String str2) {
+        if (TextUtils.isEmpty(str2)) {
+            return;
+        }
+        Log.e(str, a(str2, false));
+    }
+
+    public static void i(String str, String str2) {
+        if (TextUtils.isEmpty(str2)) {
+            return;
+        }
+        Log.i(str, a(str2, false));
+    }
+
+    public static void w(String str, String str2) {
+        if (TextUtils.isEmpty(str2)) {
+            return;
+        }
+        Log.w(str, a(str2, false));
+    }
+
+    public static void d(String str, String str2, Throwable th, boolean z) {
+        if (TextUtils.isEmpty(str2)) {
+            return;
+        }
+        Log.d(str, a(str2, z), getNewThrowable(th));
+    }
+
+    public static void e(String str, String str2, Throwable th, boolean z) {
+        if (TextUtils.isEmpty(str2) && th == null) {
+            return;
+        }
+        Log.e(str, a(str2, z), getNewThrowable(th));
+    }
+
+    public static void i(String str, String str2, Throwable th, boolean z) {
+        if (TextUtils.isEmpty(str2) && th == null) {
+            return;
+        }
+        Log.i(str, a(str2, z), getNewThrowable(th));
+    }
+
+    public static void w(String str, String str2, Throwable th, boolean z) {
+        if (TextUtils.isEmpty(str2) && th == null) {
+            return;
+        }
+        Log.w(str, a(str2, z), getNewThrowable(th));
+    }
+
+    private static String a(String str) {
+        if (TextUtils.isEmpty(str)) {
+            return str;
+        }
+        int length = str.length();
+        int r2 = 1;
+        if (1 == length) {
+            return String.valueOf(b);
+        }
+        StringBuilder sb = new StringBuilder(length);
+        for (int r4 = 0; r4 < length; r4++) {
+            char cCharAt = str.charAt(r4);
+            if (f10836a.matcher(String.valueOf(cCharAt)).matches()) {
+                if (r2 % 2 == 0) {
+                    cCharAt = '*';
+                }
+                r2++;
+            }
+            sb.append(cCharAt);
+        }
+        return sb.toString();
+    }
+
+    public static void d(String str, String str2, Throwable th) {
+        if (TextUtils.isEmpty(str2) && th == null) {
+            return;
+        }
+        Log.d(str, a(str2, false), getNewThrowable(th));
+    }
+
+    public static void e(String str, String str2, Throwable th) {
+        if (TextUtils.isEmpty(str2) && th == null) {
+            return;
+        }
+        Log.e(str, a(str2, false), getNewThrowable(th));
+    }
+
+    public static void i(String str, String str2, Throwable th) {
+        if (TextUtils.isEmpty(str2) && th == null) {
+            return;
+        }
+        Log.i(str, a(str2, false), getNewThrowable(th));
+    }
+
+    public static void w(String str, String str2, Throwable th) {
+        if (TextUtils.isEmpty(str2) && th == null) {
+            return;
+        }
+        Log.w(str, a(str2, false), getNewThrowable(th));
+    }
+}

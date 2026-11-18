@@ -1,0 +1,16 @@
+{
+  "name": "Meditate, relax and breathe",
+  "maxDuration": 900,
+  "actions": [
+    {
+      "name": "nose inhale\nbelly bulging",
+      "duration": 6,
+      "anim": "zoom"
+    },
+    {
+      "name": "nose exhale\nabdominal depression",
+      "duration": 6,
+      "anim": "narrow"
+    }
+  ]
+}

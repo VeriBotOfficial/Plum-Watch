@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@color/color_fafafa"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.wakeup.commonui.MyTitleBar
+        android:id="@+id/mTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:titleText="@string/tip_21_0617_01"/>
+    <com.flyco.tablayout.SlidingTabLayout
+        android:layout_gravity="center_horizontal"
+        android:id="@+id/mSlidingTabLayout"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        app:tl_indicator_color="@color/color_ec7445"
+        app:tl_indicator_corner_radius="1.5dp"
+        app:tl_indicator_height="4dp"
+        app:tl_indicator_margin_bottom="10dp"
+        app:tl_indicator_width="20dp"
+        app:tl_tab_space_equal="true"
+        app:tl_textSelectColor="@color/color_ec7445"
+        app:tl_textUnselectColor="@color/textBlack"/>
+    <androidx.viewpager.widget.ViewPager
+        android:id="@+id/mViewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+</LinearLayout>

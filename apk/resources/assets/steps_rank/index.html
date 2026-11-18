@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>步数排行榜</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="header">
+        <div class="title" id="pageTitle">步数排行榜</div>
+        <div class="subtitle" id="subtitle"></div>
+      </header>
+
+      <nav class="tabs" role="tablist" aria-label="榜单维度">
+        <button class="tab is-active" data-type="day" role="tab">日榜</button>
+        <button class="tab" data-type="week" role="tab">周榜</button>
+      </nav>
+
+      <main class="content">
+        <section class="card">
+          <div class="card-header">
+            <div class="card-title">排行榜</div>
+            <div class="card-tip" id="tip"></div>
+          </div>
+
+          <div class="list" id="list">
+            <!-- render -->
+          </div>
+
+          <div class="footer-note" id="footerNote"></div>
+        </section>
+      </main>
+
+      <section class="my-rank" id="myRank">
+        <!-- render -->
+      </section>
+    </div>
+
+    <div class="toast" id="toast" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>

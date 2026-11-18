@@ -1,0 +1,12 @@
+package com.baidu.ar.auth;
+
+import java.util.List;
+
+/* JADX INFO: loaded from: classes16.dex */
+public interface IDuMixAuthCallback {
+    void onAvailFeaturesUpdate(List<Integer> list);
+
+    void onFeatureRejected(int r1);
+
+    void onResult(boolean z);
+}

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@color/color_f6f6f6"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.wakeup.commonui.MyTitleBar
+        android:id="@+id/title_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:titleText="@string/tip_21_0817_01"/>
+    <com.flyco.tablayout.SlidingTabLayout
+        android:layout_gravity="center_horizontal"
+        android:id="@+id/tabLayout"
+        android:layout_width="@dimen/dp_250"
+        android:layout_height="@dimen/dp_50"
+        app:tl_indicator_color="@color/color_ec7445"
+        app:tl_indicator_corner_radius="1.5dp"
+        app:tl_indicator_height="@dimen/dp_2"
+        app:tl_indicator_margin_bottom="10dp"
+        app:tl_indicator_width="@dimen/dp_30"
+        app:tl_tab_space_equal="true"
+        app:tl_textSelectColor="@color/color_ec7445"
+        app:tl_textUnselectColor="@color/color_333333"
+        app:tl_textsize="@dimen/sp_16"/>
+    <androidx.viewpager.widget.ViewPager
+        android:id="@+id/view_page"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+</androidx.appcompat.widget.LinearLayoutCompat>

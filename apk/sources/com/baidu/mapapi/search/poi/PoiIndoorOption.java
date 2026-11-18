@@ -1,0 +1,35 @@
+package com.baidu.mapapi.search.poi;
+
+/* JADX INFO: loaded from: classes15.dex */
+public class PoiIndoorOption {
+    public String bid;
+    public String floor;
+    public String wd;
+    public int currentPage = 0;
+    public int pageSize = 10;
+
+    public PoiIndoorOption poiCurrentPage(int r1) {
+        this.currentPage = r1;
+        return this;
+    }
+
+    public PoiIndoorOption poiFloor(String str) {
+        this.floor = str;
+        return this;
+    }
+
+    public PoiIndoorOption poiIndoorBid(String str) {
+        this.bid = str;
+        return this;
+    }
+
+    public PoiIndoorOption poiIndoorWd(String str) {
+        this.wd = str;
+        return this;
+    }
+
+    public PoiIndoorOption poiPageSize(int r1) {
+        this.pageSize = r1;
+        return this;
+    }
+}

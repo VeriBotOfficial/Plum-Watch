@@ -1,0 +1,43 @@
+package com.google.android.gms.internal.p003firebaseauthapi;
+
+import java.math.BigInteger;
+import java.security.GeneralSecurityException;
+import java.util.Arrays;
+
+/* JADX INFO: compiled from: com.google.firebase:firebase-auth@@23.1.0 */
+/* JADX INFO: loaded from: classes12.dex */
+public final class zzmj {
+    public static BigInteger zza(byte[] bArr) {
+        return new BigInteger(1, bArr);
+    }
+
+    public static byte[] zza(BigInteger bigInteger) {
+        if (bigInteger.signum() != -1) {
+            return bigInteger.toByteArray();
+        }
+        throw new IllegalArgumentException("n must not be negative");
+    }
+
+    public static byte[] zza(BigInteger bigInteger, int r5) throws GeneralSecurityException {
+        if (bigInteger.signum() == -1) {
+            throw new IllegalArgumentException("integer must be nonnegative");
+        }
+        byte[] byteArray = bigInteger.toByteArray();
+        if (byteArray.length == r5) {
+            return byteArray;
+        }
+        int r1 = r5 + 1;
+        if (byteArray.length > r1) {
+            throw new GeneralSecurityException("integer too large");
+        }
+        if (byteArray.length == r1) {
+            if (byteArray[0] == 0) {
+                return Arrays.copyOfRange(byteArray, 1, byteArray.length);
+            }
+            throw new GeneralSecurityException("integer too large");
+        }
+        byte[] bArr = new byte[r5];
+        System.arraycopy(byteArray, 0, bArr, r5 - byteArray.length, byteArray.length);
+        return bArr;
+    }
+}

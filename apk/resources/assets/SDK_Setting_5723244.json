@@ -1,0 +1,85 @@
+{
+	"init": {
+		"site_id": "5723244",
+		"app_id": "803397",
+		"partner": "pangle_803397",
+		"secure_key": "e83591a679e41f9ae5177e8d2b546325",
+		"secure_key_d": "5537a1d6f15f154645fe451cf28e922a"
+	},
+	"feed": {
+		"news_list_ad_code_id": "",
+		"news_first_ad_code_id": "",
+		"news_second_ad_code_id": "",
+		"video_first_ad_code_id": "",
+		"video_second_ad_code_id": "",
+		"related_ad_code_id": "",
+		"news_draw_ad_code_id": "970726635",
+		"news_draw_native_ad_code_id": "970726652",
+		"news_outer_list_ad_code_id": "",
+		"news_outer_first_ad_code_id": "",
+		"news_outer_second_ad_code_id": "",
+		"outer_video_second_ad_code_id": "",
+		"outer_related_ad_code_id": "",
+		"news_outer_draw_ad_code_id": "970726641",
+		"news_outer_draw_native_ad_code_id": "970726610",
+		"news_interstitial_code_id": ""
+	},
+	"small_video": {
+		"draw_ad_code_id": "970726648",
+		"draw_native_ad_code_id": "970726618",
+		"grid_ad_code_id": "970726633",
+		"grid_draw_ad_code_id": "970726623",
+		"grid_draw_native_ad_code_id": "970726615",
+		"video_card_ad_code_id": "970726609",
+		"video_card_draw_ad_code_id": "970726614",
+		"video_card_draw_native_ad_code_id": "970726650",
+		"interstitial_ad_code_id": "",
+		"interstitial_note_ad_code_id": "970726606",
+		"staggered_grid_ad_code_id": "970726637",
+		"staggered_grid_draw_ad_code_id": "970726648",
+		"staggered_grid_draw_native_ad_code_id": "970726618",
+		"draw_interstitial_ad_code_id": "970726653",
+		"draw_fullscreen_interstitial_ad_code_id": "970726628",
+		"draw_banner_code_id": "970726655",
+		"drama_rewarded_ad_code_id": "970726624",
+		"drama_rewarded_ad_code_id_02": "970726626",
+		"drama_draw_ad_code_id": "970726617",
+		"staggered_grid_ad_code_id_02": "970726657"
+	},
+	"novel": {
+		"status": 0,
+		"pre_ad_code_id": "",
+		"mid_ad_code_id": "",
+		"exciting_ad_code_id": "",
+		"interstitial_code_id": "",
+		"banner_ad_code_id": "",
+		"end_ad_code_id": ""
+	},
+	"live": null,
+	"license_config": [
+		{
+			"PackageName": "com.wakeup.howear",
+			"BundleId": "com.wakeup.howear",
+			"StartTime": "20251021T130820Z",
+			"ExpireTime": "20271021T130820Z",
+			"CreatedTime": "20251021T130819Z",
+			"Signature": "d4yyZcWbtVL+f7BKZ9xlfR8EFE9x5weyJSJnbSkrVuzeeuCYEcMN9wOCTfSEswUzOYr0+sh7Wi6RhThrPuFBvebbKt11laLVIsn7GnCqLYp8b9UJ3NaE+Ey6asUgje6PjtxSTM/U6RFjTyEscAK0WOsl/P5V+qlV2iD7ASTgxq5PLj5nuiZq0qeJp3lSmXfFj8DTFIcWKUrFoxwoerNnw2qu/ThLd8PlA4ZALKsJ0QFeEYdcNZ/NKHFX+U8BxazSQPuF0Ow2o3XRJiq5DNc7snL7QnFlhghNdD3anpp0LSuOKPaaK6ctH9rJoN/MXfYUt/8cEr6eQwRNi4Ok02wf4Q==",
+			"Content": "eyJJZCI6IjE1NDk5OTcwNTgiLCJWZXJzaW9uIjoyLCJDaGFubmVsIjoiYWRfY3NqIiwiVHlwZSI6MiwiUGFja2FnZU5hbWUiOiJjb20ud2FrZXVwLmhvd2VhciIsIkJ1bmRsZUlkIjoiY29tLndha2V1cC5ob3dlYXIiLCJNb2R1bGVzIjpbeyJOYW1lIjoidm9kX3BsYXkiLCJFZGl0aW9uIjoicHJlbWl1bV9lZGl0aW9uIiwiU3RhcnRUaW1lIjoxNzYxMDUyMDk5ODgwLCJFeHBpcmVUaW1lIjoxODI0MTI0MDk5ODgwLCJFeHBpcmVCdWZmZXIiOjE1NTUyMDAwMDAwfV0sIkZpbGVWZXJzaW9uIjoiMTc2MTA1MjA5OTg5MTY0ODI0MyJ9",
+			"MainURL": "https://vod-license-m.volccdn.com/vod-license/l-1549997058-ch-ad_csj-a-803397.lic?lk3s=0d9f7a7d\u0026x-expires=4914652099\u0026x-signature=p8bcHyF34XXWZpeRe%2Fwkn%2F%2BG3oc%3D",
+			"BackupURL": "https://vod-license-b.volccdn.com/vod-license/l-1549997058-ch-ad_csj-a-803397.lic?lk3s=0d9f7a7d\u0026x-expires=4914652099\u0026x-signature=XfIyoZkIK7IlcG1Oyrgnxxfy0wQ%3D",
+			"Id": "1549997058"
+		},
+		{
+			"PackageName": "com.wakeup.howear.cn",
+			"BundleId": "com.wakeup.howear.cn",
+			"StartTime": "20250916T070641Z",
+			"ExpireTime": "20270916T070641Z",
+			"CreatedTime": "20250916T070640Z",
+			"Signature": "QupUI2qdDz+b1X9mEPydHDkmkxvXgVDUD2xk2o7Kp7wXvF/T/3EvwbJJYykt/KHtmGnsAPn6cZVlLTHHoyBDyJU5I0CRi6+pDOJ8kt7PQjq6wCNwy+eYhfE8rpTmxn8KyqGEMhVKsa8k4zuawyrAcRgmRgGexKjdlUDf0LtoNmCIM8Oo187KNUZQgFIqGwpfeLhoxi5yBVN3zdDDiGw/wbt8WsPDplyc+Erb7Ots8ugF40EPVXsQgCnF9br8iDSNOLkwuVRNoosunhAjWfmxPC6NVBtnVSopwrWyOMnesnn4MF1FhOv6dYMxDCDE4+Ks5e/fUzgsVPukyruzjA5mQw==",
+			"Content": "eyJJZCI6IjE5ODAxMjQ5MzAiLCJWZXJzaW9uIjoyLCJDaGFubmVsIjoiYWRfY3NqIiwiVHlwZSI6MiwiUGFja2FnZU5hbWUiOiJjb20ud2FrZXVwLmhvd2Vhci5jbiIsIkJ1bmRsZUlkIjoiY29tLndha2V1cC5ob3dlYXIuY24iLCJNb2R1bGVzIjpbeyJOYW1lIjoidm9kX3BsYXkiLCJFZGl0aW9uIjoicHJlbWl1bV9lZGl0aW9uIiwiU3RhcnRUaW1lIjoxNzU4MDA2NDAwNjAwLCJFeHBpcmVUaW1lIjoxODIxMDc4NDAwNjAwLCJFeHBpcmVCdWZmZXIiOjE1NTUyMDAwMDAwfV0sIkZpbGVWZXJzaW9uIjoiMTc1ODAwNjQwMDYxMjUwMTQ0OSJ9",
+			"MainURL": "https://vod-license-m.volccdn.com/vod-license/l-1980124930-ch-ad_csj-a-803397.lic?lk3s=0d9f7a7d\u0026x-expires=4911606400\u0026x-signature=ETHZIB9hbdpLbVcMjtYdA93mBjA%3D",
+			"BackupURL": "https://vod-license-b.volccdn.com/vod-license/l-1980124930-ch-ad_csj-a-803397.lic?lk3s=0d9f7a7d\u0026x-expires=4911606400\u0026x-signature=9i7bmn1PKZJxrjnODlqsOHXeSO8%3D",
+			"Id": "1980124930"
+		}
+	]
+}
