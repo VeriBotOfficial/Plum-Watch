@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.io.File
 import java.io.FileInputStream
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -289,6 +290,8 @@ private fun WatchfaceDetailScreen(
                 if (watchAddress != null) {
                     preferences.edit().putBoolean(sentPreferenceKey, true).apply()
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (exception: Exception) {
                 transferError = exception.message ?: "Could not send this watchface to your watch."
             } finally {
