@@ -1158,7 +1158,7 @@ private fun UpdateSettingsContent(
                 }
                 PlumDownloadButton(
                     label = updateButtonLabel,
-                    downloading = downloadState.isDownloading || downloadState.isOpeningInstaller,
+                    downloading = downloadState.isDownloading,
                     progress = downloadState.progress,
                     downloaded = isDownloaded,
                     enabled = !updateBusy && !isDownloaded,
