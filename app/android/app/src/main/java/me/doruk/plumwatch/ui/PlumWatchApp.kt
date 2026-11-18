@@ -256,7 +256,7 @@ fun PlumWatchApp(
                                 onFindWatch = watchManager::findWatch,
                                 onRefreshHealth = watchManager::refreshHealth
                             )
-                            AppPage.WATCHFACES -> WatchfacesScreen()
+                            AppPage.WATCHFACES -> WatchfacesScreen(watchManager = watchManager, watchState = watchState)
                             AppPage.SETTINGS -> SettingsScreen(
                                 themeMode = themeMode,
                                 onThemeModeChange = onThemeModeChange,
