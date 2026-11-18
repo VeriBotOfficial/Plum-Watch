@@ -322,12 +322,13 @@ class BleWatchManager(context: Context) {
                 ?.getCharacteristic(ALERT_LEVEL_UUID)
             val sifliData = gatt.getService(SIFLI_SERIAL_SERVICE_UUID)
                 ?.getCharacteristic(SIFLI_SERIAL_DATA_UUID)
-            val sifliCanWrite = sifliData != null && sifliData.properties and (
-                BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE or
-                    BluetoothGattCharacteristic.PROPERTY_WRITE
-            ) != 0
+            val sifliCanWrite = sifliData != null &&
+                (sifliData.properties and (
+                    BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE or
+                        BluetoothGattCharacteristic.PROPERTY_WRITE
+                )) != 0
             val sifliCanNotify = sifliData != null &&
-                sifliData.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
+                (sifliData.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
 
             batteryCharacteristic = battery
             sifliDataCharacteristic = sifliData?.takeIf { sifliCanWrite && sifliCanNotify }
@@ -357,9 +358,14 @@ class BleWatchManager(context: Context) {
                         BluetoothGattCharacteristic.PROPERTY_INDICATE
                 ) != 0
                 if (canNotify) {
-                    gatt.setCharacteristicNotification(characteristic, true)
-                    characteristic.getDescriptor(CLIENT_CONFIG_UUID)?.let {
-                        pendingNotificationDescriptors.add(it)
+                    val localNotificationsEnabled =
+                        gatt.setCharacteristicNotification(characteristic, true)
+                    if (localNotificationsEnabled) {
+                        characteristic.getDescriptor(CLIENT_CONFIG_UUID)?.let {
+                            pendingNotificationDescriptors.add(it)
+                        }
+                    } else if (characteristic.uuid == SIFLI_SERIAL_DATA_UUID) {
+                        sifliDataCharacteristic = null
                     }
                 }
             }
@@ -388,7 +394,12 @@ class BleWatchManager(context: Context) {
                 }
             }
             writeNextNotificationDescriptor(gatt)
-            if (pendingNotificationDescriptors.isEmpty()) readPendingBattery(gatt)
+            if (pendingNotificationDescriptors.isEmpty()) {
+                if (sifliDataCharacteristic == null) {
+                    mutableState.update { it.copy(supportsSifliWatchface = false) }
+                }
+                readPendingBattery(gatt)
+            }
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
