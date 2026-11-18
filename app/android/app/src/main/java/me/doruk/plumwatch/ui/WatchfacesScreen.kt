@@ -1,12 +1,8 @@
 package me.doruk.plumwatch.ui
 
-import android.app.DownloadManager
-import android.database.Cursor
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
-import android.os.Environment
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -40,7 +36,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog as MaterialAlertDialog
@@ -69,31 +64,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.io.File
+import java.io.FileInputStream
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.doruk.plumwatch.data.Watchface
 import me.doruk.plumwatch.data.WatchfaceLibraryResult
 import me.doruk.plumwatch.data.WatchfaceRepository
+import me.doruk.plumwatch.watch.BleUiState
+import me.doruk.plumwatch.watch.BleWatchManager
 import java.net.HttpURLConnection
 import java.net.URL
 
 private const val WATCHFACE_ASPECT_RATIO = 0.82f
 
-private data class WatchfaceDownloadState(
-    val id: Long? = null,
-    val progress: Float = 0f,
-    val totalBytes: Long = -1L,
-    val downloadedBytes: Long = 0L,
-    val complete: Boolean = false,
-    val failed: Boolean = false
-) {
-    val active: Boolean get() = id != null && !complete && !failed
-}
 
 @Composable
-fun WatchfacesScreen() {
+fun WatchfacesScreen(watchManager: BleWatchManager, watchState: BleUiState) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var result by remember { mutableStateOf<WatchfaceLibraryResult?>(null) }
@@ -141,6 +128,8 @@ fun WatchfacesScreen() {
         } else {
             WatchfaceDetailScreen(
                 watchface = selected,
+                watchManager = watchManager,
+                watchState = watchState,
                 onBack = { selectedWatchface = null }
             )
         }
@@ -237,74 +226,75 @@ private fun WatchfaceGalleryList(
 @Composable
 private fun WatchfaceDetailScreen(
     watchface: Watchface,
+    watchManager: BleWatchManager,
+    watchState: BleUiState,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    var download by remember(watchface.id) { mutableStateOf(WatchfaceDownloadState()) }
-    var startError by remember(watchface.id) { mutableStateOf<String?>(null) }
-    var alreadyDownloaded by remember(watchface.id) { mutableStateOf(false) }
-    var showDeleteDialog by remember(watchface.id) { mutableStateOf(false) }
-    val downloadPreferences = remember(context) {
-        context.getSharedPreferences("plum-watchface-downloads", Context.MODE_PRIVATE)
+    val scope = rememberCoroutineScope()
+    val preferences = remember(context) {
+        context.getSharedPreferences("plum-watchface-transfers", Context.MODE_PRIVATE)
     }
-    val preferenceKey = "download-id-" + watchface.id
-    val safeName = remember(watchface.id) {
-        watchface.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
-    }
-    val destinationFile = remember(watchface.id) { watchfaceDownloadFile(watchface.id) }
+    val watchAddress = watchState.connectedDevice?.address ?: watchState.savedDevice?.address
+    val sentPreferenceKey = "sent:" + (watchAddress ?: "no-watch") + ":" + watchface.id
 
-    LaunchedEffect(watchface.id) {
-        var savedId = downloadPreferences.getLong(preferenceKey, -1L)
-        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val completedId = withContext(Dispatchers.IO) {
-            var cursor: Cursor? = null
+    var isPushing by remember(watchface.id, watchAddress) { mutableStateOf(false) }
+    var transferProgress by remember(watchface.id, watchAddress) { mutableStateOf(0f) }
+    var transferPhase by remember(watchface.id, watchAddress) { mutableStateOf("Downloading…") }
+    var alreadySent by remember(watchface.id, watchAddress) { mutableStateOf(false) }
+    var transferError by remember(watchface.id, watchAddress) { mutableStateOf<String?>(null) }
+    var showResendDialog by remember(watchface.id, watchAddress) { mutableStateOf(false) }
+
+    val canPush = watchState.isConnected && watchState.supportsSifliWatchface
+
+    LaunchedEffect(watchface.id, watchAddress) {
+        alreadySent = watchAddress != null &&
+            preferences.getBoolean(sentPreferenceKey, false)
+    }
+
+    fun startTransfer() {
+        if (isPushing) return
+        if (!watchState.isConnected) {
+            transferError = "Connect your watch before adding a watchface."
+            return
+        }
+        if (!watchState.supportsSifliWatchface) {
+            transferError = "This watch does not expose the SiFli watchface transfer service."
+            return
+        }
+        scope.launch {
+            isPushing = true
+            transferProgress = 0f
+            transferPhase = "Downloading…"
+            transferError = null
+
+            val safeName = watchface.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
+            val archiveFile = File(context.cacheDir, "watchface-" + safeName + ".zip")
             try {
-                cursor = if (savedId >= 0L) {
-                    manager.query(DownloadManager.Query().setFilterById(savedId))
-                } else {
-                    manager.query(DownloadManager.Query())
+                downloadWatchfaceArchive(watchface.archiveUrl, archiveFile) { progress ->
+                    transferProgress = progress * 0.15f
                 }
-                if (cursor != null && cursor.moveToFirst()) {
-                    do {
-                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                        val title = cursor.getString(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TITLE))
-                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_ID))
-                        if (status == DownloadManager.STATUS_SUCCESSFUL &&
-                            (id == savedId || title == watchface.name + ".zip")
-                        ) return@withContext id
-                    } while (cursor.moveToNext())
-                }
-                -1L
-            } catch (_: Exception) {
-                -1L
-            } finally {
-                cursor?.close()
-            }
-        }
-        if (completedId >= 0L) {
-            savedId = completedId
-            downloadPreferences.edit().putLong(preferenceKey, completedId).apply()
-        }
-        alreadyDownloaded = completedId >= 0L || destinationFile.exists()
-    }
+                transferPhase = "Sending to watch…"
+                transferProgress = 0.15f
 
-    LaunchedEffect(download.id) {
-        val id = download.id ?: return@LaunchedEffect
-        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        while (true) {
-            val state = queryWatchfaceDownload(manager, id)
-            if (state == null) {
-                download = download.copy(failed = true)
-                break
+                watchManager.pushWatchface(
+                    archiveFile = archiveFile,
+                    targetFileName = safeName + ".zip"
+                ) { progress ->
+                    transferProgress = 0.15f + progress.coerceIn(0f, 1f) * 0.85f
+                }
+
+                transferProgress = 1f
+                alreadySent = true
+                if (watchAddress != null) {
+                    preferences.edit().putBoolean(sentPreferenceKey, true).apply()
+                }
+            } catch (exception: Exception) {
+                transferError = exception.message ?: "Could not send this watchface to your watch."
+            } finally {
+                archiveFile.delete()
+                isPushing = false
             }
-            download = state
-            if (state.complete) {
-                alreadyDownloaded = true
-                downloadPreferences.edit().putLong(preferenceKey, id).apply()
-                break
-            }
-            if (state.failed) break
-            delay(180)
         }
     }
 
@@ -319,90 +309,106 @@ private fun WatchfaceDetailScreen(
                     Icon(Icons.Outlined.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
-            Text("Face Gallery", Modifier.padding(start = 13.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+            Text(
+                "Face Gallery",
+                Modifier.padding(start = 13.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp
+            )
         }
 
         Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             WatchfaceArtwork(
                 watchface.previewUrl,
                 Modifier.fillMaxWidth(0.84f).widthIn(max = 330.dp)
-                    .border(5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), RoundedCornerShape(43.dp))
+                    .border(
+                        5.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.62f),
+                        RoundedCornerShape(43.dp)
+                    )
                     .clip(RoundedCornerShape(38.dp))
                     .background(Color(0xFF050607))
                     .padding(8.dp)
             )
         }
 
-        Text(watchface.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 26.sp, lineHeight = 31.sp, fontWeight = FontWeight.SemiBold)
-
-        PlumDownloadButton(
-            label = if (download.failed || startError != null) "Try again" else "Download",
-            downloading = download.active,
-            progress = download.progress,
-            downloaded = alreadyDownloaded || download.complete,
-            enabled = !download.active,
-            onClick = {
-                if (alreadyDownloaded || download.complete) {
-                    showDeleteDialog = true
-                } else {
-                    startError = null
-                    download = WatchfaceDownloadState()
-                    try {
-                        val request = DownloadManager.Request(Uri.parse(watchface.archiveUrl))
-                            .setTitle(watchface.name + ".zip")
-                            .setDescription("Downloading watchface")
-                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                            .setDestinationInExternalPublicDir(
-                                Environment.DIRECTORY_DOWNLOADS,
-                                "Plum Watchfaces/" + safeName + ".zip"
-                            )
-                        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                        val id = manager.enqueue(request)
-                        downloadPreferences.edit().putLong(preferenceKey, id).apply()
-                        download = WatchfaceDownloadState(id = id)
-                    } catch (e: Exception) {
-                        startError = e.message ?: "Couldn't start download"
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
+        Text(
+            watchface.name,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 26.sp,
+            lineHeight = 31.sp,
+            fontWeight = FontWeight.SemiBold
         )
 
-        if (startError != null || download.failed) {
+        val buttonLabel = when {
+            !watchState.isConnected -> "Connect your watch"
+            !watchState.supportsSifliWatchface -> "Transfer unavailable"
+            transferError != null -> "Try again"
+            alreadySent -> "Sent to watch"
+            else -> "Add to watch"
+        }
+
+        PlumDownloadButton(
+            label = buttonLabel,
+            downloading = isPushing,
+            progress = transferProgress,
+            downloaded = alreadySent,
+            enabled = canPush && !isPushing,
+            onClick = {
+                if (alreadySent) showResendDialog = true else startTransfer()
+            },
+            modifier = Modifier.fillMaxWidth(),
+            downloadingLabel = transferPhase,
+            successLabel = "Sent to watch"
+        )
+
+        if (!watchState.isConnected) {
             Text(
-                startError ?: "Download failed. Try again.",
+                "Connect your watch to send this face over Bluetooth.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                lineHeight = 16.sp
+            )
+        } else if (!watchState.supportsSifliWatchface) {
+            Text(
+                "This watch does not expose the SiFli watchface transfer service.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                lineHeight = 16.sp
+            )
+        }
+
+        if (transferError != null) {
+            Text(
+                transferError ?: "",
                 color = MaterialTheme.colorScheme.error,
-                fontSize = 11.sp
+                fontSize = 11.sp,
+                lineHeight = 16.sp
             )
         }
     }
 
-    if (showDeleteDialog) {
+    if (showResendDialog) {
         MaterialAlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete this watchface?") },
+            onDismissRequest = { showResendDialog = false },
+            title = { Text("Send this watchface again?") },
             text = {
                 Text(
-                    "Remove " + watchface.name + " from your downloaded watchfaces? You can download it again later.",
+                    "Send the " + watchface.name + " ZIP to the connected watch again?",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    showDeleteDialog = false
-                    val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                    val savedId = downloadPreferences.getLong(preferenceKey, -1L)
-                    if (savedId >= 0L) manager.remove(savedId)
-                    destinationFile.delete()
-                    downloadPreferences.edit().remove(preferenceKey).apply()
-                    alreadyDownloaded = false
-                    download = WatchfaceDownloadState()
+                    showResendDialog = false
+                    alreadySent = false
+                    startTransfer()
                 }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text("Send again")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
+                TextButton(onClick = { showResendDialog = false }) {
                     Text("Cancel")
                 }
             },
@@ -413,39 +419,58 @@ private fun WatchfaceDetailScreen(
     }
 }
 
-private fun watchfaceDownloadFile(id: String): File {
-    val safeName = id.replace(Regex("[^A-Za-z0-9_-]"), "_")
-    val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-    return File(File(downloads, "Plum Watchfaces"), "$safeName.zip")
-}
+private suspend fun downloadWatchfaceArchive(
+    url: String,
+    destination: File,
+    onProgress: (Float) -> Unit
+): File = withContext(Dispatchers.IO) {
+    val connection = URL(url).openConnection() as HttpURLConnection
+    connection.connectTimeout = 15_000
+    connection.readTimeout = 25_000
+    connection.requestMethod = "GET"
+    connection.setRequestProperty("User-Agent", "Plum-Watch-Android")
+    connection.setRequestProperty("Cache-Control", "no-cache")
 
-private suspend fun queryWatchfaceDownload(manager: DownloadManager, id: Long): WatchfaceDownloadState? =
-    withContext(Dispatchers.IO) {
-        var cursor: Cursor? = null
-        try {
-            cursor = manager.query(DownloadManager.Query().setFilterById(id))
-            if (cursor == null || !cursor.moveToFirst()) return@withContext null
-            val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-            val downloaded = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-            val total = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-            val progress = if (total > 0L) downloaded.toFloat() / total.toFloat() else 0f
-            when (status) {
-                DownloadManager.STATUS_SUCCESSFUL -> WatchfaceDownloadState(id, 1f, total, downloaded, complete = true)
-                DownloadManager.STATUS_FAILED -> WatchfaceDownloadState(id, progress, total, downloaded, failed = true)
-                else -> WatchfaceDownloadState(id, progress, total, downloaded)
-            }
-        } catch (_: Exception) {
-            null
-        } finally {
-            cursor?.close()
+    try {
+        val status = connection.responseCode
+        if (status !in 200..299) {
+            throw IllegalStateException("Could not fetch the watchface archive (HTTP " + status + ").")
         }
+        val totalBytes = connection.contentLengthLong
+        var receivedBytes = 0L
+        connection.inputStream.use { input ->
+            destination.outputStream().buffered().use { output ->
+                val buffer = ByteArray(16 * 1024)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                    receivedBytes += count
+                    if (totalBytes > 0L) {
+                        onProgress((receivedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f))
+                    }
+                }
+            }
+        }
+        if (destination.length() <= 0L) {
+            throw IllegalStateException("The watchface archive is empty.")
+        }
+        val signature = FileInputStream(destination).use { input ->
+            val first = input.read()
+            val second = input.read()
+            first == 0x50 && second == 0x4B
+        }
+        if (!signature) {
+            throw IllegalStateException("The watchface library did not return a valid ZIP archive.")
+        }
+        onProgress(1f)
+        destination
+    } catch (exception: Exception) {
+        destination.delete()
+        throw exception
+    } finally {
+        connection.disconnect()
     }
-
-private fun formatDownloadBytes(bytes: Long): String {
-    if (bytes < 1024L) return bytes.toString() + " B"
-    val kb = bytes / 1024f
-    if (kb < 1024f) return kb.toInt().toString() + " KB"
-    return String.format("%.1f MB", kb / 1024f)
 }
 
 @Composable
