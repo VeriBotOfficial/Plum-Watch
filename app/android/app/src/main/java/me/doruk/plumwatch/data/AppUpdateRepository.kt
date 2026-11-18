@@ -18,6 +18,7 @@ data class AppUpdateDownloadState(
     val isDownloading: Boolean = false,
     val progress: Float? = null,
     val isOpeningInstaller: Boolean = false,
+    val isDownloaded: Boolean = false,
     val errorMessage: String? = null
 )
 
