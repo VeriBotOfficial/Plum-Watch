@@ -45,6 +45,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.AlertDialog as MaterialAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -69,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -233,6 +235,7 @@ private fun WatchfaceGalleryList(
     }
 }
 
+
 @Composable
 private fun WatchfaceDetailScreen(
     watchface: Watchface,
@@ -241,6 +244,37 @@ private fun WatchfaceDetailScreen(
     val context = LocalContext.current
     var download by remember(watchface.id) { mutableStateOf(WatchfaceDownloadState()) }
     var startError by remember(watchface.id) { mutableStateOf<String?>(null) }
+    var alreadyDownloaded by remember(watchface.id) { mutableStateOf(false) }
+    var showDeleteDialog by remember(watchface.id) { mutableStateOf(false) }
+    val downloadPreferences = remember(context) {
+        context.getSharedPreferences("plum-watchface-downloads", Context.MODE_PRIVATE)
+    }
+    val preferenceKey = "download-id-" + watchface.id
+    val safeName = remember(watchface.id) {
+        watchface.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
+    }
+    val destinationFile = remember(watchface.id) { watchfaceDownloadFile(watchface.id) }
+
+    LaunchedEffect(watchface.id) {
+        val savedId = downloadPreferences.getLong(preferenceKey, -1L)
+        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val managerHasCompletedFile = withContext(Dispatchers.IO) {
+            if (savedId < 0L) false else {
+                var cursor: Cursor? = null
+                try {
+                    cursor = manager.query(DownloadManager.Query().setFilterById(savedId))
+                    cursor != null && cursor.moveToFirst() &&
+                        cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)) ==
+                        DownloadManager.STATUS_SUCCESSFUL
+                } catch (_: Exception) {
+                    false
+                } finally {
+                    cursor?.close()
+                }
+            }
+        }
+        alreadyDownloaded = managerHasCompletedFile || destinationFile.exists()
+    }
 
     LaunchedEffect(download.id) {
         val id = download.id ?: return@LaunchedEffect
@@ -252,16 +286,15 @@ private fun WatchfaceDetailScreen(
                 break
             }
             download = state
-            if (state.complete || state.failed) break
+            if (state.complete) {
+                alreadyDownloaded = true
+                downloadPreferences.edit().putLong(preferenceKey, id).apply()
+                break
+            }
+            if (state.failed) break
             delay(180)
         }
     }
-
-    val animatedProgress by animateFloatAsState(
-        targetValue = download.progress.coerceIn(0f, 1f),
-        animationSpec = tween(420, easing = FastOutSlowInEasing),
-        label = "watchface-download-progress"
-    )
 
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding()
@@ -290,66 +323,88 @@ private fun WatchfaceDetailScreen(
 
         Text(watchface.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 26.sp, lineHeight = 31.sp, fontWeight = FontWeight.SemiBold)
 
-        AppClickableSurface(
+        PlumDownloadButton(
+            label = if (download.failed || startError != null) "Try again" else "Download",
+            downloading = download.active,
+            progress = download.progress,
+            downloaded = alreadyDownloaded || download.complete,
+            enabled = !download.active,
             onClick = {
-                if (!download.active && !download.complete) {
+                if (alreadyDownloaded || download.complete) {
+                    showDeleteDialog = true
+                } else {
                     startError = null
                     download = WatchfaceDownloadState()
                     try {
-                        val safeName = watchface.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
                         val request = DownloadManager.Request(Uri.parse(watchface.archiveUrl))
                             .setTitle(watchface.name + ".zip")
                             .setDescription("Downloading watchface")
                             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "Plum Watchfaces/" + safeName + ".zip")
+                            .setDestinationInExternalPublicDir(
+                                Environment.DIRECTORY_DOWNLOADS,
+                                "Plum Watchfaces/" + safeName + ".zip"
+                            )
                         val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                        download = WatchfaceDownloadState(id = manager.enqueue(request))
+                        val id = manager.enqueue(request)
+                        downloadPreferences.edit().putLong(preferenceKey, id).apply()
+                        download = WatchfaceDownloadState(id = id)
                     } catch (e: Exception) {
                         startError = e.message ?: "Couldn't start download"
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth().height(68.dp),
-            shape = RoundedCornerShape(22.dp)
-        ) {
-            Box(
-                Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f))
-                    .padding(horizontal = 20.dp, vertical = 11.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                when {
-                    download.active -> Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            val label = if (download.totalBytes > 0L) {
-                                (animatedProgress * 100f).toInt().toString() + "%  ·  " +
-                                    formatDownloadBytes(download.downloadedBytes) + " / " +
-                                    formatDownloadBytes(download.totalBytes)
-                            } else "Downloading…"
-                            Text(label, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.weight(1f))
-                            Text("DOWNLOADING", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Box(Modifier.fillMaxWidth().height(7.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                            Box(Modifier.fillMaxWidth(animatedProgress).height(7.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
-                        }
-                    }
-                    download.complete -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary)
-                        Text("Downloaded", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    else -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                            Icon(Icons.Outlined.Download, null, tint = MaterialTheme.colorScheme.primary)
-                            Text(if (download.failed || startError != null) "Try again" else "Download", color = MaterialTheme.colorScheme.primary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        if (startError != null) Text(startError!!, color = MaterialTheme.colorScheme.error, fontSize = 10.sp, maxLines = 1)
-                        else if (download.failed) Text("Download failed", color = MaterialTheme.colorScheme.error, fontSize = 10.sp)
-                    }
-                }
-            }
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        if (startError != null || download.failed) {
+            Text(
+                startError ?: "Download failed. Try again.",
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 11.sp
+            )
         }
     }
+
+    if (showDeleteDialog) {
+        MaterialAlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete this watchface?") },
+            text = {
+                Text(
+                    "Remove " + watchface.name + " from your downloaded watchfaces? You can download it again later.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                    val savedId = downloadPreferences.getLong(preferenceKey, -1L)
+                    if (savedId >= 0L) manager.remove(savedId)
+                    destinationFile.delete()
+                    downloadPreferences.edit().remove(preferenceKey).apply()
+                    alreadyDownloaded = false
+                    download = WatchfaceDownloadState()
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+private fun watchfaceDownloadFile(id: String): File {
+    val safeName = id.replace(Regex("[^A-Za-z0-9_-]"), "_")
+    val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+    return File(File(downloads, "Plum Watchfaces"), "$safeName.zip")
 }
 
 private suspend fun queryWatchfaceDownload(manager: DownloadManager, id: Long): WatchfaceDownloadState? =
