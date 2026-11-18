@@ -25,6 +25,7 @@ import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -217,6 +218,7 @@ class BleWatchManager(context: Context) {
                         pendingDevice = null,
                         connectionMessage = "Connected",
                         discoveredServiceCount = 0,
+                        supportsSifliWatchface = false,
                         errorMessage = null
                     )
                 }
@@ -570,6 +572,8 @@ class BleWatchManager(context: Context) {
         return try {
             try {
                 withTimeoutOrNull(SIFLI_MTU_TIMEOUT_MS) { pending.await() } ?: sifliMtu
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
                 sifliMtu
             }
