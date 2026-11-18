@@ -139,7 +139,7 @@ fun PlumDownloadButton(
     }
     Box(
         modifier = modifier.height(62.dp).clip(shape).background(backgroundColor)
-            .clickable(enabled = enabled && !downloading && !downloaded, onClick = onClick),
+            .clickable(enabled = enabled && !downloading, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         if (downloading) {
