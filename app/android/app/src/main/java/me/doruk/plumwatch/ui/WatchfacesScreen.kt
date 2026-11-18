@@ -209,8 +209,8 @@ private fun WatchfaceGalleryList(
                                 ) {
                                     Box(
                                         Modifier.padding(5.dp)
-                                            .border(3.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(27.dp))
-                                            .clip(RoundedCornerShape(24.dp))
+                                            .border(3.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                                            .clip(RoundedCornerShape(21.dp))
                                             .background(Color(0xFF050607))
                                     ) {
                                         WatchfaceArtwork(face.previewUrl, Modifier.fillMaxWidth())
