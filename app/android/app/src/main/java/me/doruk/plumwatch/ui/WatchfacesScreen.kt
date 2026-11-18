@@ -447,7 +447,9 @@ private suspend fun downloadWatchfaceArchive(
                     output.write(buffer, 0, count)
                     receivedBytes += count
                     if (totalBytes > 0L) {
-                        onProgress((receivedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f))
+                        withContext(Dispatchers.Main.immediate) {
+                            onProgress((receivedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f))
+                        }
                     }
                 }
             }
@@ -463,7 +465,7 @@ private suspend fun downloadWatchfaceArchive(
         if (!signature) {
             throw IllegalStateException("The watchface library did not return a valid ZIP archive.")
         }
-        onProgress(1f)
+        withContext(Dispatchers.Main.immediate) { onProgress(1f) }
         destination
     } catch (exception: Exception) {
         destination.delete()
