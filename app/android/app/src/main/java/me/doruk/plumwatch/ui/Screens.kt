@@ -110,7 +110,8 @@ fun PlumDownloadButton(
     downloaded: Boolean,
     enabled: Boolean = true,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showActivityIndicator: Boolean = false
 ) {
     val shape = RoundedCornerShape(18.dp)
     val targetProgress = when {
@@ -120,7 +121,7 @@ fun PlumDownloadButton(
     }
     val animatedProgress by animateFloatAsState(
         targetValue = targetProgress,
-        animationSpec = tween(520, easing = FastOutSlowInEasing),
+        animationSpec = tween(820, easing = FastOutSlowInEasing),
         label = "plum-download-fill"
     )
     val backgroundColor by animateColorAsState(
@@ -129,17 +130,24 @@ fun PlumDownloadButton(
             downloading -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f)
             else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
         },
-        animationSpec = tween(420, easing = FastOutSlowInEasing),
+        animationSpec = tween(520, easing = FastOutSlowInEasing),
         label = "plum-download-background"
     )
     val foregroundColor = when {
         downloaded -> Color.White
-        downloading -> MaterialTheme.colorScheme.onSurface
+        downloading || showActivityIndicator -> MaterialTheme.colorScheme.onSurface
         else -> MaterialTheme.colorScheme.primary
     }
+    val displayedLabel = when {
+        downloaded -> "Downloaded"
+        downloading -> "Downloading…"
+        else -> label
+    }
+    val indicatorVisible = downloading || showActivityIndicator
+
     Box(
         modifier = modifier.height(62.dp).clip(shape).background(backgroundColor)
-            .clickable(enabled = enabled && !downloading, onClick = onClick),
+            .clickable(enabled = enabled && !downloading && !showActivityIndicator, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         if (downloading) {
@@ -154,22 +162,58 @@ fun PlumDownloadButton(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            when {
-                downloaded -> Icon(Icons.Outlined.Check, contentDescription = null, tint = foregroundColor)
-                downloading -> Unit
-                else -> Icon(Icons.Outlined.Download, contentDescription = null, tint = foregroundColor)
-            }
-            if (!downloading) Spacer(Modifier.width(9.dp))
-            Text(
-                text = when {
-                    downloaded -> "Downloaded"
-                    downloading -> "Downloading…"
-                    else -> label
+            AnimatedContent(
+                targetState = when {
+                    downloaded -> "done"
+                    indicatorVisible -> "progress"
+                    else -> "download"
                 },
-                color = foregroundColor,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+                transitionSpec = {
+                    (fadeIn(tween(260)) + slideInVertically(
+                        animationSpec = tween(360, easing = FastOutSlowInEasing),
+                        initialOffsetY = { it / 3 }
+                    )) togetherWith (fadeOut(tween(180)) + slideOutVertically(
+                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                        targetOffsetY = { -it / 4 }
+                    ))
+                },
+                label = "plum-download-leading-indicator"
+            ) { state ->
+                Box(Modifier.size(19.dp), contentAlignment = Alignment.Center) {
+                    when (state) {
+                        "done" -> Icon(Icons.Outlined.Check, contentDescription = null, tint = foregroundColor, modifier = Modifier.size(19.dp))
+                        "progress" -> CircularProgressIndicator(
+                            modifier = Modifier.size(17.dp),
+                            color = foregroundColor,
+                            trackColor = foregroundColor.copy(alpha = 0.18f),
+                            strokeWidth = 2.dp
+                        )
+                        else -> Icon(Icons.Outlined.Download, contentDescription = null, tint = foregroundColor, modifier = Modifier.size(19.dp))
+                    }
+                }
+            }
+            Spacer(Modifier.width(9.dp))
+            AnimatedContent(
+                targetState = displayedLabel,
+                transitionSpec = {
+                    (fadeIn(tween(300)) + slideInVertically(
+                        animationSpec = tween(420, easing = FastOutSlowInEasing),
+                        initialOffsetY = { it / 2 }
+                    )) togetherWith (fadeOut(tween(190)) + slideOutVertically(
+                        animationSpec = tween(300, easing = FastOutSlowInEasing),
+                        targetOffsetY = { -it / 3 }
+                    ))
+                },
+                label = "plum-download-label"
+            ) { text ->
+                Text(
+                    text = text,
+                    color = foregroundColor,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+            }
         }
     }
 }
@@ -1160,6 +1204,7 @@ private fun UpdateSettingsContent(
                     progress = downloadState.progress,
                     downloaded = isDownloaded,
                     enabled = !updateBusy && !isDownloaded,
+                    showActivityIndicator = checkingUpdates,
                     onClick = {
                         val update = availableUpdate
                         if (update != null) onInstallUpdate(update) else onCheckUpdates()
