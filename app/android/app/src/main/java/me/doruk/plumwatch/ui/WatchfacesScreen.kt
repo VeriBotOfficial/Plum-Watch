@@ -1,6 +1,7 @@
 package me.doruk.plumwatch.ui
 
 import android.app.DownloadManager
+import android.database.Cursor
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -10,6 +11,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -34,12 +36,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Refresh
@@ -68,6 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.doruk.plumwatch.data.Watchface
@@ -76,7 +79,18 @@ import me.doruk.plumwatch.data.WatchfaceRepository
 import java.net.HttpURLConnection
 import java.net.URL
 
-private const val WATCHFACE_FALLBACK_ASPECT_RATIO = 0.72f
+private const val WATCHFACE_ASPECT_RATIO = 0.82f
+
+private data class WatchfaceDownloadState(
+    val id: Long? = null,
+    val progress: Float = 0f,
+    val totalBytes: Long = -1L,
+    val downloadedBytes: Long = 0L,
+    val complete: Boolean = false,
+    val failed: Boolean = false
+) {
+    val active: Boolean get() = id != null && !complete && !failed
+}
 
 @Composable
 fun WatchfacesScreen() {
@@ -142,129 +156,80 @@ private fun WatchfaceGalleryList(
     onSelect: (Watchface) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = 22.dp),
-        contentPadding = PaddingValues(top = 27.dp, bottom = 126.dp),
-        verticalArrangement = Arrangement.spacedBy(13.dp)
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        contentPadding = PaddingValues(top = 22.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PageTitle("Watchfaces")
+                PageTitle("Face Gallery")
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = onRefresh, enabled = !loading) {
                     if (loading) {
-                        PlumProgressLabel(
-                            label = "Refreshing",
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
+                        PlumProgressLabel("Refreshing", Modifier.padding(vertical = 4.dp))
                     } else {
                         Icon(Icons.Outlined.Refresh, contentDescription = null)
-                        Text("Refresh", modifier = Modifier.padding(start = 5.dp))
+                        Text("Refresh", Modifier.padding(start = 5.dp))
                     }
                 }
             }
         }
-
         when {
             loading && result == null -> item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    PlumProgressLabel(label = "Loading watchfaces")
+                Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
+                    PlumProgressLabel("Loading watchfaces")
                 }
             }
-
             result is WatchfaceLibraryResult.PrivateOrUnavailable -> item {
-                WatchfaceInfoState(
-                    title = "Repository is private",
-                    action = "Refresh",
-                    onAction = onRefresh
-                )
+                WatchfaceInfoState("Repository is private", action = "Refresh", onAction = onRefresh)
             }
-
             result is WatchfaceLibraryResult.Failed -> item {
-                WatchfaceInfoState(
-                    title = "Couldn't load watchfaces",
-                    detail = (result as WatchfaceLibraryResult.Failed).message,
-                    action = "Retry",
-                    onAction = onRefresh
-                )
+                WatchfaceInfoState("Couldn't load watchfaces", detail = result.message, action = "Retry", onAction = onRefresh)
             }
-
             result is WatchfaceLibraryResult.Available -> {
-                val watchfaces = (result as WatchfaceLibraryResult.Available).watchfaces
-                if (watchfaces.isEmpty()) {
-                    item {
-                        WatchfaceInfoState(title = "No watchfaces yet")
-                    }
-                } else {
-                    items(watchfaces, key = { it.id }) { watchface ->
-                        WatchfaceListItem(
-                            watchface = watchface,
-                            onClick = { onSelect(watchface) }
-                        )
+                val faces = result.watchfaces
+                if (faces.isEmpty()) item { WatchfaceInfoState("No watchfaces yet") }
+                else item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 22.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(faces, key = { it.id }) { face ->
+                            Column(
+                                modifier = Modifier.width(156.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                AppClickableSurface(
+                                    onClick = { onSelect(face) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(30.dp)
+                                ) {
+                                    Box(
+                                        Modifier.padding(5.dp)
+                                            .border(3.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(27.dp))
+                                            .clip(RoundedCornerShape(24.dp))
+                                            .background(Color(0xFF050607))
+                                    ) {
+                                        WatchfaceArtwork(face.previewUrl, Modifier.fillMaxWidth())
+                                    }
+                                }
+                                Text(
+                                    face.name,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun WatchfaceListItem(
-    watchface: Watchface,
-    onClick: () -> Unit
-) {
-    AppClickableSurface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(25.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(15.dp)
-        ) {
-            WatchfaceArtwork(
-                url = watchface.previewUrl,
-                modifier = Modifier
-                    .width(88.dp)
-                    .border(
-                        width = 3.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.48f),
-                        shape = RoundedCornerShape(23.dp)
-                    )
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF08090B))
-                    .padding(4.dp)
-            )
-
-            Text(
-                text = watchface.name,
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Icon(
-                imageVector = Icons.Outlined.ChevronRight,
-                contentDescription = "Preview " + watchface.name,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                modifier = Modifier.size(20.dp)
-            )
         }
     }
 }
@@ -272,86 +237,149 @@ private fun WatchfaceListItem(
 @Composable
 private fun WatchfaceDetailScreen(
     watchface: Watchface,
-    onBack: () -> Unit,
-    onDownload: () -> Unit
+    onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    var download by remember(watchface.id) { mutableStateOf(WatchfaceDownloadState()) }
+    var startError by remember(watchface.id) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(download.id) {
+        val id = download.id ?: return@LaunchedEffect
+        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        while (true) {
+            val state = queryWatchfaceDownload(manager, id)
+            if (state == null) {
+                download = download.copy(failed = true)
+                break
+            }
+            download = state
+            if (state.complete || state.failed) break
+            delay(180)
+        }
+    }
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = download.progress.coerceIn(0f, 1f),
+        animationSpec = tween(420, easing = FastOutSlowInEasing),
+        label = "watchface-download-progress"
+    )
+
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = 22.dp)
-            .padding(top = 17.dp, bottom = 126.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        modifier = Modifier.fillMaxSize().statusBarsPadding()
+            .padding(horizontal = 22.dp).padding(top = 14.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AppClickableSurface(
-                onClick = onBack,
-                modifier = Modifier.size(42.dp),
-                shape = CircleShape
-            ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AppClickableSurface(onClick = onBack, modifier = Modifier.size(42.dp), shape = CircleShape) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.ArrowBack,
-                        contentDescription = "Back to watchfaces",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(Icons.Outlined.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
-            Text(
-                text = "Watchfaces",
-                modifier = Modifier.padding(start = 13.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Text("Face Gallery", Modifier.padding(start = 13.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             WatchfaceArtwork(
-                url = watchface.previewUrl,
-                modifier = Modifier
-                    .fillMaxWidth(0.78f)
-                    .widthIn(max = 270.dp)
-                    .border(
-                        width = 5.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.62f),
-                        shape = RoundedCornerShape(43.dp)
-                    )
+                watchface.previewUrl,
+                Modifier.fillMaxWidth(0.84f).widthIn(max = 330.dp)
+                    .border(5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), RoundedCornerShape(43.dp))
                     .clip(RoundedCornerShape(38.dp))
                     .background(Color(0xFF050607))
                     .padding(8.dp)
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(
-                text = watchface.name,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 25.sp,
-                lineHeight = 30.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (-0.45).sp
-            )
+        Text(watchface.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 26.sp, lineHeight = 31.sp, fontWeight = FontWeight.SemiBold)
 
-            PlumActionButton(
-                label = "Download",
-                icon = Icons.Outlined.Download,
-                onClick = onDownload,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-            )
+        AppClickableSurface(
+            onClick = {
+                if (!download.active && !download.complete) {
+                    startError = null
+                    download = WatchfaceDownloadState()
+                    try {
+                        val safeName = watchface.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
+                        val request = DownloadManager.Request(Uri.parse(watchface.archiveUrl))
+                            .setTitle(watchface.name + ".zip")
+                            .setDescription("Downloading watchface")
+                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "Plum Watchfaces/" + safeName + ".zip")
+                        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                        download = WatchfaceDownloadState(id = manager.enqueue(request))
+                    } catch (e: Exception) {
+                        startError = e.message ?: "Couldn't start download"
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(68.dp),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f))
+                    .padding(horizontal = 20.dp, vertical = 11.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    download.active -> Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            val label = if (download.totalBytes > 0L) {
+                                (animatedProgress * 100f).toInt().toString() + "%  ·  " +
+                                    formatDownloadBytes(download.downloadedBytes) + " / " +
+                                    formatDownloadBytes(download.totalBytes)
+                            } else "Downloading…"
+                            Text(label, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.weight(1f))
+                            Text("DOWNLOADING", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Box(Modifier.fillMaxWidth().height(7.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)) {
+                            Box(Modifier.fillMaxWidth(animatedProgress).height(7.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                        }
+                    }
+                    download.complete -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary)
+                        Text("Downloaded", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    else -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Icon(Icons.Outlined.Download, null, tint = MaterialTheme.colorScheme.primary)
+                            Text(if (download.failed || startError != null) "Try again" else "Download", color = MaterialTheme.colorScheme.primary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        if (startError != null) Text(startError!!, color = MaterialTheme.colorScheme.error, fontSize = 10.sp, maxLines = 1)
+                        else if (download.failed) Text("Download failed", color = MaterialTheme.colorScheme.error, fontSize = 10.sp)
+                    }
+                }
+            }
         }
     }
+}
+
+private suspend fun queryWatchfaceDownload(manager: DownloadManager, id: Long): WatchfaceDownloadState? =
+    withContext(Dispatchers.IO) {
+        var cursor: Cursor? = null
+        try {
+            cursor = manager.query(DownloadManager.Query().setFilterById(id))
+            if (cursor == null || !cursor.moveToFirst()) return@withContext null
+            val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+            val downloaded = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+            val total = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+            val progress = if (total > 0L) downloaded.toFloat() / total.toFloat() else 0f
+            when (status) {
+                DownloadManager.STATUS_SUCCESSFUL -> WatchfaceDownloadState(id, 1f, total, downloaded, complete = true)
+                DownloadManager.STATUS_FAILED -> WatchfaceDownloadState(id, progress, total, downloaded, failed = true)
+                else -> WatchfaceDownloadState(id, progress, total, downloaded)
+            }
+        } catch (_: Exception) {
+            null
+        } finally {
+            cursor?.close()
+        }
+    }
+
+private fun formatDownloadBytes(bytes: Long): String {
+    if (bytes < 1024L) return bytes.toString() + " B"
+    val kb = bytes / 1024f
+    if (kb < 1024f) return kb.toInt().toString() + " KB"
+    return String.format("%.1f MB", kb / 1024f)
 }
 
 @Composable
@@ -373,32 +401,14 @@ private fun WatchfaceArtwork(
             }.getOrNull()
         }
     }
-
-    val image = bitmap
-    val imageRatio = image?.let {
-        (it.width.toFloat() / it.height.toFloat()).coerceIn(0.35f, 1.6f)
-    } ?: WATCHFACE_FALLBACK_ASPECT_RATIO
-
     Box(
-        modifier = modifier
-            .aspectRatio(imageRatio)
-            .background(Color(0xFF08090B)),
+        modifier = modifier.aspectRatio(WATCHFACE_ASPECT_RATIO).background(Color(0xFF050607)),
         contentAlignment = Alignment.Center
     ) {
-        if (image != null) {
-            Image(
-                bitmap = image.asImageBitmap(),
-                contentDescription = "Watchface preview",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
-            )
+        if (bitmap != null) {
+            Image(bitmap!!.asImageBitmap(), "Watchface preview", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
-            Icon(
-                imageVector = Icons.Outlined.Image,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                modifier = Modifier.size(25.dp)
-            )
+            Icon(Icons.Outlined.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(25.dp))
         }
     }
 }
@@ -463,31 +473,5 @@ private fun WatchfaceInfoState(
                 }
             }
         }
-    }
-}
-
-private fun downloadWatchface(context: Context, watchface: Watchface) {
-    try {
-        val safeName = watchface.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
-        val request = DownloadManager.Request(Uri.parse(watchface.archiveUrl))
-            .setTitle(watchface.name + ".zip")
-            .setDescription("Downloading watchface")
-            .setNotificationVisibility(
-                DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-            )
-            .setDestinationInExternalPublicDir(
-                Environment.DIRECTORY_DOWNLOADS,
-                "Plum Watchfaces/$safeName.zip"
-            )
-
-        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        manager.enqueue(request)
-        Toast.makeText(context, "Download started", Toast.LENGTH_SHORT).show()
-    } catch (exception: Exception) {
-        Toast.makeText(
-            context,
-            exception.message ?: "Could not start download",
-            Toast.LENGTH_LONG
-        ).show()
     }
 }
