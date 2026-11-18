@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -1061,6 +1062,11 @@ private fun UpdateSettingsContent(
         else -> "Check for updates"
     }
     val downloadProgress = downloadState.progress?.coerceIn(0f, 1f)
+    val animatedDownloadProgress by animateFloatAsState(
+        targetValue = downloadProgress ?: 0f,
+        animationSpec = tween(durationMillis = 820, easing = FastOutSlowInEasing),
+        label = "update-download-progress"
+    )
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeading("Installed version")
@@ -1160,46 +1166,123 @@ private fun UpdateSettingsContent(
                     }
                 }
 
-                if (downloadState.isDownloading || downloadState.isOpeningInstaller) {
-                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                AnimatedVisibility(
+                    visible = downloadState.isDownloading || downloadState.isOpeningInstaller,
+                    enter = fadeIn(tween(320)) + expandVertically(
+                        animationSpec = tween(420, easing = FastOutSlowInEasing)
+                    ),
+                    exit = fadeOut(tween(190)) + shrinkVertically(
+                        animationSpec = tween(280, easing = FastOutSlowInEasing)
+                    )
+                ) {
+                    AppSurface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(21.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(15.dp),
+                            verticalArrangement = Arrangement.spacedBy(13.dp)
                         ) {
-                            Text(
-                                if (downloadState.isOpeningInstaller) "Download complete"
-                                else "Downloading update",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(Modifier.weight(1f))
-                            if (downloadProgress != null) {
-                                Text(
-                                    (downloadProgress * 100f).toInt().toString() + "%",
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(50.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (downloadProgress == null) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.fillMaxSize(),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                            strokeWidth = 3.dp
+                                        )
+                                    } else {
+                                        CircularProgressIndicator(
+                                            progress = { animatedDownloadProgress },
+                                            modifier = Modifier.fillMaxSize(),
+                                            color = if (downloadState.isOpeningInstaller) Color(0xFF248B55)
+                                            else MaterialTheme.colorScheme.primary,
+                                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                            strokeWidth = 3.dp
+                                        )
+                                    }
 
-                        if (downloadProgress == null) {
-                            LinearProgressIndicator(
+                                    AnimatedContent(
+                                        targetState = downloadProgress != null,
+                                        label = "update-progress-center"
+                                    ) { hasProgress ->
+                                        if (hasProgress) {
+                                            Text(
+                                                text = (animatedDownloadProgress * 100f).toInt().toString() + "%",
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Download,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(19.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(Modifier.width(13.dp))
+
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = if (downloadState.isOpeningInstaller) "Opening installer"
+                                        else "Downloading update",
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = if (downloadState.isOpeningInstaller) "Preparing the installation"
+                                        else "Plum Watch " + (availableUpdate?.versionName ?: "update"),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(4.dp)
-                            )
-                        } else {
-                            LinearProgressIndicator(
-                                progress = { downloadProgress },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(4.dp),
-                                color = if (downloadState.isOpeningInstaller) Color(0xFF248B55)
-                                else MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
+                                    .height(7.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
+                            ) {
+                                if (downloadProgress == null) {
+                                    LinearProgressIndicator(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        trackColor = Color.Transparent
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .fillMaxWidth(animatedDownloadProgress.coerceIn(0f, 1f))
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (downloadState.isOpeningInstaller) Color(0xFF248B55)
+                                                else MaterialTheme.colorScheme.primary
+                                            )
+                                    )
+                                }
+                            }
                         }
                     }
                 }
