@@ -623,7 +623,7 @@ class BleWatchManager(context: Context) {
 
         try {
             val startPayload = ByteBuffer.allocate(7).order(ByteOrder.LITTLE_ENDIAN)
-                .putShort(SIFLI_WATCHFACE_FILE_TYPE_WATCHFACE.toShort())
+                .putShort(SIFLI_WATCHFACE_FILE_TYPE_CUSTOMIZED.toShort())
                 .put(SIFLI_PHONE_TYPE_ANDROID.toByte())
                 .putInt(transferSize.toInt())
                 .array()
@@ -1327,7 +1327,7 @@ class BleWatchManager(context: Context) {
         private const val ALERT_LEVEL_HIGH: Byte = 0x02
 
         private const val SIFLI_WATCHFACE_CATEGORY = 0x04
-        private const val SIFLI_WATCHFACE_FILE_TYPE_WATCHFACE = 0
+        private const val SIFLI_WATCHFACE_FILE_TYPE_CUSTOMIZED = 3
         private const val SIFLI_PHONE_TYPE_ANDROID = 2
         private const val SIFLI_MAX_DATA_LENGTH = 10 * 1024
         private const val SIFLI_REQUESTED_MTU = 247
