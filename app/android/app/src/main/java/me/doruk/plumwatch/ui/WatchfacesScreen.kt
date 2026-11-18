@@ -10,7 +10,6 @@ import android.os.Environment
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -41,7 +40,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Refresh
@@ -256,24 +254,38 @@ private fun WatchfaceDetailScreen(
     val destinationFile = remember(watchface.id) { watchfaceDownloadFile(watchface.id) }
 
     LaunchedEffect(watchface.id) {
-        val savedId = downloadPreferences.getLong(preferenceKey, -1L)
+        var savedId = downloadPreferences.getLong(preferenceKey, -1L)
         val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val managerHasCompletedFile = withContext(Dispatchers.IO) {
-            if (savedId < 0L) false else {
-                var cursor: Cursor? = null
-                try {
-                    cursor = manager.query(DownloadManager.Query().setFilterById(savedId))
-                    cursor != null && cursor.moveToFirst() &&
-                        cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)) ==
-                        DownloadManager.STATUS_SUCCESSFUL
-                } catch (_: Exception) {
-                    false
-                } finally {
-                    cursor?.close()
+        val completedId = withContext(Dispatchers.IO) {
+            var cursor: Cursor? = null
+            try {
+                cursor = if (savedId >= 0L) {
+                    manager.query(DownloadManager.Query().setFilterById(savedId))
+                } else {
+                    manager.query(DownloadManager.Query())
                 }
+                if (cursor != null && cursor.moveToFirst()) {
+                    do {
+                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                        val title = cursor.getString(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TITLE))
+                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_ID))
+                        if (status == DownloadManager.STATUS_SUCCESSFUL &&
+                            (id == savedId || title == watchface.name + ".zip")
+                        ) return@withContext id
+                    } while (cursor.moveToNext())
+                }
+                -1L
+            } catch (_: Exception) {
+                -1L
+            } finally {
+                cursor?.close()
             }
         }
-        alreadyDownloaded = managerHasCompletedFile || destinationFile.exists()
+        if (completedId >= 0L) {
+            savedId = completedId
+            downloadPreferences.edit().putLong(preferenceKey, completedId).apply()
+        }
+        alreadyDownloaded = completedId >= 0L || destinationFile.exists()
     }
 
     LaunchedEffect(download.id) {
