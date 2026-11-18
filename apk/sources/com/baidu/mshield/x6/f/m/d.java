@@ -1,6 +1,0 @@
-package com.baidu.mshield.x6.f.m;
-
-/* JADX INFO: compiled from: IFinRunnable.java */
-/* JADX INFO: loaded from: classes15.dex */
-public interface d<T> extends Runnable, Comparable<T> {
-}

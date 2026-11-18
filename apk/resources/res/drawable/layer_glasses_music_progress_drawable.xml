@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:id="@android:id/background"
-        android:drawable="@drawable/shape_e3e3e3_r12"/>
-    <item android:id="@android:id/progress">
-        <clip android:drawable="@drawable/shape_ff7300_r12"/>
-    </item>
-</layer-list>

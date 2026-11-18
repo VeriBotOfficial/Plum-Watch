@@ -1,8 +1,0 @@
-package androidx.media3.common;
-
-import java.io.IOException;
-
-/* JADX INFO: loaded from: classes8.dex */
-public interface DataReader {
-    int read(byte[] bArr, int r2, int r3) throws IOException;
-}
