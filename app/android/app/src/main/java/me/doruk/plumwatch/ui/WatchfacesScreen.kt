@@ -280,7 +280,8 @@ private fun WatchfaceDetailScreen(
 
                 watchManager.pushWatchface(
                     archiveFile = archiveFile,
-                    targetFileName = safeName + ".zip"
+                    // Keep the archive basename unchanged; the HK watch accepts the original "Red John.zip" path.
+                    targetFileName = watchface.id + ".zip"
                 ) { progress ->
                     transferProgress = 0.15f + progress.coerceIn(0f, 1f) * 0.85f
                 }
