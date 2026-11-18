@@ -22,6 +22,20 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlin.math.min
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.security.MessageDigest
+import java.nio.charset.StandardCharsets
 
 data class WatchDevice(
     val name: String,
@@ -44,6 +58,7 @@ data class BleUiState(
     val supportsBattery: Boolean = false,
     val supportsHeartRate: Boolean = false,
     val canFindWatch: Boolean = false,
+    val supportsSifliWatchface: Boolean = false,
     val errorMessage: String? = null
 ) {
     val isConnected: Boolean get() = connectedDevice != null
@@ -77,6 +92,16 @@ class BleWatchManager(context: Context) {
     private var bluetoothGatt: BluetoothGatt? = null
     private var batteryCharacteristic: BluetoothGattCharacteristic? = null
     private var findWatchCharacteristic: BluetoothGattCharacteristic? = null
+    private var sifliDataCharacteristic: BluetoothGattCharacteristic? = null
+    private var sifliNotificationsReady = false
+    private var sifliMtu = 23
+    private var sifliAssembly: ByteArrayOutputStream? = null
+    private var sifliAssemblyExpectedLength = 0
+    private var sifliAssemblyCategory = -1
+    private val sifliIncomingMessages = Channel<ByteArray>(Channel.UNLIMITED)
+    private var pendingSifliWrite: CompletableDeferred<Boolean>? = null
+    private var pendingSifliMtuChange: CompletableDeferred<Int>? = null
+    private val sifliPushMutex = Mutex()
     private val pendingNotificationDescriptors = java.util.ArrayDeque<BluetoothGattDescriptor>()
     private var pendingBatteryRead: BluetoothGattCharacteristic? = null
     private var autoReconnectEnabled = initialSavedDevice != null
@@ -197,8 +222,15 @@ class BleWatchManager(context: Context) {
                 }
                 batteryCharacteristic = null
                 findWatchCharacteristic = null
+                sifliDataCharacteristic = null
+                sifliNotificationsReady = false
+                sifliMtu = 23
+                sifliAssembly = null
+                sifliAssemblyExpectedLength = 0
+                sifliAssemblyCategory = -1
                 pendingNotificationDescriptors.clear()
                 pendingBatteryRead = null
+                while (sifliIncomingMessages.tryReceive().isSuccess) Unit
                 if (!gatt.discoverServices()) {
                     mutableState.update {
                         it.copy(
@@ -220,8 +252,21 @@ class BleWatchManager(context: Context) {
                     handler.removeCallbacks(stopFindWatchTask)
                     batteryCharacteristic = null
                     findWatchCharacteristic = null
+                    sifliDataCharacteristic = null
+                    sifliNotificationsReady = false
+                    sifliMtu = 23
+                    sifliAssembly = null
+                    sifliAssemblyExpectedLength = 0
+                    sifliAssemblyCategory = -1
                     pendingNotificationDescriptors.clear()
                     pendingBatteryRead = null
+                    pendingSifliWrite?.complete(false)
+                    pendingSifliWrite = null
+                    pendingSifliMtuChange?.completeExceptionally(
+                        IllegalStateException("Watch disconnected during MTU negotiation.")
+                    )
+                    pendingSifliMtuChange = null
+                    sifliIncomingMessages.trySend(ByteArray(0))
                     val current = mutableState.value
                     val saved = current.savedDevice ?: current.connectedDevice
                     val shouldReconnect = autoReconnectEnabled &&
@@ -274,8 +319,18 @@ class BleWatchManager(context: Context) {
                 ?.getCharacteristic(HEART_RATE_MEASUREMENT_UUID)
             val alertLevel = gatt.getService(IMMEDIATE_ALERT_SERVICE_UUID)
                 ?.getCharacteristic(ALERT_LEVEL_UUID)
+            val sifliData = gatt.getService(SIFLI_SERIAL_SERVICE_UUID)
+                ?.getCharacteristic(SIFLI_SERIAL_DATA_UUID)
+            val sifliCanWrite = sifliData != null && sifliData.properties and (
+                BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE or
+                    BluetoothGattCharacteristic.PROPERTY_WRITE
+            ) != 0
+            val sifliCanNotify = sifliData != null &&
+                sifliData.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
 
             batteryCharacteristic = battery
+            sifliDataCharacteristic = sifliData?.takeIf { sifliCanWrite && sifliCanNotify }
+            sifliNotificationsReady = false
             findWatchCharacteristic = alertLevel?.takeIf {
                 it.properties and (
                     BluetoothGattCharacteristic.PROPERTY_WRITE or
@@ -289,12 +344,13 @@ class BleWatchManager(context: Context) {
                     supportsBattery = battery != null,
                     supportsHeartRate = heartRate != null,
                     canFindWatch = findWatchCharacteristic != null,
+                    supportsSifliWatchface = false,
                     connectionMessage = "Connected"
                 )
             }
 
             pendingNotificationDescriptors.clear()
-            listOfNotNull(battery, heartRate).forEach { characteristic ->
+            listOfNotNull(battery, heartRate, sifliDataCharacteristic).forEach { characteristic ->
                 val canNotify = characteristic.properties and (
                     BluetoothGattCharacteristic.PROPERTY_NOTIFY or
                         BluetoothGattCharacteristic.PROPERTY_INDICATE
@@ -319,8 +375,45 @@ class BleWatchManager(context: Context) {
             status: Int
         ) {
             if (bluetoothGatt !== gatt) return
+            if (descriptor.characteristic.uuid == SIFLI_SERIAL_DATA_UUID) {
+                sifliNotificationsReady = status == BluetoothGatt.GATT_SUCCESS &&
+                    sifliDataCharacteristic != null
+                mutableState.update {
+                    it.copy(
+                        supportsSifliWatchface = sifliNotificationsReady,
+                        errorMessage = if (status == BluetoothGatt.GATT_SUCCESS) it.errorMessage
+                        else "The watch's SiFli transfer notifications could not be enabled."
+                    )
+                }
+            }
             writeNextNotificationDescriptor(gatt)
             if (pendingNotificationDescriptors.isEmpty()) readPendingBattery(gatt)
+        }
+
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            if (bluetoothGatt !== gatt) return
+            if (status == BluetoothGatt.GATT_SUCCESS) sifliMtu = mtu
+            pendingSifliMtuChange?.let { pending ->
+                if (!pending.isCompleted) {
+                    if (status == BluetoothGatt.GATT_SUCCESS) pending.complete(mtu)
+                    else pending.completeExceptionally(
+                        IllegalStateException("The watch rejected the requested BLE MTU.")
+                    )
+                }
+            }
+        }
+
+        override fun onCharacteristicWrite(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            if (bluetoothGatt !== gatt) return
+            if (characteristic.uuid == SIFLI_SERIAL_DATA_UUID) {
+                pendingSifliWrite?.let { pending ->
+                    if (!pending.isCompleted) pending.complete(status == BluetoothGatt.GATT_SUCCESS)
+                }
+            }
         }
 
         @Suppress("DEPRECATION")
@@ -349,7 +442,13 @@ class BleWatchManager(context: Context) {
             characteristic: BluetoothGattCharacteristic
         ) {
             if (bluetoothGatt !== gatt) return
-            characteristic.value?.let { handleCharacteristicValue(characteristic, it) }
+            characteristic.value?.let { value ->
+                if (characteristic.uuid == SIFLI_SERIAL_DATA_UUID) {
+                    handleSifliSerialFrame(value)
+                } else {
+                    handleCharacteristicValue(characteristic, value)
+                }
+            }
         }
 
         override fun onCharacteristicChanged(
@@ -358,7 +457,11 @@ class BleWatchManager(context: Context) {
             value: ByteArray
         ) {
             if (bluetoothGatt !== gatt) return
-            handleCharacteristicValue(characteristic, value)
+            if (characteristic.uuid == SIFLI_SERIAL_DATA_UUID) {
+                handleSifliSerialFrame(value)
+            } else {
+                handleCharacteristicValue(characteristic, value)
+            }
         }
     }
 
@@ -384,6 +487,337 @@ class BleWatchManager(context: Context) {
         val characteristic = pendingBatteryRead
         pendingBatteryRead = null
         if (characteristic != null) gatt.readCharacteristic(characteristic)
+    }
+
+    private fun handleSifliSerialFrame(value: ByteArray) {
+        if (value.size < 2) return
+        val category = value[0].toInt() and 0xFF
+        val fragmentFlag = value[1].toInt() and 0xFF
+        if (category != SIFLI_WATCHFACE_CATEGORY) return
+
+        when (fragmentFlag) {
+            0 -> {
+                if (value.size < 4) return
+                val length = readUnsignedShort(value, 2)
+                if (length < 0 || value.size < 4 + length) return
+                sifliIncomingMessages.trySend(value.copyOfRange(4, 4 + length))
+            }
+            1 -> {
+                if (value.size < 4) return
+                val expectedLength = readUnsignedShort(value, 2)
+                if (expectedLength <= 0 || expectedLength > MAX_SIFLI_MESSAGE_LENGTH) {
+                    sifliAssembly = null
+                    return
+                }
+                val assembly = ByteArrayOutputStream(expectedLength)
+                assembly.write(value, 4, value.size - 4)
+                sifliAssembly = assembly
+                sifliAssemblyExpectedLength = expectedLength
+                sifliAssemblyCategory = category
+                if (assembly.size() > expectedLength) {
+                    sifliAssembly = null
+                }
+            }
+            2, 3 -> {
+                val assembly = sifliAssembly ?: return
+                if (sifliAssemblyCategory != category) {
+                    sifliAssembly = null
+                    return
+                }
+                if (value.size > 2) assembly.write(value, 2, value.size - 2)
+                if (assembly.size() > sifliAssemblyExpectedLength) {
+                    sifliAssembly = null
+                    sifliAssemblyExpectedLength = 0
+                    return
+                }
+                if (fragmentFlag == 3) {
+                    if (assembly.size() == sifliAssemblyExpectedLength) {
+                        sifliIncomingMessages.trySend(assembly.toByteArray())
+                    }
+                    sifliAssembly = null
+                    sifliAssemblyExpectedLength = 0
+                    sifliAssemblyCategory = -1
+                }
+            }
+        }
+    }
+
+    private suspend fun requestSifliMtu(gatt: BluetoothGatt): Int {
+        if (sifliMtu > 23) return sifliMtu
+        val pending = CompletableDeferred<Int>()
+        pendingSifliMtuChange = pending
+        val requested = try {
+            gatt.requestMtu(SIFLI_REQUESTED_MTU)
+        } catch (_: SecurityException) {
+            false
+        }
+        if (!requested) {
+            pendingSifliMtuChange = null
+            return sifliMtu
+        }
+        return try {
+            withTimeoutOrNull(SIFLI_MTU_TIMEOUT_MS) { pending.await() } ?: sifliMtu
+        } finally {
+            if (pendingSifliMtuChange === pending) pendingSifliMtuChange = null
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    suspend fun pushWatchface(
+        archiveFile: File,
+        targetFileName: String,
+        onProgress: (Float) -> Unit = {}
+    ) = sifliPushMutex.withLock {
+        val gatt = bluetoothGatt ?: throw IllegalStateException("Connect your watch before sending a watchface.")
+        val characteristic = sifliDataCharacteristic
+            ?: throw IllegalStateException("This watch does not expose the SiFli watchface transfer service.")
+        if (!sifliNotificationsReady) {
+            throw IllegalStateException("The watch's SiFli transfer channel is not ready yet. Reconnect and try again.")
+        }
+        if (!archiveFile.isFile || archiveFile.length() <= 0L) {
+            throw IllegalArgumentException("The watchface ZIP file is empty or unavailable.")
+        }
+        val fileSize = archiveFile.length()
+        if (fileSize > 0xFFFFFFFFL) {
+            throw IllegalArgumentException("This watchface archive is too large for the SiFli transfer protocol.")
+        }
+
+        while (sifliIncomingMessages.tryReceive().isSuccess) Unit
+        runCatching { gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH) }
+        requestSifliMtu(gatt)
+
+        val md5 = withContext(Dispatchers.IO) { calculateMd5Ascii(archiveFile) }
+        val fileNameBytes = targetFileName.toByteArray(StandardCharsets.UTF_8)
+        require(fileNameBytes.isNotEmpty() && fileNameBytes.size <= 0xFFFF) {
+            "The watchface file name is invalid."
+        }
+
+        try {
+            val startPayload = ByteBuffer.allocate(7).order(ByteOrder.LITTLE_ENDIAN)
+                .putShort(SIFLI_WATCHFACE_FILE_TYPE_CUSTOMIZED.toShort())
+                .put(SIFLI_PHONE_TYPE_ANDROID.toByte())
+                .putInt(fileSize.toInt())
+                .array()
+            sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_START_REQ, startPayload)
+            val startResponse = awaitSifliProtocolResponse(SIFLI_MSG_START_RSP)
+            ensureSifliSuccess(startResponse, "The watch rejected the watchface transfer request.")
+            val maxBlockLength = if (startResponse.size >= 6) {
+                readUnsignedShort(startResponse, 4).coerceIn(1, SIFLI_MAX_DATA_LENGTH)
+            } else {
+                SIFLI_MAX_DATA_LENGTH
+            }
+
+            val fileBlocks = ((fileSize + maxBlockLength - 1L) / maxBlockLength).toInt()
+            val infoPayload = ByteBuffer.allocate(4 + md5.size).order(ByteOrder.LITTLE_ENDIAN)
+                .putInt(fileBlocks)
+                .put(md5)
+                .array()
+            sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_FILE_INFO_REQ, infoPayload)
+            val infoResponse = awaitSifliProtocolResponse(SIFLI_MSG_FILE_INFO_RSP)
+            ensureSifliSuccess(infoResponse, "The watch rejected the watchface file information.")
+
+            val fileStartPayload = ByteBuffer.allocate(6 + fileNameBytes.size).order(ByteOrder.LITTLE_ENDIAN)
+                .putInt(fileSize.toInt())
+                .putShort(fileNameBytes.size.toShort())
+                .put(fileNameBytes)
+                .array()
+            sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_FILE_SEND_START_REQ, fileStartPayload)
+            val fileStartResponse = awaitSifliProtocolResponse(SIFLI_MSG_FILE_SEND_START_RSP)
+            ensureSifliSuccess(fileStartResponse, "The watch could not prepare the watchface file.")
+
+            var sentBytes = 0L
+            withContext(Dispatchers.IO) {
+                archiveFile.inputStream().buffered().use { input ->
+                    var blockIndex = 0
+                    while (sentBytes < fileSize) {
+                        val requestedBytes = minOf(maxBlockLength.toLong(), fileSize - sentBytes).toInt()
+                        val block = ByteArray(requestedBytes)
+                        var offset = 0
+                        while (offset < requestedBytes) {
+                            val count = input.read(block, offset, requestedBytes - offset)
+                            if (count < 0) throw IllegalStateException("The watchface ZIP ended unexpectedly.")
+                            offset += count
+                        }
+                        val blockPayload = ByteBuffer.allocate(4 + block.size).order(ByteOrder.LITTLE_ENDIAN)
+                            .putInt(blockIndex)
+                            .put(block)
+                            .array()
+
+                        // The GATT operations and their acknowledgements must be driven from the main callback context.
+                        withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                            sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_FILE_SEND_DATA, blockPayload)
+                            val dataResponse = awaitSifliProtocolResponse(SIFLI_MSG_FILE_SEND_DATA_RSP)
+                            ensureSifliSuccess(dataResponse, "The watch rejected watchface data block " + blockIndex + ".")
+                        }
+                        sentBytes += requestedBytes
+                        blockIndex++
+                        onProgress((sentBytes.toDouble() / fileSize.toDouble()).toFloat().coerceIn(0f, 1f))
+                    }
+                }
+            }
+
+            sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_FILE_SEND_END_REQ, byteArrayOf())
+            val fileEndResponse = awaitSifliProtocolResponse(SIFLI_MSG_FILE_SEND_END_RSP)
+            ensureSifliSuccess(fileEndResponse, "The watch could not finish writing the watchface file.")
+
+            sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_END_REQ, byteArrayOf())
+            val endResponse = awaitSifliProtocolResponse(SIFLI_MSG_END_RSP)
+            ensureSifliSuccess(endResponse, "The watch did not confirm completion of the watchface transfer.")
+            onProgress(1f)
+        } catch (exception: Exception) {
+            runCatching {
+                sendSifliProtocolMessage(
+                    gatt,
+                    characteristic,
+                    SIFLI_MSG_ABORT_CMD,
+                    byteArrayOf(SIFLI_ABORT_REASON_PHONE.toByte())
+                )
+            }
+            throw exception
+        } finally {
+            runCatching { gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED) }
+        }
+    }
+
+    private suspend fun sendSifliProtocolMessage(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+        messageId: Int,
+        payload: ByteArray
+    ) {
+        require(payload.size <= 0xFFFF) { "SiFli watchface message exceeds the protocol length limit." }
+        val message = ByteBuffer.allocate(4 + payload.size).order(ByteOrder.LITTLE_ENDIAN)
+            .putShort(messageId.toShort())
+            .putShort(payload.size.toShort())
+            .put(payload)
+            .array()
+        val fragmentCapacity = (sifliMtu - 7).coerceAtLeast(1)
+        if (message.size <= fragmentCapacity) {
+            val frame = ByteBuffer.allocate(4 + message.size).order(ByteOrder.LITTLE_ENDIAN)
+                .put(SIFLI_WATCHFACE_CATEGORY.toByte())
+                .put(0)
+                .putShort(message.size.toShort())
+                .put(message)
+                .array()
+            writeSifliFrame(gatt, characteristic, frame)
+            return
+        }
+
+        var offset = 0
+        var first = true
+        while (offset < message.size) {
+            val length = minOf(fragmentCapacity, message.size - offset)
+            val flag = when {
+                first -> 1
+                offset + length >= message.size -> 3
+                else -> 2
+            }
+            val headerSize = if (first) 4 else 2
+            val frame = ByteArray(headerSize + length)
+            frame[0] = SIFLI_WATCHFACE_CATEGORY.toByte()
+            frame[1] = flag.toByte()
+            if (first) {
+                frame[2] = (message.size and 0xFF).toByte()
+                frame[3] = ((message.size shr 8) and 0xFF).toByte()
+            }
+            System.arraycopy(message, offset, frame, headerSize, length)
+            writeSifliFrame(gatt, characteristic, frame)
+            offset += length
+            first = false
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun writeSifliFrame(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+        frame: ByteArray
+    ) {
+        if (bluetoothGatt !== gatt || !sifliNotificationsReady) {
+            throw IllegalStateException("The watch disconnected during the watchface transfer.")
+        }
+        val pending = CompletableDeferred<Boolean>()
+        pendingSifliWrite = pending
+        val writeType = if (
+            characteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0
+        ) BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        else BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        val started = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            gatt.writeCharacteristic(characteristic, frame, writeType) == BluetoothStatusCodes.SUCCESS
+        } else {
+            @Suppress("DEPRECATION")
+            characteristic.writeType = writeType
+            @Suppress("DEPRECATION")
+            characteristic.value = frame
+            @Suppress("DEPRECATION")
+            gatt.writeCharacteristic(characteristic)
+        }
+        if (!started) {
+            if (pendingSifliWrite === pending) pendingSifliWrite = null
+            throw IllegalStateException("Android could not queue a SiFli data packet.")
+        }
+        val success = try {
+            withTimeout(SIFLI_WRITE_TIMEOUT_MS) { pending.await() }
+        } finally {
+            if (pendingSifliWrite === pending) pendingSifliWrite = null
+        }
+        if (!success) throw IllegalStateException("A SiFli Bluetooth packet could not be sent.")
+    }
+
+    private suspend fun awaitSifliProtocolResponse(expectedMessageId: Int): ByteArray =
+        withTimeout(SIFLI_RESPONSE_TIMEOUT_MS) {
+            while (true) {
+                val message = sifliIncomingMessages.receive()
+                if (message.isEmpty()) {
+                    throw IllegalStateException("The Bluetooth connection to the watch was lost.")
+                }
+                if (message.size < 2) continue
+                val messageId = readUnsignedShort(message, 0)
+                when (messageId) {
+                    SIFLI_MSG_LOSE_CHECK_REQ -> {
+                        sendSifliProtocolMessage(
+                            bluetoothGatt ?: throw IllegalStateException("The watch disconnected."),
+                            sifliDataCharacteristic ?: throw IllegalStateException("The SiFli channel closed."),
+                            SIFLI_MSG_LOSE_CHECK_RSP,
+                            byteArrayOf()
+                        )
+                    }
+                    SIFLI_MSG_ABORT_CMD -> {
+                        val reason = if (message.size > 4) message[4].toInt() and 0xFF else -1
+                        throw IllegalStateException("The watch aborted the transfer (reason " + reason + ").")
+                    }
+                    expectedMessageId -> return@withTimeout message
+                }
+            }
+            throw IllegalStateException("The watch did not return the expected response.")
+        }
+
+    private fun ensureSifliSuccess(response: ByteArray, errorMessage: String) {
+        if (response.size < 4) throw IllegalStateException("The watch returned an incomplete SiFli response.")
+        val status = readUnsignedShort(response, 2)
+        if (status != SIFLI_STATUS_OK) {
+            throw IllegalStateException(errorMessage + " (status " + status + ").")
+        }
+    }
+
+    private fun readUnsignedShort(bytes: ByteArray, offset: Int): Int {
+        if (offset < 0 || offset + 1 >= bytes.size) return -1
+        return (bytes[offset].toInt() and 0xFF) or
+            ((bytes[offset + 1].toInt() and 0xFF) shl 8)
+    }
+
+    private fun calculateMd5Ascii(file: File): ByteArray {
+        val digest = MessageDigest.getInstance("MD5")
+        file.inputStream().buffered().use { input ->
+            val buffer = ByteArray(16 * 1024)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        val hex = digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+        return hex.toByteArray(StandardCharsets.US_ASCII)
     }
 
     private fun handleCharacteristicValue(
@@ -659,6 +1093,13 @@ class BleWatchManager(context: Context) {
         handler.removeCallbacks(stopFindWatchTask)
         batteryCharacteristic = null
         findWatchCharacteristic = null
+        sifliDataCharacteristic = null
+        sifliNotificationsReady = false
+        sifliMtu = 23
+        sifliAssembly = null
+        pendingSifliWrite?.complete(false)
+        pendingSifliWrite = null
+        sifliIncomingMessages.trySend(ByteArray(0))
         pendingNotificationDescriptors.clear()
         pendingBatteryRead = null
 
@@ -700,6 +1141,7 @@ class BleWatchManager(context: Context) {
                 supportsBattery = false,
                 supportsHeartRate = false,
                 canFindWatch = false,
+                supportsSifliWatchface = false,
                 errorMessage = null
             )
         }
@@ -780,6 +1222,34 @@ class BleWatchManager(context: Context) {
         private const val CONNECTION_TIMEOUT_MS = 12_000L
         private const val FIND_WATCH_ALERT_DURATION_MS = 5_000L
         private const val ALERT_LEVEL_HIGH: Byte = 0x02
+
+        private const val SIFLI_WATCHFACE_CATEGORY = 0x04
+        private const val SIFLI_WATCHFACE_FILE_TYPE_CUSTOMIZED = 3
+        private const val SIFLI_PHONE_TYPE_ANDROID = 2
+        private const val SIFLI_MAX_DATA_LENGTH = 10 * 1024
+        private const val SIFLI_REQUESTED_MTU = 247
+        private const val SIFLI_MTU_TIMEOUT_MS = 3_000L
+        private const val SIFLI_WRITE_TIMEOUT_MS = 5_000L
+        private const val SIFLI_RESPONSE_TIMEOUT_MS = 12_000L
+        private const val MAX_SIFLI_MESSAGE_LENGTH = 64 * 1024
+        private const val SIFLI_ABORT_REASON_PHONE = 1
+
+        private const val SIFLI_MSG_START_REQ = 0
+        private const val SIFLI_MSG_START_RSP = 1
+        private const val SIFLI_MSG_FILE_SEND_START_REQ = 2
+        private const val SIFLI_MSG_FILE_SEND_START_RSP = 3
+        private const val SIFLI_MSG_FILE_SEND_DATA = 4
+        private const val SIFLI_MSG_FILE_SEND_DATA_RSP = 5
+        private const val SIFLI_MSG_FILE_SEND_END_REQ = 6
+        private const val SIFLI_MSG_FILE_SEND_END_RSP = 7
+        private const val SIFLI_MSG_END_REQ = 8
+        private const val SIFLI_MSG_END_RSP = 9
+        private const val SIFLI_MSG_LOSE_CHECK_REQ = 10
+        private const val SIFLI_MSG_LOSE_CHECK_RSP = 11
+        private const val SIFLI_MSG_ABORT_CMD = 12
+        private const val SIFLI_MSG_FILE_INFO_REQ = 13
+        private const val SIFLI_MSG_FILE_INFO_RSP = 14
+        private const val SIFLI_STATUS_OK = 0
         private const val ALERT_LEVEL_NONE: Byte = 0x00
         private val BATTERY_SERVICE_UUID = java.util.UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
         private val BATTERY_LEVEL_UUID = java.util.UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")
@@ -788,6 +1258,8 @@ class BleWatchManager(context: Context) {
         private val IMMEDIATE_ALERT_SERVICE_UUID = java.util.UUID.fromString("00001802-0000-1000-8000-00805f9b34fb")
         private val ALERT_LEVEL_UUID = java.util.UUID.fromString("00002a06-0000-1000-8000-00805f9b34fb")
         private val CLIENT_CONFIG_UUID = java.util.UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        private val SIFLI_SERIAL_SERVICE_UUID = java.util.UUID.fromString("00000000-0000-0000-6473-5f696c666973")
+        private val SIFLI_SERIAL_DATA_UUID = java.util.UUID.fromString("00000000-0000-0200-6473-5f696c666973")
 
         @Volatile
         private var instance: BleWatchManager? = null
