@@ -1,6 +1,7 @@
 package me.doruk.plumwatch.ui
 
 import android.content.Context
+import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
@@ -280,8 +281,10 @@ private fun WatchfaceDetailScreen(
 
                 watchManager.pushWatchface(
                     archiveFile = archiveFile,
-                    // Keep the archive basename unchanged; the HK watch accepts the original "Red John.zip" path.
-                    targetFileName = watchface.id + ".zip"
+                    // Match the exact basename selected by the SiFli BLE app, including spaces and punctuation.
+                    targetFileName = Uri.parse(watchface.archiveUrl).lastPathSegment
+                        ?.takeIf { it.endsWith(".zip", ignoreCase = true) }
+                        ?: (watchface.id + ".zip")
                 ) { progress ->
                     transferProgress = 0.15f + progress.coerceIn(0f, 1f) * 0.85f
                 }
