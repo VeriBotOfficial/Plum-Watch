@@ -145,7 +145,7 @@ fun PlumDownloadButton(
         if (downloading) {
             Box(
                 Modifier.fillMaxWidth(animatedProgress).fillMaxSize()
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
                     .align(Alignment.CenterStart)
             )
         }
@@ -163,9 +163,7 @@ fun PlumDownloadButton(
             Text(
                 text = when {
                     downloaded -> "Downloaded"
-                    downloading -> if (progress != null) {
-                        "Downloading…  " + (progress.coerceIn(0f, 1f) * 100f).toInt() + "%"
-                    } else "Downloading…"
+                    downloading -> "Downloading…"
                     else -> label
                 },
                 color = foregroundColor,
