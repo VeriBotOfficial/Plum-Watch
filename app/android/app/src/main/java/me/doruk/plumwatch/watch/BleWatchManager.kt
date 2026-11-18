@@ -289,6 +289,7 @@ class BleWatchManager(context: Context) {
                             supportsBattery = false,
                             supportsHeartRate = false,
                             canFindWatch = false,
+                            supportsSifliWatchface = false,
                             errorMessage = if (shouldReconnect) null else if (failed) {
                                 "The watch connection ended. Try reconnecting when it is nearby."
                             } else {
@@ -556,7 +557,11 @@ class BleWatchManager(context: Context) {
             return sifliMtu
         }
         return try {
-            withTimeoutOrNull(SIFLI_MTU_TIMEOUT_MS) { pending.await() } ?: sifliMtu
+            try {
+                withTimeoutOrNull(SIFLI_MTU_TIMEOUT_MS) { pending.await() } ?: sifliMtu
+            } catch (_: Exception) {
+                sifliMtu
+            }
         } finally {
             if (pendingSifliMtuChange === pending) pendingSifliMtuChange = null
         }
@@ -651,7 +656,9 @@ class BleWatchManager(context: Context) {
                         }
                         sentBytes += requestedBytes
                         blockIndex++
-                        onProgress((sentBytes.toDouble() / fileSize.toDouble()).toFloat().coerceIn(0f, 1f))
+                        withContext(Dispatchers.Main.immediate) {
+                            onProgress((sentBytes.toDouble() / fileSize.toDouble()).toFloat().coerceIn(0f, 1f))
+                        }
                     }
                 }
             }
@@ -1097,8 +1104,14 @@ class BleWatchManager(context: Context) {
         sifliNotificationsReady = false
         sifliMtu = 23
         sifliAssembly = null
+        sifliAssemblyExpectedLength = 0
+        sifliAssemblyCategory = -1
         pendingSifliWrite?.complete(false)
         pendingSifliWrite = null
+        pendingSifliMtuChange?.completeExceptionally(
+            IllegalStateException("Watch disconnected during MTU negotiation.")
+        )
+        pendingSifliMtuChange = null
         sifliIncomingMessages.trySend(ByteArray(0))
         pendingNotificationDescriptors.clear()
         pendingBatteryRead = null
@@ -1231,7 +1244,7 @@ class BleWatchManager(context: Context) {
         private const val SIFLI_MTU_TIMEOUT_MS = 3_000L
         private const val SIFLI_WRITE_TIMEOUT_MS = 5_000L
         private const val SIFLI_RESPONSE_TIMEOUT_MS = 12_000L
-        private const val MAX_SIFLI_MESSAGE_LENGTH = 64 * 1024
+        private const val MAX_SIFLI_MESSAGE_LENGTH = 65_535
         private const val SIFLI_ABORT_REASON_PHONE = 1
 
         private const val SIFLI_MSG_START_REQ = 0
