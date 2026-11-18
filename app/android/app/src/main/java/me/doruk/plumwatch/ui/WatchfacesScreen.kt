@@ -61,7 +61,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.aspectRatio
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -319,8 +319,8 @@ private fun WatchfaceDetailScreen(
             WatchfaceArtwork(
                 url = watchface.previewUrl,
                 modifier = Modifier
+                    .fillMaxWidth(0.78f)
                     .widthIn(max = 270.dp)
-                    .fillMaxWidth(0.76f)
                     .border(
                         width = 5.dp,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.62f),
