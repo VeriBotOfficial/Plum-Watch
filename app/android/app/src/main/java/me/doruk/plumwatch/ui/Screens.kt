@@ -3,14 +3,19 @@ package me.doruk.plumwatch.ui
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -34,7 +39,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Bluetooth
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Download
@@ -49,6 +56,8 @@ import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.LocationSearching
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.material.icons.outlined.Refresh
@@ -655,6 +664,16 @@ private fun SectionHeading(title: String) {
     )
 }
 
+private enum class SettingsCategory(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector
+) {
+    APPEARANCE("Appearance", "Theme and interface style", Icons.Outlined.Palette),
+    UPDATES("App updates", "Version and software updates", Icons.Outlined.Download),
+    ABOUT("About", "App details and developers", Icons.Outlined.Info)
+}
+
 @Composable
 fun SettingsScreen(
     themeMode: String,
@@ -669,21 +688,68 @@ fun SettingsScreen(
     onCheckUpdates: () -> Unit,
     onInstallUpdate: (AppUpdateInfo) -> Unit
 ) {
-    val installButtonColor by animateColorAsState(
-        targetValue = if (availableUpdate != null) Color(0xFF248B55)
-        else MaterialTheme.colorScheme.primary,
-        animationSpec = tween(durationMillis = 320),
-        label = "update-button-color"
-    )
-    val updateBusy = checkingUpdates || downloadState.isDownloading || downloadState.isOpeningInstaller
-    val updateButtonLabel = when {
-        checkingUpdates -> "Checking…"
-        downloadState.isDownloading -> "Downloading…"
-        downloadState.isOpeningInstaller -> "Opening installer…"
-        availableUpdate != null -> "Install ${availableUpdate.versionName}"
-        else -> "Check for updates"
+    var selectedCategory by remember { mutableStateOf<SettingsCategory?>(null) }
+
+    BackHandler(enabled = selectedCategory != null) {
+        selectedCategory = null
     }
-    val downloadProgress = downloadState.progress?.coerceIn(0f, 1f)
+
+    AnimatedContent(
+        targetState = selectedCategory,
+        modifier = Modifier.fillMaxSize(),
+        transitionSpec = {
+            val direction = if (targetState == null) -1 else 1
+            (fadeIn(tween(180)) + slideInHorizontally(
+                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                initialOffsetX = { width -> direction * (width / 22) }
+            )) togetherWith
+                (fadeOut(tween(125)) + slideOutHorizontally(
+                    animationSpec = tween(180, easing = FastOutSlowInEasing),
+                    targetOffsetX = { width -> -direction * (width / 28) }
+                ))
+        },
+        label = "settings-category-transition"
+    ) { category ->
+        if (category == null) {
+            SettingsHomeScreen(
+                themeMode = themeMode,
+                uiStyle = uiStyle,
+                appVersion = appVersion,
+                onOpenCategory = { selectedCategory = it }
+            )
+        } else {
+            SettingsCategoryPage(
+                category = category,
+                themeMode = themeMode,
+                onThemeModeChange = onThemeModeChange,
+                uiStyle = uiStyle,
+                onUiStyleChange = onUiStyleChange,
+                appVersion = appVersion,
+                checkingUpdates = checkingUpdates,
+                updateMessage = updateMessage,
+                availableUpdate = availableUpdate,
+                downloadState = downloadState,
+                onCheckUpdates = onCheckUpdates,
+                onInstallUpdate = onInstallUpdate,
+                onBack = { selectedCategory = null }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsHomeScreen(
+    themeMode: String,
+    uiStyle: String,
+    appVersion: String,
+    onOpenCategory: (SettingsCategory) -> Unit
+) {
+    val themeLabel = when (themeMode) {
+        "light" -> "Light"
+        "dark" -> "Dark"
+        else -> "System"
+    }
+    val styleLabel = if (uiStyle == "glass") "Liquid Glass" else "Classic"
 
     Column(
         modifier = Modifier
@@ -692,210 +758,568 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 22.dp)
             .padding(top = 27.dp, bottom = 126.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        PageTitle("Settings")
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            PageTitle("Settings")
+            Text(
+                "Personalise your Plum Watch experience.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+        }
 
-        Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            SectionHeading("Appearance")
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            SettingsGroupLabel("PREFERENCES")
             AppSurface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(25.dp)
+                shape = RoundedCornerShape(23.dp)
             ) {
-                Column(
+                Column {
+                    SettingsCategoryRow(
+                        category = SettingsCategory.APPEARANCE,
+                        value = themeLabel + " · " + styleLabel,
+                        onClick = { onOpenCategory(SettingsCategory.APPEARANCE) }
+                    )
+                    SettingsRowDivider()
+                    SettingsCategoryRow(
+                        category = SettingsCategory.UPDATES,
+                        value = appVersion,
+                        onClick = { onOpenCategory(SettingsCategory.UPDATES) }
+                    )
+                }
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            SettingsGroupLabel("INFORMATION")
+            AppSurface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(23.dp)
+            ) {
+                SettingsCategoryRow(
+                    category = SettingsCategory.ABOUT,
+                    value = null,
+                    onClick = { onOpenCategory(SettingsCategory.ABOUT) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsGroupLabel(label: String) {
+    Text(
+        text = label,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+        fontSize = 10.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 1.05.sp,
+        modifier = Modifier.padding(start = 4.dp)
+    )
+}
+
+@Composable
+private fun SettingsRowDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 68.dp, end = 14.dp)
+            .height(1.dp)
+            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.20f))
+    )
+}
+
+@Composable
+private fun SettingsCategoryRow(
+    category: SettingsCategory,
+    value: String?,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.105f),
+                    RoundedCornerShape(13.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = category.icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                text = category.title,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = category.subtitle,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                lineHeight = 15.sp
+            )
+        }
+
+        if (value != null) {
+            Text(
+                text = value,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Icon(
+            imageVector = Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+@Composable
+private fun SettingsDetailHeader(
+    title: String,
+    subtitle: String,
+    onBack: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppClickableSurface(
+                onClick = onBack,
+                modifier = Modifier.size(38.dp),
+                shape = CircleShape
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Outlined.ArrowBack,
+                        contentDescription = "Back to settings",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.width(11.dp))
+            Text(
+                "SETTINGS",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.3.sp
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            PageTitle(title)
+            Text(
+                subtitle,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                lineHeight = 17.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsCategoryPage(
+    category: SettingsCategory,
+    themeMode: String,
+    onThemeModeChange: (String) -> Unit,
+    uiStyle: String,
+    onUiStyleChange: (String) -> Unit,
+    appVersion: String,
+    checkingUpdates: Boolean,
+    updateMessage: String?,
+    availableUpdate: AppUpdateInfo?,
+    downloadState: AppUpdateDownloadState,
+    onCheckUpdates: () -> Unit,
+    onInstallUpdate: (AppUpdateInfo) -> Unit,
+    onBack: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp)
+            .padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp)
+    ) {
+        when (category) {
+            SettingsCategory.APPEARANCE -> {
+                SettingsDetailHeader(
+                    title = "Appearance",
+                    subtitle = "Choose the look and feel of Plum Watch.",
+                    onBack = onBack
+                )
+                AppearanceSettingsContent(
+                    themeMode = themeMode,
+                    onThemeModeChange = onThemeModeChange,
+                    uiStyle = uiStyle,
+                    onUiStyleChange = onUiStyleChange
+                )
+            }
+            SettingsCategory.UPDATES -> {
+                SettingsDetailHeader(
+                    title = "App updates",
+                    subtitle = "Your app version and available updates.",
+                    onBack = onBack
+                )
+                UpdateSettingsContent(
+                    appVersion = appVersion,
+                    checkingUpdates = checkingUpdates,
+                    updateMessage = updateMessage,
+                    availableUpdate = availableUpdate,
+                    downloadState = downloadState,
+                    onCheckUpdates = onCheckUpdates,
+                    onInstallUpdate = onInstallUpdate
+                )
+            }
+            SettingsCategory.ABOUT -> {
+                SettingsDetailHeader(
+                    title = "About",
+                    subtitle = "The people behind Plum Watch.",
+                    onBack = onBack
+                )
+                AboutSettingsContent(appVersion = appVersion)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppearanceSettingsContent(
+    themeMode: String,
+    onThemeModeChange: (String) -> Unit,
+    uiStyle: String,
+    onUiStyleChange: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Theme")
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Text(
+                    "Colour scheme",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ThemeChoice(
+                        label = "System",
+                        icon = Icons.Outlined.SettingsBrightness,
+                        selected = themeMode == "system",
+                        modifier = Modifier.weight(1f),
+                        onClick = { onThemeModeChange("system") }
+                    )
+                    ThemeChoice(
+                        label = "Light",
+                        icon = Icons.Outlined.LightMode,
+                        selected = themeMode == "light",
+                        modifier = Modifier.weight(1f),
+                        onClick = { onThemeModeChange("light") }
+                    )
+                    ThemeChoice(
+                        label = "Dark",
+                        icon = Icons.Outlined.DarkMode,
+                        selected = themeMode == "dark",
+                        modifier = Modifier.weight(1f),
+                        onClick = { onThemeModeChange("dark") }
+                    )
+                }
+            }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Navigation style")
+        InterfaceStyleChoice(
+            uiStyle = uiStyle,
+            onUiStyleChange = onUiStyleChange
+        )
+    }
+}
+
+@Composable
+private fun UpdateSettingsContent(
+    appVersion: String,
+    checkingUpdates: Boolean,
+    updateMessage: String?,
+    availableUpdate: AppUpdateInfo?,
+    downloadState: AppUpdateDownloadState,
+    onCheckUpdates: () -> Unit,
+    onInstallUpdate: (AppUpdateInfo) -> Unit
+) {
+    val installButtonColor by animateColorAsState(
+        targetValue = if (availableUpdate != null) Color(0xFF248B55)
+        else MaterialTheme.colorScheme.primary,
+        animationSpec = tween(durationMillis = 280),
+        label = "update-button-color"
+    )
+    val updateBusy = checkingUpdates || downloadState.isDownloading || downloadState.isOpeningInstaller
+    val updateButtonLabel = when {
+        checkingUpdates -> "Checking…"
+        downloadState.isDownloading -> "Downloading…"
+        downloadState.isOpeningInstaller -> "Opening installer…"
+        availableUpdate != null -> "Install " + availableUpdate.versionName
+        else -> "Check for updates"
+    }
+    val downloadProgress = downloadState.progress?.coerceIn(0f, 1f)
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Installed version")
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 15.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(15.dp)
+                        .size(42.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                            RoundedCornerShape(14.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
+                    Icon(
+                        Icons.Outlined.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        "Theme",
+                        "Plum Watch",
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ThemeChoice(
-                            label = "System",
-                            icon = Icons.Outlined.SettingsBrightness,
-                            selected = themeMode == "system",
-                            modifier = Modifier.weight(1f),
-                            onClick = { onThemeModeChange("system") }
-                        )
-                        ThemeChoice(
-                            label = "Light",
-                            icon = Icons.Outlined.LightMode,
-                            selected = themeMode == "light",
-                            modifier = Modifier.weight(1f),
-                            onClick = { onThemeModeChange("light") }
-                        )
-                        ThemeChoice(
-                            label = "Dark",
-                            icon = Icons.Outlined.DarkMode,
-                            selected = themeMode == "dark",
-                            modifier = Modifier.weight(1f),
-                            onClick = { onThemeModeChange("dark") }
-                        )
-                    }
+                    Text(
+                        "Version " + appVersion,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp
+                    )
                 }
             }
         }
+    }
 
-        Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            SectionHeading("Interface")
-            InterfaceStyleChoice(
-                uiStyle = uiStyle,
-                onUiStyleChange = onUiStyleChange
-            )
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            SectionHeading("App")
-            AppSurface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Software")
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(15.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
+                Button(
+                    onClick = {
+                        val update = availableUpdate
+                        if (update != null) onInstallUpdate(update) else onCheckUpdates()
+                    },
+                    enabled = !updateBusy,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .height(50.dp),
+                    shape = RoundedCornerShape(15.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = installButtonColor,
+                        contentColor = Color.White,
+                        disabledContainerColor = installButtonColor.copy(alpha = 0.68f),
+                        disabledContentColor = Color.White
+                    )
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Version",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp
+                    if (updateBusy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(17.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
                         )
-                        Spacer(Modifier.weight(1f))
+                    } else if (availableUpdate != null) {
+                        Icon(Icons.Outlined.Download, contentDescription = null)
+                    } else {
+                        Icon(Icons.Outlined.Refresh, contentDescription = null)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    AnimatedContent(
+                        targetState = updateButtonLabel,
+                        label = "update-button-label"
+                    ) { label ->
                         Text(
-                            appVersion,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            text = label,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
+                }
 
-                    Button(
-                        onClick = {
-                            val update = availableUpdate
-                            if (update != null) onInstallUpdate(update) else onCheckUpdates()
-                        },
-                        enabled = !updateBusy,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = installButtonColor,
-                            contentColor = Color.White,
-                            disabledContainerColor = installButtonColor.copy(alpha = 0.68f),
-                            disabledContentColor = Color.White
-                        )
-                    ) {
-                        if (updateBusy) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
-                        } else if (availableUpdate != null) {
-                            Icon(Icons.Outlined.Download, contentDescription = null)
-                        } else {
-                            Icon(Icons.Outlined.Refresh, contentDescription = null)
-                        }
-                        Spacer(Modifier.width(9.dp))
-                        AnimatedContent(
-                            targetState = updateButtonLabel,
-                            label = "update-button-label"
-                        ) { label ->
+                if (downloadState.isDownloading || downloadState.isOpeningInstaller) {
+                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = label,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
+                                if (downloadState.isOpeningInstaller) "Download complete"
+                                else "Downloading update",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(Modifier.weight(1f))
+                            if (downloadProgress != null) {
+                                Text(
+                                    (downloadProgress * 100f).toInt().toString() + "%",
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        if (downloadProgress == null) {
+                            LinearProgressIndicator(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                            )
+                        } else {
+                            LinearProgressIndicator(
+                                progress = { downloadProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp),
+                                color = if (downloadState.isOpeningInstaller) Color(0xFF248B55)
+                                else MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                         }
                     }
+                }
 
-                    if (downloadState.isDownloading || downloadState.isOpeningInstaller) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    if (downloadState.isOpeningInstaller) "Download complete"
-                                    else "Downloading update",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Spacer(Modifier.weight(1f))
-                                if (downloadProgress != null) {
-                                    Text(
-                                        (downloadProgress * 100f).toInt().toString() + "%",
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-
-                            if (downloadProgress == null) {
-                                LinearProgressIndicator(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(5.dp)
-                                )
-                            } else {
-                                LinearProgressIndicator(
-                                    progress = { downloadProgress },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(5.dp),
-                                    color = if (downloadState.isOpeningInstaller) Color(0xFF248B55)
-                                    else MaterialTheme.colorScheme.primary,
-                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            }
-                        }
+                val visibleMessage = downloadState.errorMessage
+                    ?: updateMessage.takeUnless {
+                        downloadState.isDownloading || downloadState.isOpeningInstaller
                     }
-
-                    val visibleMessage = downloadState.errorMessage
-                        ?: updateMessage.takeUnless {
-                            downloadState.isDownloading || downloadState.isOpeningInstaller
-                        }
-                    if (visibleMessage != null) {
-                        Text(
-                            text = visibleMessage,
-                            color = if (downloadState.errorMessage != null) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp
-                        )
-                    }
+                if (visibleMessage != null) {
+                    Text(
+                        text = visibleMessage,
+                        color = if (downloadState.errorMessage != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp
+                    )
                 }
             }
         }
+    }
+}
 
-        Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            SectionHeading("Developers")
-            AppSurface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(25.dp)
+@Composable
+private fun AboutSettingsContent(appVersion: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Application")
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(19.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .size(46.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                            RoundedCornerShape(15.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    DeveloperRow("Doruk Çavdar", "VeriBotOfficial")
-                    DeveloperRow("Troy Mitchell", "TroyMitchell911")
+                    Icon(
+                        Icons.Outlined.Watch,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(23.dp)
+                    )
                 }
+                Spacer(Modifier.width(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        "Plum Watch",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "Version " + appVersion,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Developers")
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(17.dp),
+                verticalArrangement = Arrangement.spacedBy(15.dp)
+            ) {
+                DeveloperRow("Doruk Çavdar", "VeriBotOfficial")
+                DeveloperRow("Troy Mitchell", "TroyMitchell911")
             }
         }
     }
