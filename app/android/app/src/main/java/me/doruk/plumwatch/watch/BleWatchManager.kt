@@ -582,7 +582,9 @@ class BleWatchManager(context: Context) {
         if (!archiveFile.isFile || archiveFile.length() <= 0L) {
             throw IllegalArgumentException("The watchface ZIP file is empty or unavailable.")
         }
-        val fileSize = archiveFile.length()
+        val archiveSize = archiveFile.length()
+        val paddingBytes = ((4L - (archiveSize % 4L)) % 4L).toInt()
+        val fileSize = archiveSize + paddingBytes
         if (fileSize > 0xFFFFFFFFL) {
             throw IllegalArgumentException("This watchface archive is too large for the SiFli transfer protocol.")
         }
@@ -591,7 +593,7 @@ class BleWatchManager(context: Context) {
         runCatching { gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH) }
         requestSifliMtu(gatt)
 
-        val md5 = withContext(Dispatchers.IO) { calculateMd5Ascii(archiveFile) }
+        val md5 = withContext(Dispatchers.IO) { calculateMd5Ascii(archiveFile, paddingBytes) }
         val fileNameBytes = targetFileName.toByteArray(StandardCharsets.UTF_8)
         require(fileNameBytes.isNotEmpty() && fileNameBytes.size <= 0xFFFF) {
             "The watchface file name is invalid."
@@ -631,25 +633,31 @@ class BleWatchManager(context: Context) {
             ensureSifliSuccess(fileStartResponse, "The watch could not prepare the watchface file.")
 
             var sentBytes = 0L
+            var archiveBytesRead = 0L
             withContext(Dispatchers.IO) {
                 archiveFile.inputStream().buffered().use { input ->
                     var blockIndex = 0
                     while (sentBytes < fileSize) {
                         val requestedBytes = minOf(maxBlockLength.toLong(), fileSize - sentBytes).toInt()
                         val block = ByteArray(requestedBytes)
+                        val archiveBytesForBlock = minOf(
+                            requestedBytes.toLong(),
+                            (archiveSize - archiveBytesRead).coerceAtLeast(0L)
+                        ).toInt()
                         var offset = 0
-                        while (offset < requestedBytes) {
-                            val count = input.read(block, offset, requestedBytes - offset)
+                        while (offset < archiveBytesForBlock) {
+                            val count = input.read(block, offset, archiveBytesForBlock - offset)
                             if (count < 0) throw IllegalStateException("The watchface ZIP ended unexpectedly.")
                             offset += count
                         }
+                        // The zero-initialized tail supplies WFPUSH2's required 4-byte alignment padding.
+                        archiveBytesRead += archiveBytesForBlock
                         val blockPayload = ByteBuffer.allocate(4 + block.size).order(ByteOrder.LITTLE_ENDIAN)
                             .putInt(blockIndex)
                             .put(block)
                             .array()
 
-                        // The GATT operations and their acknowledgements must be driven from the main callback context.
-                        withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                        withContext(Dispatchers.Main.immediate) {
                             sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_FILE_SEND_DATA, blockPayload)
                             val dataResponse = awaitSifliProtocolResponse(SIFLI_MSG_FILE_SEND_DATA_RSP)
                             ensureSifliSuccess(dataResponse, "The watch rejected watchface data block " + blockIndex + ".")
@@ -661,6 +669,9 @@ class BleWatchManager(context: Context) {
                         }
                     }
                 }
+            }
+            if (archiveBytesRead != archiveSize) {
+                throw IllegalStateException("The complete watchface ZIP could not be read.")
             }
 
             sendSifliProtocolMessage(gatt, characteristic, SIFLI_MSG_FILE_SEND_END_REQ, byteArrayOf())
@@ -813,7 +824,7 @@ class BleWatchManager(context: Context) {
             ((bytes[offset + 1].toInt() and 0xFF) shl 8)
     }
 
-    private fun calculateMd5Ascii(file: File): ByteArray {
+    private fun calculateMd5Ascii(file: File, paddingBytes: Int): ByteArray {
         val digest = MessageDigest.getInstance("MD5")
         file.inputStream().buffered().use { input ->
             val buffer = ByteArray(16 * 1024)
@@ -823,6 +834,7 @@ class BleWatchManager(context: Context) {
                 digest.update(buffer, 0, count)
             }
         }
+        if (paddingBytes > 0) digest.update(ByteArray(paddingBytes))
         val hex = digest.digest().joinToString("") { byte -> "%02x".format(byte) }
         return hex.toByteArray(StandardCharsets.US_ASCII)
     }
