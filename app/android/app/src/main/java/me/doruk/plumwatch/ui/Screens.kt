@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Widgets
@@ -98,6 +100,81 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+
+
+@Composable
+fun PlumDownloadButton(
+    label: String,
+    downloading: Boolean,
+    progress: Float?,
+    downloaded: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(18.dp)
+    val targetProgress = when {
+        downloaded -> 1f
+        downloading -> (progress ?: 0.035f).coerceIn(0.035f, 1f)
+        else -> 0f
+    }
+    val animatedProgress by animateFloatAsState(
+        targetValue = targetProgress,
+        animationSpec = tween(520, easing = FastOutSlowInEasing),
+        label = "plum-download-fill"
+    )
+    val backgroundColor by animateColorAsState(
+        targetValue = when {
+            downloaded -> Color(0xFF248B55)
+            downloading -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f)
+            else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
+        },
+        animationSpec = tween(420, easing = FastOutSlowInEasing),
+        label = "plum-download-background"
+    )
+    val foregroundColor = when {
+        downloaded -> Color.White
+        downloading -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.primary
+    }
+    Box(
+        modifier = modifier.height(62.dp).clip(shape).background(backgroundColor)
+            .clickable(enabled = enabled && !downloading && !downloaded, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (downloading) {
+            Box(
+                Modifier.fillMaxWidth(animatedProgress).fillMaxSize()
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
+                    .align(Alignment.CenterStart)
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            when {
+                downloaded -> Icon(Icons.Outlined.Check, contentDescription = null, tint = foregroundColor)
+                downloading -> Unit
+                else -> Icon(Icons.Outlined.Download, contentDescription = null, tint = foregroundColor)
+            }
+            if (!downloading) Spacer(Modifier.width(9.dp))
+            Text(
+                text = when {
+                    downloaded -> "Downloaded"
+                    downloading -> if (progress != null) {
+                        "Downloading…  " + (progress.coerceIn(0f, 1f) * 100f).toInt() + "%"
+                    } else "Downloading…"
+                    else -> label
+                },
+                color = foregroundColor,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
 
 @Composable
 fun PageTitle(title: String) {
@@ -1036,6 +1113,7 @@ private fun AppearanceSettingsContent(
     }
 }
 
+
 @Composable
 private fun UpdateSettingsContent(
     appVersion: String,
@@ -1046,36 +1124,23 @@ private fun UpdateSettingsContent(
     onCheckUpdates: () -> Unit,
     onInstallUpdate: (AppUpdateInfo) -> Unit
 ) {
-    val installButtonColor by animateColorAsState(
-        targetValue = if (availableUpdate != null) Color(0xFF248B55)
-        else MaterialTheme.colorScheme.primary,
-        animationSpec = tween(durationMillis = 280),
-        label = "update-button-color"
-    )
     val updateBusy = checkingUpdates || downloadState.isDownloading || downloadState.isOpeningInstaller
+    val isDownloaded = downloadState.isDownloaded || downloadState.isOpeningInstaller
     val updateButtonLabel = when {
         checkingUpdates -> "Checking…"
-        downloadState.isDownloading -> "Downloading…"
-        downloadState.isOpeningInstaller -> "Opening installer…"
+        isDownloaded -> "Downloaded"
         availableUpdate != null -> "Install " + availableUpdate.versionName
         else -> "Check for updates"
     }
-    val downloadProgress = downloadState.progress?.coerceIn(0f, 1f)
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeading("Installed version")
-        AppSurface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp)
-        ) {
+        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(15.dp),
                 verticalArrangement = Arrangement.spacedBy(13.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier.size(42.dp).background(
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
@@ -1083,110 +1148,29 @@ private fun UpdateSettingsContent(
                         ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Outlined.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(
-                            "Plum Watch",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            "Version " + appVersion,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp
-                        )
+                        Text("Plum Watch", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Version " + appVersion, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                     }
                 }
-
-                Button(
+                PlumDownloadButton(
+                    label = updateButtonLabel,
+                    downloading = downloadState.isDownloading || downloadState.isOpeningInstaller,
+                    progress = downloadState.progress,
+                    downloaded = isDownloaded,
+                    enabled = !updateBusy && !isDownloaded,
                     onClick = {
                         val update = availableUpdate
                         if (update != null) onInstallUpdate(update) else onCheckUpdates()
                     },
-                    enabled = !updateBusy,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(15.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = installButtonColor,
-                        contentColor = Color.White,
-                        disabledContainerColor = installButtonColor.copy(alpha = 0.68f),
-                        disabledContentColor = Color.White
-                    )
-                ) {
-                    if (updateBusy) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(17.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else if (availableUpdate != null) {
-                        Icon(Icons.Outlined.Download, contentDescription = null)
-                    } else {
-                        Icon(Icons.Outlined.Refresh, contentDescription = null)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    AnimatedContent(
-                        targetState = updateButtonLabel,
-                        label = "update-button-label"
-                    ) { label ->
-                        Text(
-                            text = label,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                    modifier = Modifier.fillMaxWidth()
+                )
+                val visibleMessage = downloadState.errorMessage ?: updateMessage.takeUnless {
+                    downloadState.isDownloading || downloadState.isOpeningInstaller || isDownloaded
                 }
-
-                if (downloadState.isDownloading || downloadState.isOpeningInstaller) {
-                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                if (downloadState.isOpeningInstaller) "Download complete"
-                                else "Downloading update",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(Modifier.weight(1f))
-                            if (downloadProgress != null) {
-                                Text(
-                                    (downloadProgress * 100f).toInt().toString() + "%",
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                        if (downloadProgress == null) {
-                            LinearProgressIndicator(
-                                modifier = Modifier.fillMaxWidth().height(4.dp)
-                            )
-                        } else {
-                            LinearProgressIndicator(
-                                progress = { downloadProgress },
-                                modifier = Modifier.fillMaxWidth().height(4.dp),
-                                color = if (downloadState.isOpeningInstaller) Color(0xFF248B55)
-                                else MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                val visibleMessage = downloadState.errorMessage
-                    ?: updateMessage.takeUnless {
-                        downloadState.isDownloading || downloadState.isOpeningInstaller
-                    }
                 if (visibleMessage != null) {
                     Text(
                         text = visibleMessage,
