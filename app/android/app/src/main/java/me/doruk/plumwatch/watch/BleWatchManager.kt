@@ -875,7 +875,7 @@ class BleWatchManager(context: Context) {
                             bluetoothGatt ?: throw IllegalStateException("The watch disconnected."),
                             sifliDataCharacteristic ?: throw IllegalStateException("The SiFli channel closed."),
                             SIFLI_MSG_LOSE_CHECK_RSP,
-                            byteArrayOf()
+                            byteArrayOf(0, 0)
                         )
                     }
                     SIFLI_MSG_ABORT_CMD -> {
