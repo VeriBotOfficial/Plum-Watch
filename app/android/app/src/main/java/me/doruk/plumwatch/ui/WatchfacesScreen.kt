@@ -41,6 +41,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Refresh
@@ -140,8 +141,7 @@ fun WatchfacesScreen() {
         } else {
             WatchfaceDetailScreen(
                 watchface = selected,
-                onBack = { selectedWatchface = null },
-                onDownload = { downloadWatchface(context, selected) }
+                onBack = { selectedWatchface = null }
             )
         }
     }
