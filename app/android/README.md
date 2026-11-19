@@ -58,6 +58,25 @@ If another companion app currently holds the watch connection, disconnect it the
 
 **Protocol status:** the app implements standard GATT Battery, Heart Rate, and Immediate Alert profiles only when the watch advertises those exact services and characteristics. These are capability-detected; a supported sensor chip does not guarantee the firmware exposes the standard profile. The HK10 PRO MAX+ is listed by Chronos, but Chronos notes that individual features are not guaranteed. Wearfit Pro's private command protocol is not yet implemented. Notifications, alarms, and other proprietary controls still require a captured, model-specific protocol exchange and physical-device testing. A successful GATT connection alone does not mean those actions are implemented.
 
+## BLE protocol implementation status
+
+The Android GATT layer currently capability-detects these standard Bluetooth services:
+
+- Battery Service (0x180F): read and/or subscribe to the Battery Level characteristic when the advertised properties allow it.
+- Heart Rate Service (0x180D): subscribe to Heart Rate Measurement when notifications or indications are available.
+- Immediate Alert Service (0x1802): send the standard alert-level command for Find Watch.
+- Current Time Service (0x1805): set the phone's local date/time only when the watch exposes the Current Time characteristic with the standard Write property. Read-only CTS implementations are not treated as synchronizable.
+
+SiFli serial framing and reassembly are isolated in `SifliSerialProtocol.kt`. JVM tests cover little-endian message headers, MTU-based fragmentation, reassembly, malformed fragments and recovery. Watchface receiver status values are mapped from the SiFli firmware enum; in particular, status 22 means that the watch application rejected the destination file path. The mapping improves diagnosis but does not itself repair the watch-side path policy.
+
+### HK-specific limitations
+
+The HK10 Pro Max+ project in the available HK-Custom-Firmware repository contains a firmware project skeleton and generic SiFli SDK sources, but not the watch application's registered watchface filesystem callback or the Wearfit phone-to-watch BLE command bridge. Its alarm manager header defines internal firmware messages (list/add/edit/enable/disable/delete), but no corresponding phone-facing GATT/serial command encoding is provided. The generic SiFli ANCS example is Apple Notification Center Service support and is not an Android notification-forwarding protocol.
+
+For that reason, notifications, alarm synchronization, music/camera controls, and the HK-specific watchface path rejection are not presented as implemented. They require a successful reference-app packet trace or equivalent model-specific protocol source, followed by physical-device testing. Do not infer proprietary command IDs or payloads from the generic serial transport alone.
+
+The Android CI workflow runs `testDebugUnitTest` and `assembleDebug` for pull requests and BLE foundation branches.
+
 ## Watchface folder format
 
 Create one folder per watchface:
