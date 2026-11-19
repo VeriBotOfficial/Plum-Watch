@@ -583,7 +583,6 @@ class BleWatchManager(context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    @SuppressLint("MissingPermission")
     suspend fun pushWatchface(
         archiveFile: File,
         targetFileName: String,
