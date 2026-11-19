@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
     private var pendingInstallerUri: Uri? = null
     private var activeDownloadId: Long = -1L
     private var expectedApkSha256: String? = null
+    private var expectedApkSizeBytes: Long? = null
     private var updateReceiverRegistered = false
 
     private val progressPoller = object : Runnable {
@@ -91,6 +92,7 @@ class MainActivity : ComponentActivity() {
 
         activeDownloadId = updatePreferences.getLong(KEY_DOWNLOAD_ID, -1L)
         expectedApkSha256 = updatePreferences.getString(KEY_EXPECTED_SHA256, null)
+        expectedApkSizeBytes = updatePreferences.getLong(KEY_EXPECTED_SIZE_BYTES, -1L).takeIf { it > 0L }
 
         watchManager = BleWatchManager.getInstance(applicationContext)
         registerUpdateReceiver()
@@ -105,6 +107,9 @@ class MainActivity : ComponentActivity() {
             var uiStyle by rememberSaveable {
                 mutableStateOf(preferences.getString("ui-style", "classic") ?: "classic")
             }
+            var colorPalette by rememberSaveable {
+                mutableStateOf(preferences.getString("color-palette", "plum") ?: "plum")
+            }
 
             PlumWatchApp(
                 watchManager = watchManager,
@@ -117,6 +122,11 @@ class MainActivity : ComponentActivity() {
                 onUiStyleChange = { style ->
                     uiStyle = style
                     preferences.edit().putString("ui-style", style).commit()
+                },
+                colorPalette = colorPalette,
+                onColorPaletteChange = { palette ->
+                    colorPalette = palette
+                    preferences.edit().putString("color-palette", palette).apply()
                 },
                 updateDownloadState = updateDownloadState.value,
                 onInstallUpdate = ::downloadAndInstallUpdate,
@@ -277,10 +287,12 @@ class MainActivity : ComponentActivity() {
             val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             activeDownloadId = manager.enqueue(request)
             expectedApkSha256 = update.sha256
+            expectedApkSizeBytes = update.apkSizeBytes
 
             updatePreferences.edit()
                 .putLong(KEY_DOWNLOAD_ID, activeDownloadId)
                 .putString(KEY_EXPECTED_SHA256, expectedApkSha256)
+                .putLong(KEY_EXPECTED_SIZE_BYTES, expectedApkSizeBytes ?: -1L)
                 .commit()
 
             updateDownloadState.value = AppUpdateDownloadState(isDownloading = true)
@@ -330,8 +342,12 @@ class MainActivity : ComponentActivity() {
             DownloadManager.STATUS_PENDING,
             DownloadManager.STATUS_RUNNING,
             DownloadManager.STATUS_PAUSED -> {
-                val progress = if (totalBytes > 0L) {
-                    (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+                val resolvedTotalBytes = totalBytes.takeIf { it > 0L }
+                    ?: expectedApkSizeBytes
+                    ?: -1L
+                val progress = if (resolvedTotalBytes > 0L) {
+                    (downloadedBytes.toDouble() / resolvedTotalBytes.toDouble())
+                        .toFloat().coerceIn(0f, 0.99f)
                 } else null
                 updateDownloadState.value = AppUpdateDownloadState(
                     isDownloading = true,
@@ -494,9 +510,11 @@ class MainActivity : ComponentActivity() {
         progressHandler.removeCallbacks(progressPoller)
         activeDownloadId = -1L
         expectedApkSha256 = null
+        expectedApkSizeBytes = null
         updatePreferences.edit()
             .remove(KEY_DOWNLOAD_ID)
             .remove(KEY_EXPECTED_SHA256)
+            .remove(KEY_EXPECTED_SIZE_BYTES)
             .commit()
     }
 
@@ -528,11 +546,12 @@ class MainActivity : ComponentActivity() {
     private companion object {
         const val KEY_DOWNLOAD_ID = "active-update-download-id"
         const val KEY_EXPECTED_SHA256 = "active-update-sha256"
+        const val KEY_EXPECTED_SIZE_BYTES = "active-update-size-bytes"
         const val KEY_NOTIFIED_UPDATE_VERSION = "last-notified-update-version"
         const val KEY_NOTIFICATION_PERMISSION_REQUESTED = "notification-permission-requested"
         const val UPDATE_CHANNEL_ID = "plum-watch-app-updates"
         const val UPDATE_NOTIFICATION_ID = 2601
         const val EXTRA_OPEN_SETTINGS = "plum-watch-open-settings"
-        const val PROGRESS_POLL_INTERVAL_MS = 500L
+        const val PROGRESS_POLL_INTERVAL_MS = 250L
     }
 }

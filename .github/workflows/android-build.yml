@@ -109,11 +109,13 @@ jobs:
           VERSION_NAME="$PLUM_VERSION_NAME"
           VERSION_CODE="${GITHUB_RUN_NUMBER}"
           SHA256=$(sha256sum "$APK_FILE" | cut -d " " -f 1)
+          APK_SIZE_BYTES=$(stat -c%s "$APK_FILE")
           cat > "$UPDATE_FILE" <<EOF
           {
             "versionName": "$VERSION_NAME",
             "versionCode": $VERSION_CODE,
             "apkUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/app/android/build/plum-watch-debug.apk",
+            "apkSizeBytes": $APK_SIZE_BYTES,
             "sha256": "$SHA256"
           }
           EOF

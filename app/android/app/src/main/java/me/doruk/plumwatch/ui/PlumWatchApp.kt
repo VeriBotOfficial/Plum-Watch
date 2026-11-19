@@ -10,13 +10,16 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +32,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GridView
@@ -49,13 +53,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.zIndex
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import me.doruk.plumwatch.R
 import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.ui.glass.LiquidBottomTab
 import me.doruk.plumwatch.ui.glass.LiquidBottomTabs
@@ -81,6 +89,8 @@ fun PlumWatchApp(
     onThemeModeChange: (String) -> Unit,
     uiStyle: String,
     onUiStyleChange: (String) -> Unit,
+    colorPalette: String,
+    onColorPaletteChange: (String) -> Unit,
     updateDownloadState: AppUpdateDownloadState,
     onInstallUpdate: (AppUpdateInfo) -> Unit,
     onRemoveWatch: () -> Unit,
@@ -106,6 +116,12 @@ fun PlumWatchApp(
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
     val scope = rememberCoroutineScope()
+    var showLaunchScreen by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        delay(620L)
+        showLaunchScreen = false
+    }
 
     LaunchedEffect(currentVersionCode) {
         checkingUpdates = true
@@ -160,7 +176,7 @@ fun PlumWatchApp(
         }
     }
 
-    PlumTheme(darkTheme = darkTheme) {
+    PlumTheme(darkTheme = darkTheme, paletteId = colorPalette) {
         SideEffect {
             val window = (context as? Activity)?.window
             if (window != null) {
@@ -262,6 +278,8 @@ fun PlumWatchApp(
                                 onThemeModeChange = onThemeModeChange,
                                 uiStyle = uiStyle,
                                 onUiStyleChange = onUiStyleChange,
+                                colorPalette = colorPalette,
+                                onColorPaletteChange = onColorPaletteChange,
                                 appVersion = currentVersionName,
                                 checkingUpdates = checkingUpdates,
                                 updateMessage = updateMessage,
@@ -272,10 +290,39 @@ fun PlumWatchApp(
                             )
                         }
                     }
+                    AnimatedVisibility(
+                        visible = showLaunchScreen,
+                        modifier = Modifier.fillMaxSize().zIndex(2f),
+                        enter = fadeIn(tween(260)) + scaleIn(
+                            initialScale = 0.92f,
+                            animationSpec = tween(480, easing = FastOutSlowInEasing)
+                        ),
+                        exit = fadeOut(tween(180))
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(148.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.065f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_launcher_foreground),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(78.dp),
+                                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
+                                )
+                            }
+                        }
+                    }
                 }
             },
             overlay = {
-                FloatingNavigationBar(
+                if (!showLaunchScreen) FloatingNavigationBar(
                     selectedPage = page,
                     onSelect = { page = it },
                     useGlass = uiStyle == "glass",

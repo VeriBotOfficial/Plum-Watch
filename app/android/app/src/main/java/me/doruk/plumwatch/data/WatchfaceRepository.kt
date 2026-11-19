@@ -10,7 +10,8 @@ data class Watchface(
     val id: String,
     val name: String,
     val previewUrl: String,
-    val archiveUrl: String
+    val archiveUrl: String,
+    val archiveSizeBytes: Long? = null
 )
 
 sealed interface WatchfaceLibraryResult {
@@ -57,7 +58,8 @@ object WatchfaceRepository {
                     val name = item.optString("name").takeIf { it.isNotBlank() } ?: id
                     val preview = item.optString("previewUrl").takeIf { it.startsWith("https://") } ?: continue
                     val archive = item.optString("archiveUrl").takeIf { it.startsWith("https://") } ?: continue
-                    add(Watchface(id, name, preview, archive))
+                    val archiveSizeBytes = item.optLong("archiveSizeBytes", -1L).takeIf { it > 0L }
+                    add(Watchface(id, name, preview, archive, archiveSizeBytes))
                 }
             }.sortedBy { it.name.lowercase() }
 

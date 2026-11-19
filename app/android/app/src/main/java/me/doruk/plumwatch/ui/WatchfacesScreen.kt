@@ -273,11 +273,15 @@ private fun WatchfaceDetailScreen(
             val safeName = watchface.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
             val archiveFile = File(context.cacheDir, "watchface-" + safeName + ".zip")
             try {
-                downloadWatchfaceArchive(watchface.archiveUrl, archiveFile) { progress ->
-                    transferProgress = progress * 0.15f
+                downloadWatchfaceArchive(
+                    url = watchface.archiveUrl,
+                    destination = archiveFile,
+                    expectedSizeBytes = watchface.archiveSizeBytes
+                ) { progress ->
+                    transferProgress = progress
                 }
                 transferPhase = "Sending to watch…"
-                transferProgress = 0.15f
+                transferProgress = 0f
 
                 watchManager.pushWatchface(
                     archiveFile = archiveFile,
@@ -286,7 +290,7 @@ private fun WatchfaceDetailScreen(
                         ?.takeIf { it.endsWith(".zip", ignoreCase = true) }
                         ?: (watchface.id + ".zip")
                 ) { progress ->
-                    transferProgress = 0.15f + progress.coerceIn(0f, 1f) * 0.85f
+                    transferProgress = progress.coerceIn(0f, 1f)
                 }
 
                 transferProgress = 1f
@@ -429,6 +433,7 @@ private fun WatchfaceDetailScreen(
 private suspend fun downloadWatchfaceArchive(
     url: String,
     destination: File,
+    expectedSizeBytes: Long?,
     onProgress: (Float) -> Unit
 ): File = withContext(Dispatchers.IO) {
     val connection = URL(url).openConnection() as HttpURLConnection
@@ -437,14 +442,18 @@ private suspend fun downloadWatchfaceArchive(
     connection.requestMethod = "GET"
     connection.setRequestProperty("User-Agent", "Plum-Watch-Android")
     connection.setRequestProperty("Cache-Control", "no-cache")
+    connection.setRequestProperty("Accept-Encoding", "identity")
 
     try {
         val status = connection.responseCode
         if (status !in 200..299) {
             throw IllegalStateException("Could not fetch the watchface archive (HTTP " + status + ").")
         }
-        val totalBytes = connection.contentLengthLong
+        val totalBytes = connection.contentLengthLong.takeIf { it > 0L }
+            ?: expectedSizeBytes?.takeIf { it > 0L }
+            ?: -1L
         var receivedBytes = 0L
+        var lastProgressUpdateAt = 0L
         connection.inputStream.use { input ->
             destination.outputStream().buffered().use { output ->
                 val buffer = ByteArray(16 * 1024)
@@ -454,8 +463,12 @@ private suspend fun downloadWatchfaceArchive(
                     output.write(buffer, 0, count)
                     receivedBytes += count
                     if (totalBytes > 0L) {
-                        withContext(Dispatchers.Main.immediate) {
-                            onProgress((receivedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f))
+                        val now = System.nanoTime()
+                        if (now - lastProgressUpdateAt >= 100_000_000L || receivedBytes >= totalBytes) {
+                            lastProgressUpdateAt = now
+                            val progress = (receivedBytes.toDouble() / totalBytes.toDouble())
+                                .toFloat().coerceIn(0f, 0.99f)
+                            withContext(Dispatchers.Main.immediate) { onProgress(progress) }
                         }
                     }
                 }
@@ -463,6 +476,9 @@ private suspend fun downloadWatchfaceArchive(
         }
         if (destination.length() <= 0L) {
             throw IllegalStateException("The watchface archive is empty.")
+        }
+        if (totalBytes > 0L && receivedBytes != totalBytes) {
+            throw IllegalStateException("The watchface archive download was incomplete.")
         }
         val signature = FileInputStream(destination).use { input ->
             val first = input.read()

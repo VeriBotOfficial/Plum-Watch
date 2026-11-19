@@ -11,7 +11,8 @@ data class AppUpdateInfo(
     val versionCode: Int,
     val versionName: String,
     val apkUrl: String,
-    val sha256: String
+    val sha256: String,
+    val apkSizeBytes: Long? = null
 )
 
 data class AppUpdateDownloadState(
@@ -81,6 +82,7 @@ object AppUpdateRepository {
             val versionName = manifest.getString("versionName")
             val apkUrl = manifest.getString("apkUrl")
             val sha256 = manifest.getString("sha256").lowercase()
+            val apkSizeBytes = manifest.optLong("apkSizeBytes", -1L).takeIf { it > 0L }
 
             if (
                 !apkUrl.startsWith("https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/") ||
@@ -89,7 +91,7 @@ object AppUpdateRepository {
                 versionName.isBlank()
             ) return null
 
-            AppUpdateInfo(versionCode, versionName, apkUrl, sha256)
+            AppUpdateInfo(versionCode, versionName, apkUrl, sha256, apkSizeBytes)
         } catch (_: Exception) {
             null
         } finally {

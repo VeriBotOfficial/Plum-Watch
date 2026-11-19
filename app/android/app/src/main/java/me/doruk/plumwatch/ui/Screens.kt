@@ -93,6 +93,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.watch.BleUiState
@@ -120,12 +121,12 @@ fun PlumDownloadButton(
     val shape = RoundedCornerShape(18.dp)
     val targetProgress = when {
         downloaded -> 1f
-        downloading -> (progress ?: 0.035f).coerceIn(0.035f, 1f)
+        downloading -> (progress ?: 0.035f).coerceIn(0f, 1f)
         else -> 0f
     }
     val animatedProgress by animateFloatAsState(
         targetValue = targetProgress,
-        animationSpec = tween(820, easing = FastOutSlowInEasing),
+        animationSpec = tween(260, easing = FastOutSlowInEasing),
         label = "plum-download-fill"
     )
     val backgroundColor by animateColorAsState(
@@ -214,6 +215,16 @@ fun PlumDownloadButton(
                     text = text,
                     color = foregroundColor,
                     fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+            }
+            if (downloading && progress != null) {
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "${(animatedProgress * 100f).roundToInt()}%",
+                    color = foregroundColor.copy(alpha = 0.88f),
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1
                 )
@@ -648,11 +659,6 @@ private fun ConnectedWatchCard(
                     }
                 }
             }
-            Text(
-                "BLE link active · ${if (supportsHeartRate) "Heart rate" else "No standard HR"} · ${if (supportsBattery) "Battery" else "No battery service"}",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp
-            )
         }
     }
 }
