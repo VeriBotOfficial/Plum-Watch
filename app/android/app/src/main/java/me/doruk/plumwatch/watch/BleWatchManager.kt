@@ -942,8 +942,8 @@ class BleWatchManager(context: Context) {
         }
 
     private fun ensureSifliSuccess(response: ByteArray, errorMessage: String) {
-        if (response.size < 4) throw IllegalStateException("The watch returned an incomplete SiFli response.")
-        val status = readUnsignedShort(response, 2)
+        val status = SifliWatchfaceStatus.readResponseStatus(response)
+            ?: throw IllegalStateException("The watch returned an incomplete SiFli response.")
         if (status != SIFLI_STATUS_OK) {
             throw IllegalStateException(
                 errorMessage + " (status " + status + ": " + SifliWatchfaceStatus.describe(status) + ")."
