@@ -1,6 +1,17 @@
 package me.doruk.plumwatch.watch
 
 internal object SifliWatchfaceStatus {
+    /**
+     * Watch-to-phone responses are encoded as message ID (2 bytes) followed
+     * directly by the 16-bit status. Unlike phone-to-watch requests, they do
+     * not include the request-side 16-bit payload-length field.
+     */
+    fun readResponseStatus(response: ByteArray): Int? {
+        if (response.size < 4) return null
+        return (response[2].toInt() and 0xFF) or
+            ((response[3].toInt() and 0xFF) shl 8)
+    }
+
     fun describe(status: Int): String = when (status) {
         0 -> "success"
         1 -> "general receiver error"
