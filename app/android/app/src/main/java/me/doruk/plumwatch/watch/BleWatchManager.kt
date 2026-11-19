@@ -104,6 +104,7 @@ class BleWatchManager(context: Context) {
     private var pendingSifliMtuChange: CompletableDeferred<Int>? = null
     private val sifliPushMutex = Mutex()
     private val pendingNotificationDescriptors = java.util.ArrayDeque<BluetoothGattDescriptor>()
+    private var notificationDescriptorWritePending = false
     private var pendingBatteryRead: BluetoothGattCharacteristic? = null
     private var autoReconnectEnabled = initialSavedDevice != null
     private var reconnectAttempts = 0
@@ -231,6 +232,7 @@ class BleWatchManager(context: Context) {
                 sifliMtu = 23
                 sifliReassembler.reset()
                 pendingNotificationDescriptors.clear()
+                notificationDescriptorWritePending = false
                 pendingBatteryRead = null
                 while (sifliIncomingMessages.tryReceive().isSuccess) Unit
                 if (!gatt.discoverServices()) {
@@ -259,6 +261,7 @@ class BleWatchManager(context: Context) {
                     sifliMtu = 23
                     sifliReassembler.reset()
                     pendingNotificationDescriptors.clear()
+                    notificationDescriptorWritePending = false
                     pendingBatteryRead = null
                     pendingSifliWrite?.complete(false)
                     pendingSifliWrite = null
@@ -387,7 +390,6 @@ class BleWatchManager(context: Context) {
                 it.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0
             }
             writeNextNotificationDescriptor(gatt)
-            if (pendingNotificationDescriptors.isEmpty()) finishServiceSetup(gatt)
         }
 
         override fun onDescriptorWrite(
@@ -396,6 +398,7 @@ class BleWatchManager(context: Context) {
             status: Int
         ) {
             if (bluetoothGatt !== gatt) return
+            notificationDescriptorWritePending = false
             if (descriptor.characteristic.uuid == SIFLI_SERIAL_DATA_UUID) {
                 sifliNotificationsReady = status == BluetoothGatt.GATT_SUCCESS &&
                     sifliDataCharacteristic != null
@@ -408,11 +411,8 @@ class BleWatchManager(context: Context) {
                 }
             }
             writeNextNotificationDescriptor(gatt)
-            if (pendingNotificationDescriptors.isEmpty()) {
-                if (sifliDataCharacteristic == null) {
-                    mutableState.update { it.copy(supportsSifliWatchface = false) }
-                }
-                finishServiceSetup(gatt)
+            if (sifliDataCharacteristic == null && descriptor.characteristic.uuid == SIFLI_SERIAL_DATA_UUID) {
+                mutableState.update { it.copy(supportsSifliWatchface = false) }
             }
         }
 
@@ -507,8 +507,12 @@ class BleWatchManager(context: Context) {
 
     @SuppressLint("MissingPermission")
     private fun writeNextNotificationDescriptor(gatt: BluetoothGatt) {
-        if (bluetoothGatt !== gatt) return
-        val descriptor = pendingNotificationDescriptors.pollFirst() ?: return
+        if (bluetoothGatt !== gatt || notificationDescriptorWritePending) return
+        val descriptor = pendingNotificationDescriptors.pollFirst()
+        if (descriptor == null) {
+            finishServiceSetup(gatt)
+            return
+        }
         val value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
         val started = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             gatt.writeDescriptor(descriptor, value) == BluetoothStatusCodes.SUCCESS
@@ -518,7 +522,13 @@ class BleWatchManager(context: Context) {
             @Suppress("DEPRECATION")
             gatt.writeDescriptor(descriptor)
         }
-        if (!started) handler.post { writeNextNotificationDescriptor(gatt) }
+        if (started) {
+            notificationDescriptorWritePending = true
+        } else {
+            // A descriptor could not be queued. Continue so a missing optional
+            // notification does not block battery reads or service initialization.
+            handler.post { writeNextNotificationDescriptor(gatt) }
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -1247,6 +1257,7 @@ class BleWatchManager(context: Context) {
         pendingSifliMtuChange = null
         sifliIncomingMessages.trySend(ByteArray(0))
         pendingNotificationDescriptors.clear()
+        notificationDescriptorWritePending = false
         pendingBatteryRead = null
 
         val activeGatt = bluetoothGatt
