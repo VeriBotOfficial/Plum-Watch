@@ -1,0 +1,51 @@
+package me.doruk.plumwatch.watch
+
+internal object SifliWatchfaceStatus {
+    /**
+     * Watch-to-phone responses are encoded as message ID (2 bytes) followed
+     * directly by the 16-bit status. Unlike phone-to-watch requests, they do
+     * not include the request-side 16-bit payload-length field.
+     */
+    fun readResponseStatus(response: ByteArray): Int? {
+        if (response.size < 4) return null
+        return (response[2].toInt() and 0xFF) or
+            ((response[3].toInt() and 0xFF) shl 8)
+    }
+
+    fun describe(status: Int): String = when (status) {
+        0 -> "success"
+        1 -> "general receiver error"
+        2 -> "serial packet receive error"
+        3 -> "invalid packet length"
+        4 -> "unexpected data-block index"
+        5 -> "watchface transfer state mismatch"
+        6 -> "BLE connection disconnected"
+        7 -> "no transfer is active"
+        8 -> "the remote side aborted the transfer"
+        9 -> "the received file size did not match"
+        20 -> "watch application rejected the request"
+        21 -> "required 4-byte file-size alignment is missing"
+        22 -> "watch application rejected the destination file path"
+        23 -> "watch application rejected the file type"
+        24 -> "watch could not allocate file-transfer memory"
+        25 -> "watch could not open the destination file"
+        26 -> "watch could not read destination file information"
+        27 -> "watch could not write the file data"
+        28 -> "watch could not close the destination file"
+        29 -> "watch rejected the file extension"
+        30 -> "watch could not create the destination directory"
+        31 -> "watch could not switch to the destination directory"
+        32 -> "watch application received invalid BLE parameters"
+        33 -> "watch could not allocate a contiguous transfer buffer"
+        34 -> "watch rejected the announced file size"
+        35 -> "watch could not initialize its CRC checker"
+        36 -> "watch failed while calculating the file CRC"
+        37 -> "watch does not have enough storage space"
+        38 -> "watchface transfer timed out"
+        39 -> "watchface transfer UI is not ready"
+        40 -> "BLE disconnected during file transfer"
+        41 -> "watch application aborted the transfer"
+        42 -> "watch timed out while receiving file data"
+        else -> "unknown SiFli receiver error"
+    }
+}
