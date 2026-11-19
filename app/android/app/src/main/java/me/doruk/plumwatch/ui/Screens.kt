@@ -289,7 +289,9 @@ fun MyWatchScreen(
                         batteryPercent = state.batteryPercent,
                         heartRateBpm = state.heartRateBpm,
                         supportsBattery = state.supportsBattery,
-                        supportsHeartRate = state.supportsHeartRate
+                        supportsHeartRate = state.supportsHeartRate,
+                        supportsTimeSync = state.supportsTimeSync,
+                        lastTimeSyncAt = state.lastTimeSyncAt
                     )
                 }
                 "connecting" -> ConnectingWatchCard(
@@ -583,7 +585,9 @@ private fun ConnectedWatchCard(
     batteryPercent: Int?,
     heartRateBpm: Int?,
     supportsBattery: Boolean,
-    supportsHeartRate: Boolean
+    supportsHeartRate: Boolean,
+    supportsTimeSync: Boolean,
+    lastTimeSyncAt: Long?
 ) {
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
@@ -636,6 +640,14 @@ private fun ConnectedWatchCard(
                             "Connected",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp
+                        )
+                    }
+
+                    if (supportsTimeSync) {
+                        Text(
+                            text = if (lastTimeSyncAt != null) "Time synchronized" else "Time sync available",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
                         )
                     }
                 }
