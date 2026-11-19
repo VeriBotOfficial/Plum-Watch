@@ -5,6 +5,14 @@ import org.junit.Test
 
 class SifliWatchfaceStatusTest {
     @Test
+    fun parsesWatchResponseStatusWithoutRequestLengthField() {
+        // Response format: message ID (2 bytes), status (2 bytes).
+        assertEquals(22, SifliWatchfaceStatus.readResponseStatus(byteArrayOf(3, 0, 22, 0)))
+        assertEquals(0, SifliWatchfaceStatus.readResponseStatus(byteArrayOf(7, 0, 0, 0)))
+        assertEquals(null, SifliWatchfaceStatus.readResponseStatus(byteArrayOf(7, 0, 0)))
+    }
+
+    @Test
     fun mapsPathFailurePrecisely() {
         assertEquals(
             "watch application rejected the destination file path",
