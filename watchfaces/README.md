@@ -7,8 +7,8 @@ Each watchface has its own folder:
 ```
 watchfaces/
   index.json
-  Red John/
-    Red John.zip
+  RedJohn/
+    RedJohn.zip
     preview.png
 ```
 
@@ -18,7 +18,7 @@ Add one object to `index.json` for every watchface:
 {
   "id": "Red John",
   "name": "Red John",
-  "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/watchfaces/Red%20John/preview.png",
-  "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/watchfaces/Red%20John/Red%20John.zip"
+  "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/watchfaces/RedJohn/preview.png",
+  "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/watchfaces/RedJohn/RedJohn.zip"
 }
 ```
