@@ -77,6 +77,15 @@ For that reason, notifications, alarm synchronization, music/camera controls, an
 
 The Android CI workflow runs `testDebugUnitTest` and `assembleDebug` for pull requests and BLE foundation branches.
 
+### Reference transfer examples are not interchangeable
+
+SiFli's public generic BLE file-transfer example documents WFPUSH2 with File Type 3 and byte alignment for writing a ZIP into a development board's `file_recv` directory ([official example](https://docs.sifli.com/projects/sdk/latest/en/sf32lb58x/example/ble/file_transfer/README.html)). That is a generic file-receive workflow, not proof that an HK watch's native watchface receiver expects the same type or destination.
+
+Plum Watch keeps native watchface file type 0, matching the successful option-0 reference-app test reported for the same HK10 Pro Max+ and ZIP. The generic example's type 3 setting is deliberately not copied into this watchface flow.
+
+SiFli's separate Android OTA demo also contains an `OTA_SIFLI_WATCHFACE` path through its OTA V3 manager ([demo source](https://github.com/OpenSiFli/SiFli_OTA_APP)). That is a separate higher-level transfer route; its presence in the demo does not prove that the HK firmware build exposes or supports it.
+
+
 ## Watchface folder format
 
 Create one folder per watchface:
