@@ -1,6 +1,5 @@
 package me.doruk.plumwatch.data
 
-import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -30,16 +29,19 @@ sealed interface AppUpdateCheckResult {
 }
 
 object AppUpdateRepository {
-    private const val MANIFEST_API_URL =
-        "https://api.github.com/repos/VeriBotOfficial/Plum-Watch/contents/app/android/build/update.json?ref=main"
+    private const val RAW_MANIFEST_URL =
+        "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/app/android/build/update.json"
 
     suspend fun check(currentVersionName: String, currentVersionCode: Int): AppUpdateCheckResult =
         withContext(Dispatchers.IO) {
+            var latestManifest: AppUpdateInfo? = null
             var lastError = "Could not reach the update server."
 
+            // Raw GitHub is the only manifest source. No GitHub REST API requests.
             repeat(3) { attempt ->
-                val manifest = fetchManifest()
+                val manifest = fetchManifest(RAW_MANIFEST_URL)
                 if (manifest != null) {
+                    latestManifest = manifest
                     if (
                         manifest.versionCode > currentVersionCode ||
                         isNewerVersion(manifest.versionName, currentVersionName)
@@ -49,16 +51,16 @@ object AppUpdateRepository {
                     return@withContext AppUpdateCheckResult.UpToDate(manifest.versionName)
                 }
 
-                lastError = "GitHub's update manifest is temporarily unavailable."
+                lastError = "GitHub's raw update manifest is temporarily unavailable."
                 if (attempt < 2) delay(900L)
             }
 
             AppUpdateCheckResult.Failed(lastError)
         }
 
-    private fun fetchManifest(): AppUpdateInfo? {
+    private fun fetchManifest(baseUrl: String): AppUpdateInfo? {
         val connection = runCatching {
-            (URL("$MANIFEST_API_URL&nocache=${System.currentTimeMillis()}").openConnection() as HttpURLConnection)
+            (URL("$baseUrl?nocache=${System.currentTimeMillis()}").openConnection() as HttpURLConnection)
                 .apply {
                     connectTimeout = 8_000
                     readTimeout = 10_000
@@ -66,22 +68,15 @@ object AppUpdateRepository {
                     useCaches = false
                     setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0")
                     setRequestProperty("Pragma", "no-cache")
-                    setRequestProperty("Accept", "application/vnd.github+json")
-                    setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+                    setRequestProperty("Accept", "application/json")
                     setRequestProperty("User-Agent", "Plum-Watch-Android")
                 }
         }.getOrNull() ?: return null
 
         return try {
             if (connection.responseCode !in 200..299) return null
-
-            val response = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            if (response.optString("encoding") != "base64") return null
-
-            val encodedContent = response.getString("content")
-            val manifestText = String(Base64.decode(encodedContent, Base64.DEFAULT), Charsets.UTF_8)
-            val manifest = JSONObject(manifestText)
-
+            val json = connection.inputStream.bufferedReader().use { it.readText() }
+            val manifest = JSONObject(json)
             val versionCode = manifest.getInt("versionCode")
             val versionName = manifest.getString("versionName")
             val apkUrl = manifest.getString("apkUrl")
