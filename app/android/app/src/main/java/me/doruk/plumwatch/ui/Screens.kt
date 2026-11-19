@@ -808,6 +808,8 @@ fun SettingsScreen(
     onThemeModeChange: (String) -> Unit,
     uiStyle: String,
     onUiStyleChange: (String) -> Unit,
+    colorPalette: String,
+    onColorPaletteChange: (String) -> Unit,
     appVersion: String,
     checkingUpdates: Boolean,
     updateMessage: String?,
@@ -842,6 +844,7 @@ fun SettingsScreen(
             SettingsHomeScreen(
                 themeMode = themeMode,
                 uiStyle = uiStyle,
+                colorPalette = colorPalette,
                 appVersion = appVersion,
                 onOpenCategory = { selectedCategory = it }
             )
@@ -852,6 +855,8 @@ fun SettingsScreen(
                 onThemeModeChange = onThemeModeChange,
                 uiStyle = uiStyle,
                 onUiStyleChange = onUiStyleChange,
+                colorPalette = colorPalette,
+                onColorPaletteChange = onColorPaletteChange,
                 appVersion = appVersion,
                 checkingUpdates = checkingUpdates,
                 updateMessage = updateMessage,
@@ -869,6 +874,7 @@ fun SettingsScreen(
 private fun SettingsHomeScreen(
     themeMode: String,
     uiStyle: String,
+    colorPalette: String,
     appVersion: String,
     onOpenCategory: (SettingsCategory) -> Unit
 ) {
@@ -878,6 +884,7 @@ private fun SettingsHomeScreen(
         else -> "System"
     }
     val styleLabel = if (uiStyle == "glass") "Liquid Glass" else "Classic"
+    val paletteLabel = PlumPalettes.firstOrNull { it.id == colorPalette }?.name ?: "Plum"
 
     Column(
         modifier = Modifier
@@ -899,7 +906,7 @@ private fun SettingsHomeScreen(
                 Column {
                     SettingsCategoryRow(
                         category = SettingsCategory.APPEARANCE,
-                        value = themeLabel + " · " + styleLabel,
+                        value = themeLabel + " · " + paletteLabel + " · " + styleLabel,
                         onClick = { onOpenCategory(SettingsCategory.APPEARANCE) }
                     )
                     SettingsRowDivider()
@@ -1053,6 +1060,8 @@ private fun SettingsCategoryPage(
     onThemeModeChange: (String) -> Unit,
     uiStyle: String,
     onUiStyleChange: (String) -> Unit,
+    colorPalette: String,
+    onColorPaletteChange: (String) -> Unit,
     appVersion: String,
     checkingUpdates: Boolean,
     updateMessage: String?,
@@ -1081,7 +1090,9 @@ private fun SettingsCategoryPage(
                     themeMode = themeMode,
                     onThemeModeChange = onThemeModeChange,
                     uiStyle = uiStyle,
-                    onUiStyleChange = onUiStyleChange
+                    onUiStyleChange = onUiStyleChange,
+                    colorPalette = colorPalette,
+                    onColorPaletteChange = onColorPaletteChange
                 )
             }
             SettingsCategory.UPDATES -> {
@@ -1115,7 +1126,9 @@ private fun AppearanceSettingsContent(
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
     uiStyle: String,
-    onUiStyleChange: (String) -> Unit
+    onUiStyleChange: (String) -> Unit,
+    colorPalette: String,
+    onColorPaletteChange: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeading("Theme")
@@ -1150,6 +1163,48 @@ private fun AppearanceSettingsContent(
                         selected = themeMode == "dark",
                         modifier = Modifier.weight(1f),
                         onClick = { onThemeModeChange("dark") }
+                    )
+                }
+            }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Color palette")
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(11.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    PaletteChoice(
+                        palette = PlumPalettes[0],
+                        selected = colorPalette == PlumPalettes[0].id,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onColorPaletteChange(PlumPalettes[0].id) }
+                    )
+                    PaletteChoice(
+                        palette = PlumPalettes[1],
+                        selected = colorPalette == PlumPalettes[1].id,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onColorPaletteChange(PlumPalettes[1].id) }
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    PaletteChoice(
+                        palette = PlumPalettes[2],
+                        selected = colorPalette == PlumPalettes[2].id,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onColorPaletteChange(PlumPalettes[2].id) }
+                    )
+                    PaletteChoice(
+                        palette = PlumPalettes[3],
+                        selected = colorPalette == PlumPalettes[3].id,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onColorPaletteChange(PlumPalettes[3].id) }
                     )
                 }
             }
@@ -1300,6 +1355,56 @@ private fun AboutSettingsContent(appVersion: String) {
             ) {
                 DeveloperRow("Doruk Çavdar", "VeriBotOfficial")
                 DeveloperRow("Troy Mitchell", "TroyMitchell911")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaletteChoice(
+    palette: PlumPalette,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.78f)
+        else MaterialTheme.colorScheme.outline.copy(alpha = 0.36f),
+        animationSpec = tween(240),
+        label = "palette-choice-border"
+    )
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(68.dp),
+        shape = RoundedCornerShape(17.dp),
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.075f)
+        else MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier.size(25.dp).background(palette.previewColor, CircleShape)
+            )
+            Text(
+                text = palette.name,
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Outlined.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }
