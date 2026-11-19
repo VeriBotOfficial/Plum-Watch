@@ -119,7 +119,10 @@ internal object SifliSerialProtocol {
                     if (length <= 0 || length > maxMessageLength) return null
                     val buffer = ByteArrayOutputStream(length)
                     buffer.write(frame, SERIAL_HEADER_SIZE, frame.size - SERIAL_HEADER_SIZE)
-                    if (buffer.size() > length) return null
+                    if (buffer.size() > length) {
+                        reset()
+                        return null
+                    }
                     assembly = buffer
                     expectedLength = length
                     null
