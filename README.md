@@ -4,8 +4,6 @@ Custom firmware & app for HK watches — now including **HK 10 Pro Max+ (SiFli S
 
 This repo started as the Android companion app (`/app`). It now also holds the firmware side: reverse-engineering, dump/edit/flash tutorials, hardware pinouts, helper scripts, and a reference SiFli SDK project for the HK 10 Pro Max+.
 
-> I am the owner of both `VeriBotOfficial/Plum-Watch` and `VeriBotOfficial/HK-Custom-Firmware`. The firmware reference project was copied from `HK-Custom-Firmware` (upstream: `amir1387aht/hk_watchs_hack`) into `/firmware`.
-
 ---
 
 ## Repository layout
