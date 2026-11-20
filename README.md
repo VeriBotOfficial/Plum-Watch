@@ -1,8 +1,10 @@
 # Plum Watch
 
-Custom firmware & app for HK watches — now including **HK 10 Pro Max+ (SiFli SF32LB525)** custom-firmware tooling.
+Custom firmware & app for HK watches.
 
-This repo started as the Android companion app (`/app`). It now also holds the firmware side: reverse-engineering, dump/edit/flash tutorials, hardware pinouts, helper scripts, and a reference SiFli SDK project for the HK 10 Pro Max+.
+This repository holds the Android companion app (`/app`) and the firmware tooling for the **HK 10 Pro Max+ (SiFli SF32LB525)**: reverse-engineering guides, hardware pinouts, dump/edit/flash tutorials, helper scripts, and a reference SiFli SDK project.
+
+The firmware reference project under `firmware/hk10promaxplus/` is based on `VeriBotOfficial/HK-Custom-Firmware` (upstream: `amir1387aht/hk_watchs_hack`).
 
 ---
 
@@ -10,20 +12,20 @@ This repo started as the Android companion app (`/app`). It now also holds the f
 
 ```
 Plum Watch/
-├── app/                          # Android companion app (Kotlin, original content)
-├── docs/                         # Tutorials
-│   ├── TUTORIAL_dump_edit_flash.md     # dump / edit / flash the HK 10 Pro Max+ firmware
-│   ├── HARDWARE_PINOUT_CP2102.md       # how to wire your CP2102 to the watch
-│   └── ESP8266_UART_BACKUP.md          # use an ESP8266 as a UART adapter (last resort)
+├── app/                          # Android companion app (Kotlin)
+├── docs/                         # Tutorials and pinout guides
+│   ├── TUTORIAL_dump_edit_flash.md
+│   ├── HARDWARE_PINOUT_CP2102.md
+│   └── ESP8266_UART_BACKUP.md
 ├── firmware/
 │   └── hk10promaxplus/
 │       └── v1/watch/
-│           └── hk10promaxplus_firmware/  # reference SiFli SDK project (from HK-Custom-Firmware)
+│           └── hk10promaxplus_firmware/  # reference SiFli SDK project
 ├── scripts/                      # helper shell scripts
-│   ├── dump_firmware.sh            # dump flash via sftool + CP2102 (Linux)
-│   └── flash_firmware.sh           # flash firmware via sftool + CP2102 (Linux)
-├── sifli_sdk/                    # empty — place your SiFli SDK here (Windows-oriented)
-├── dumps/                        # put your firmware backups here (gitignored-ish; back up externally!)
+│   ├── dump_firmware.sh
+│   └── flash_firmware.sh
+├── sifli_sdk/                    # place your installed SiFli SDK here
+├── dumps/                        # firmware backups (back these up externally)
 └── watchfaces/                   # watchface catalogue for the Android app
 ```
 
@@ -32,8 +34,8 @@ Plum Watch/
 ## Goal: custom firmware for HK 10 Pro Max+ (SF32LB525)
 
 1. Open the watch and locate the debug UART pads.
-2. Wire a **CP2102 USB-to-UART** adapter.
-3. **Dump** the original firmware (backup first!).
+2. Wire a USB-to-UART adapter (e.g., CP2102, FTDI, CH340).
+3. **Dump** the original firmware (backup first).
 4. **Edit** the dump or rebuild from the SiFli SDK project.
 5. **Flash** it back.
 
@@ -45,10 +47,10 @@ Wiring: `docs/HARDWARE_PINOUT_CP2102.md`
 
 ## Quick reference
 
-| Task | Command (Linux) |
+| Task | Command |
 |---|---|
-| Dump firmware | `./scripts/dump_firmware.sh /dev/ttyUSB0` |
-| Flash firmware | `./scripts/flash_firmware.sh /dev/ttyUSB0 build_eh-lb525_hcpu` |
+| Dump all partitions | `./scripts/dump_firmware.sh /dev/ttyUSB0` |
+| Flash all partitions | `./scripts/flash_firmware.sh /dev/ttyUSB0 build_eh-lb525_hcpu` |
 | sftool version | `sftool --version` |
 
 Flash map (C-BUS addresses from `ptab.json`):
@@ -62,20 +64,48 @@ Flash map (C-BUS addresses from `ptab.json`):
 
 ---
 
-## PC prep (already done)
+## PC preparation
 
-- `sftool` v0.2.7 installed to `/usr/local/bin/sftool` (from `OpenSiFli/sftool`)
-- Python tools: `pyserial`, `intelhex`, `binwalk`
-- Repo cloned from `VeriBotOfficial/Plum-Watch`
-- Reference firmware project copied from `VeriBotOfficial/HK-Custom-Firmware`
+### Linux
 
-On Windows, also install the official **SiFli SDK** and use the **"SiFli-SDK Environment"** terminal, plus the CP210x VCP driver.
+1. Clone the repository:
+
+```bash
+git clone --depth 1 https://github.com/VeriBotOfficial/Plum-Watch.git
+cd Plum-Watch
+```
+
+2. Install `sftool` (SiFli flash download/read tool, from `OpenSiFli/sftool`):
+
+```bash
+# download the prebuilt binary for your platform from
+# https://github.com/OpenSiFli/sftool/releases
+sudo install -m 0755 sftool /usr/local/bin/sftool
+sftool --version
+```
+
+3. Install Python tools:
+
+```bash
+python3 -m pip install --user pyserial intelhex binwalk
+```
+
+4. Install the CP210x VCP driver if needed (built into most Linux kernels).
+
+### Windows
+
+1. Install the official SiFli SDK: https://docs.sifli.com/projects/sdk/latest/sf32lb52x/quickstart/install/script/windows.html
+2. Use the **"SiFli-SDK Environment"** terminal.
+3. Install `sftool` and add it to PATH.
+4. Install the CP210x VCP driver from Silicon Labs.
+5. `scons` and the ARM GCC toolchain come with the SDK.
 
 ---
 
 ## ⚠️ Safety
 
-- **Never** connect CP2102 5V/VCC to the watch. TX/RX/GND only.
-- Power the watch from its own battery / charger.
-- **Always** keep a backup dump in `dumps/` (and copy it off the PC).
+- **Never** connect a UART adapter's 5V / VCC pin to the watch. Connect TX, RX, and GND only.
+- Power the watch from its own battery / magnetic charger, never from the UART adapter.
+- Use 3.3 V logic levels (or a level shifter if needed).
+- **Always** keep a backup dump in `dumps/` and copy it off the computer.
 - Flashing can brick the watch. Work on a watch you can afford to lose.
