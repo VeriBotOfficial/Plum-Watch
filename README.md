@@ -32,7 +32,7 @@ Plum Watch/
 ## Goal: custom firmware for HK 10 Pro Max+ (SF32LB525)
 
 1. Open the watch and locate the debug UART pads.
-2. Wire a **CP2102 USB-to-UART** adapter (you have one).
+2. Wire a **CP2102 USB-to-UART** adapter.
 3. **Dump** the original firmware (backup first!).
 4. **Edit** the dump or rebuild from the SiFli SDK project.
 5. **Flash** it back.
