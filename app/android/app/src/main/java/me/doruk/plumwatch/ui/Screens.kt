@@ -91,12 +91,12 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilledButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Divider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -112,7 +112,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -136,18 +136,15 @@ import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.WatchDevice
 import me.doruk.plumwatch.watch.BleWatchManager
+import java.io.File
+import java.io.FileInputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-
-
 @Composable
 fun PlumDownloadButton(
     label: String,
@@ -305,7 +302,6 @@ fun MyWatchScreen(
     var showAlarmsDialog by remember { mutableStateOf(false) }
     var showQrDialog by remember { mutableStateOf(false) }
     val watchManager = BleWatchManager.getInstance(context)
-    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -394,13 +390,13 @@ fun MyWatchScreen(
             val implementedFeatures = listOf(
                 QuickFeature("Find Watch", Icons.Outlined.LocationSearching,
                     subtitle = "Ping your watch",
-                    enabled = state.isConnected && state.canFindWatch,
+                    enabled = state.isConnected && (state.canFindWatch || state.supportsProprietaryCommands),
                     onClick = { if (state.isConnected && state.canFindWatch) onFindWatch() }
                 ),
                 QuickFeature("Alarms", Icons.Outlined.Alarm,
                     subtitle = "Set up to 8 alarms",
-                    enabled = state.isConnected,
-                    onClick = { if (state.isConnected) showAlarmsDialog = true }
+                    enabled = state.isConnected && state.supportsProprietaryCommands,
+                    onClick = { if (state.isConnected && state.supportsProprietaryCommands) showAlarmsDialog = true }
                 ),
                 QuickFeature("QR Code", Icons.Outlined.Code,
                     subtitle = "Send Wi-Fi, contact, etc.",
@@ -500,10 +496,28 @@ fun MyWatchScreen(
         )
     }
     if (showAlarmsDialog) {
-        AlarmsDialog(state = state, onDismiss = { showAlarmsDialog = false }, onSend = {}, onDelete = {})
+        AlarmsDialog(
+            state = state,
+            onDismiss = { showAlarmsDialog = false },
+            onSend = { config ->
+                watchManager.setAlarm(
+                    id = config.id,
+                    enabled = config.enabled,
+                    hour = config.hour,
+                    minute = config.minute,
+                    repeatMask = config.repeatMask,
+                    remindFlags = when {
+                        config.vibrate && config.sound -> 3
+                        config.vibrate -> 1
+                        config.sound -> 2
+                        else -> 0
+                    }
+                )
+            }
+        )
     }
     if (showQrDialog) {
-        QrCodeDialog(state = state, onDismiss = { showQrDialog = false }, onSend = { _, _ -> })
+        QrCodeDialog(state = state, onDismiss = { showQrDialog = false }, onSend = watchManager::setQrCode)
     }
 }
 
@@ -1548,8 +1562,6 @@ private fun AlarmsSettingsContent(onBack: () -> Unit) {
     val watchManager = BleWatchManager.getInstance(LocalContext.current)
     val uiState by watchManager.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    var editingAlarm by remember { mutableStateOf<AlarmConfig?>(null) }
-
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeading("Watch Alarms")
         AppSurface(
@@ -1563,7 +1575,7 @@ private fun AlarmsSettingsContent(onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    "Configure up to 8 alarms on your watch. Changes sync immediately.",
+                    "Configure up to 8 alarms. Select an alarm to edit it, then send the settings to your watch.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
@@ -1584,21 +1596,40 @@ private fun AlarmsSettingsContent(onBack: () -> Unit) {
                     val alarm = remember { mutableStateOf(AlarmConfig(id = id)) }
                     AlarmRow(
                         alarm = alarm,
-                        onEdit = { editingAlarm = alarm.value },
                         onSend = { config ->
-                            if (!uiState.isConnected) return@onSend
-                            scope.launch {
-                                watchManager.setAlarm(
-                                    id = config.id,
-                                    enabled = config.enabled,
-                                    hour = config.hour,
-                                    minute = config.minute,
-                                    repeatMask = config.repeatMask,
-                                    remindFlags = if (config.vibrate && config.sound) 3 else if (config.vibrate) 1 else 2
-                                )
+                            if (uiState.isConnected) {
+                                scope.launch {
+                                    watchManager.setAlarm(
+                                        id = config.id,
+                                        enabled = config.enabled,
+                                        hour = config.hour,
+                                        minute = config.minute,
+                                        repeatMask = config.repeatMask,
+                                        remindFlags = when {
+                                            config.vibrate && config.sound -> 3
+                                            config.vibrate -> 1
+                                            config.sound -> 2
+                                            else -> 0
+                                        }
+                                    )
+                                }
                             }
                         },
-                        onDelete = { alarm.value = AlarmConfig(id = id) }
+                        onDelete = { config ->
+                            alarm.value = AlarmConfig(id = id)
+                            if (uiState.isConnected) {
+                                scope.launch {
+                                    watchManager.setAlarm(
+                                        id = config.id,
+                                        enabled = false,
+                                        hour = config.hour,
+                                        minute = config.minute,
+                                        repeatMask = config.repeatMask,
+                                        remindFlags = 0
+                                    )
+                                }
+                            }
+                        }
                     )
                     if (id < 7) Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                 }
@@ -1669,15 +1700,16 @@ private fun FindWatchSettingsContent(onBack: () -> Unit) {
                 }
                 FilledTonalButton(
                     onClick = {
-                        if (!uiState.isConnected) return@onClick
-                        finding = true
-                        scope.launch {
-                            watchManager.findWatch()
-                            delay(5500)
-                            finding = false
+                        if (uiState.isConnected && (uiState.canFindWatch || uiState.supportsProprietaryCommands)) {
+                            finding = true
+                            scope.launch {
+                                watchManager.findWatch()
+                                delay(5500)
+                                finding = false
+                            }
                         }
                     },
-                    enabled = uiState.isConnected && !finding,
+                    enabled = uiState.isConnected && (uiState.canFindWatch || uiState.supportsProprietaryCommands) && !finding,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp)
                 ) {
@@ -1749,37 +1781,33 @@ private fun QrCodeSettingsContent(onBack: () -> Unit) {
                         singleLine = true,
                         keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Uri)
                     )
-                    DropdownMenuButton(
-                        text = { Text(when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" }) },
-                        modifier = Modifier.width(110.dp)
-                    ) {
-                        DropdownMenuItem(text = { Text("General") }, onClick = { qrType = 0 })
-                        DropdownMenuItem(text = { Text("Wi-Fi") }, onClick = { qrType = 1 })
-                        DropdownMenuItem(text = { Text("Contact") }, onClick = { qrType = 2 })
+                    Box {
+                        var qrTypeMenuExpanded by remember { mutableStateOf(false) }
+                        TextButton(onClick = { qrTypeMenuExpanded = true }) {
+                            Text(when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" })
+                        }
+                        DropdownMenu(expanded = qrTypeMenuExpanded, onDismissRequest = { qrTypeMenuExpanded = false }) {
+                            DropdownMenuItem(text = { Text("General") }, onClick = { qrType = 0; qrTypeMenuExpanded = false })
+                            DropdownMenuItem(text = { Text("Wi-Fi") }, onClick = { qrType = 1; qrTypeMenuExpanded = false })
+                            DropdownMenuItem(text = { Text("Contact") }, onClick = { qrType = 2; qrTypeMenuExpanded = false })
+                        }
                     }
                 }
 
-                OutlinedTextField(
-                    value = qrText,
-                    onValueChange = { qrText = it },
-                    label = { Text("QR Content") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Uri)
-                )
 
-                FilledButton(
+                Button(
                     onClick = {
-                        if (qrText.isBlank() || !uiState.isConnected || sending) return
-                        sending = true
-                        scope.launch {
-                            watchManager.setQrCode(qrText, qrType)
-                            lastSent = qrText
-                            delay(1000)
-                            sending = false
+                        if (qrText.isNotBlank() && uiState.isConnected && uiState.supportsProprietaryCommands && !sending) {
+                            sending = true
+                            scope.launch {
+                                watchManager.setQrCode(qrText, qrType)
+                                lastSent = qrText
+                                delay(1000)
+                                sending = false
+                            }
                         }
                     },
-                    enabled = qrText.isNotBlank() && uiState.isConnected && !sending,
+                    enabled = qrText.isNotBlank() && uiState.isConnected && uiState.supportsProprietaryCommands && !sending,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp)
                 ) {
@@ -1824,7 +1852,6 @@ data class AlarmConfig(
 @Composable
 private fun AlarmRow(
     alarm: MutableState<AlarmConfig>,
-    onEdit: () -> Unit,
     onSend: (AlarmConfig) -> Unit,
     onDelete: (AlarmConfig) -> Unit
 ) {
@@ -1861,7 +1888,7 @@ private fun AlarmRow(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { onEdit() }) { Text("Edit") }
+                TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Done" else "Edit") }
                 TextButton(
                     onClick = { onSend(config) },
                     enabled = config.enabled
@@ -2228,12 +2255,8 @@ private const val MAX_GITHUB_AVATAR_BYTES = 2 * 1024 * 1024
 private fun AlarmsDialog(
     state: BleUiState,
     onDismiss: () -> Unit,
-    onSend: (AlarmConfig) -> Unit,
-    onDelete: (AlarmConfig) -> Unit
+    onSend: (AlarmConfig) -> Unit
 ) {
-    val watchManager = BleWatchManager.getInstance(LocalContext.current)
-    val scope = rememberCoroutineScope()
-    var editingAlarm by remember { mutableStateOf<AlarmConfig?>(null) }
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
@@ -2256,12 +2279,13 @@ private fun AlarmsDialog(
                         val alarm = remember { mutableStateOf(AlarmConfig(id = id)) }
                         AlarmRow(
                             alarm = alarm,
-                            onEdit = { editingAlarm = alarm.value },
                             onSend = { config ->
-                                if (!state.isConnected) return@onSend
-                                scope.launch { watchManager.setAlarm(id = config.id, enabled = config.enabled, hour = config.hour, minute = config.minute, repeatMask = config.repeatMask, remindFlags = if (config.vibrate && config.sound) 3 else if (config.vibrate) 1 else 2) }
+                                if (state.isConnected) onSend(config)
                             },
-                            onDelete = { alarm.value = AlarmConfig(id = id) }
+                            onDelete = { config ->
+                                alarm.value = AlarmConfig(id = id)
+                                if (state.isConnected) onSend(config.copy(enabled = false, vibrate = false, sound = false))
+                            }
                         )
                         if (id < 7) Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                     }
@@ -2302,19 +2326,23 @@ private fun QrCodeDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Uri)
                 )
-                DropdownMenuButton(
-                    text = { Text(when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" }) },
-                    modifier = Modifier.width(110.dp)
-                ) {
-                    DropdownMenuItem(text = { Text("General") }, onClick = { qrType = 0 })
-                    DropdownMenuItem(text = { Text("Wi-Fi") }, onClick = { qrType = 1 })
-                    DropdownMenuItem(text = { Text("Contact") }, onClick = { qrType = 2 })
+                Box {
+                    var qrTypeMenuExpanded by remember { mutableStateOf(false) }
+                    TextButton(onClick = { qrTypeMenuExpanded = true }) {
+                        Text(when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" })
+                    }
+                    DropdownMenu(expanded = qrTypeMenuExpanded, onDismissRequest = { qrTypeMenuExpanded = false }) {
+                        DropdownMenuItem(text = { Text("General") }, onClick = { qrType = 0; qrTypeMenuExpanded = false })
+                        DropdownMenuItem(text = { Text("Wi-Fi") }, onClick = { qrType = 1; qrTypeMenuExpanded = false })
+                        DropdownMenuItem(text = { Text("Contact") }, onClick = { qrType = 2; qrTypeMenuExpanded = false })
+                    }
                 }
-                FilledButton(
+                Button(
                     onClick = {
-                        if (qrText.isBlank() || !state.isConnected || sending) return@onClick
-                        sending = true
-                        scope.launch { onSend(qrText, qrType); delay(1000); sending = false }
+                        if (qrText.isNotBlank() && state.isConnected && !sending) {
+                            sending = true
+                            scope.launch { onSend(qrText, qrType); delay(1000); sending = false }
+                        }
                     },
                     enabled = qrText.isNotBlank() && state.isConnected && !sending,
                     modifier = Modifier.fillMaxWidth(),
