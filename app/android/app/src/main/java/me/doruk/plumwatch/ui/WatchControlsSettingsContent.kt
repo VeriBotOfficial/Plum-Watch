@@ -119,10 +119,25 @@ fun WatchControlsSettingsContent() {
             }
         }
 
-        NotificationSetting(enabled = canSend) { icon, show, hide ->
-            report("Notification display", manager.setNotificationDisplay(icon, show, hide))
-        }
+    }
+}
 
+@Composable
+fun NotificationDisplaySettingsContent() {
+    val context = LocalContext.current
+    val manager = remember(context) { BleWatchManager.getInstance(context) }
+    val state by manager.state.collectAsStateWithLifecycle()
+    val enabled = state.isConnected && state.supportsProprietaryCommands
+
+    NotificationSetting(enabled = enabled) { icon, show, hide ->
+        val sent = manager.setNotificationDisplay(icon, show, hide)
+        if (!sent) {
+            Toast.makeText(
+                context,
+                "Could not update notification display settings.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 }
 
