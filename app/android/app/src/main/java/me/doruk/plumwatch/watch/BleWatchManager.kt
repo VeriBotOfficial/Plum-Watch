@@ -900,7 +900,7 @@ class BleWatchManager(context: Context) {
             }
         }
         // Sort by descending size; GIFs moved to the end (matches SiFli WatchfaceFileComparator).
-        entries.sortWith(compareByDescending { it.size }
+        entries.sortWith(compareByDescending<WatchfaceFileEntry> { it.size }
             .thenBy { if (it.relativePath.lowercase().endsWith(".gif")) 1 else 0 }
             .thenBy { it.relativePath })
         return entries

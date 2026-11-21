@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.weight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -16,6 +17,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.remember
 import com.kyant.shapes.Capsule
 
 internal val LocalLiquidBottomTabScale =
@@ -32,7 +35,7 @@ fun RowScope.LiquidBottomTab(
         modifier
             .clip(Capsule())
             .clickable(
-                interactionSource = null,
+                interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 role = Role.Tab,
                 onClick = onClick

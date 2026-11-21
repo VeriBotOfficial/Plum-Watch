@@ -34,9 +34,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastCoerceIn
-import androidx.compose.ui.util.fastRoundToInt
-import androidx.compose.ui.util.lerp
+import androidx.compose.ui.unit.lerp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
@@ -85,7 +83,7 @@ fun LiquidBottomTabs(
         val offsetAnimation = remember { Animatable(0f) }
         val panelOffset by remember(density) {
             derivedStateOf {
-                val fraction = (offsetAnimation.value / constraints.maxWidth).fastCoerceIn(-1f, 1f)
+                val fraction = (offsetAnimation.value / constraints.maxWidth).coerceIn(-1f, 1f)
                 with(density) {
                     4f.dp.toPx() * fraction.sign * EaseOut.transform(abs(fraction))
                 }
@@ -107,7 +105,7 @@ fun LiquidBottomTabs(
                 pressedScale = 78f / 56f,
                 onDragStarted = {},
                 onDragStopped = {
-                    val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, tabsCount - 1)
+                    val targetIndex = targetValue.roundToInt().coerceIn(0, tabsCount - 1)
                     currentIndex = targetIndex
                     animateToValue(targetIndex.toFloat())
                     animationScope.launch {
@@ -120,7 +118,7 @@ fun LiquidBottomTabs(
                 onDrag = { _, dragAmount ->
                     updateValue(
                         (targetValue + dragAmount.x / tabWidth * if (isLtr) 1f else -1f)
-                            .fastCoerceIn(0f, (tabsCount - 1).toFloat())
+                            .coerceIn(0f, (tabsCount - 1).toFloat())
                     )
                     animationScope.launch {
                         offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
@@ -266,8 +264,8 @@ fun LiquidBottomTabs(
                         scaleX = dampedDragAnimation.scaleX
                         scaleY = dampedDragAnimation.scaleY
                         val velocity = dampedDragAnimation.velocity / 10f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                        scaleX /= 1f - (velocity * 0.75f).coerceIn(-0.2f, 0.2f)
+                        scaleY *= 1f - (velocity * 0.25f).coerceIn(-0.2f, 0.2f)
                     },
                     onDrawSurface = {
                         val progress = dampedDragAnimation.pressProgress
