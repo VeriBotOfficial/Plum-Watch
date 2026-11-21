@@ -83,7 +83,7 @@ The helper creates a timestamped output directory by default, or uses the output
 ## 5. Inspect and preserve the dump
 
 ```bash
-find ./dumps -type f -name '*.bin' -printf '%p %s bytes\\n'
+find ./dumps -type f -name '*.bin' -printf '%p %s bytes\n'
 sha256sum ./dumps/hk10promax-original/*.bin
 file ./dumps/hk10promax-original/*.bin
 ```
