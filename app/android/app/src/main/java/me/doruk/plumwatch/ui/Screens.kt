@@ -874,7 +874,7 @@ private fun QuickFeatureTile(
     modifier: Modifier = Modifier
 ) {
     AppClickableSurface(
-        onClick = if (feature.enabled) feature.onClick else null,
+        onClick = feature.onClick,
         modifier = modifier.height(100.dp),
         shape = RoundedCornerShape(22.dp),
         enabled = feature.enabled
@@ -1800,9 +1800,8 @@ private fun QrCodeSettingsContent(onBack: () -> Unit) {
                         if (qrText.isNotBlank() && uiState.isConnected && uiState.supportsProprietaryCommands && !sending) {
                             sending = true
                             scope.launch {
-                                watchManager.setQrCode(qrText, qrType)
-                                lastSent = qrText
-                                delay(1000)
+                                val queued = watchManager.setQrCode(qrText, qrType)
+                                if (queued) lastSent = qrText
                                 sending = false
                             }
                         }
@@ -2270,7 +2269,7 @@ private fun AlarmsDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    "Configure up to 8 alarms on your watch. Changes sync immediately.",
+                    "Configure up to 8 alarms. Select an alarm to edit it, then send the settings to your watch.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
@@ -2300,12 +2299,13 @@ private fun AlarmsDialog(
 private fun QrCodeDialog(
     state: BleUiState,
     onDismiss: () -> Unit,
-    onSend: (String, Int) -> Unit
+    onSend: (String, Int) -> Boolean
 ) {
     val scope = rememberCoroutineScope()
     var qrText by remember { mutableStateOf("") }
     var qrType by remember { mutableStateOf(0) }
     var sending by remember { mutableStateOf(false) }
+    var sendFailed by remember { mutableStateOf(false) }
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
@@ -2339,19 +2339,30 @@ private fun QrCodeDialog(
                 }
                 Button(
                     onClick = {
-                        if (qrText.isNotBlank() && state.isConnected && !sending) {
+                        if (qrText.isNotBlank() && state.isConnected && state.supportsProprietaryCommands && !sending) {
                             sending = true
-                            scope.launch { onSend(qrText, qrType); delay(1000); sending = false }
+                            scope.launch {
+                                sendFailed = !onSend(qrText, qrType)
+                                delay(350L)
+                                sending = false
+                            }
                         }
                     },
-                    enabled = qrText.isNotBlank() && state.isConnected && !sending,
+                    enabled = qrText.isNotBlank() && state.isConnected && state.supportsProprietaryCommands && !sending,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     if (sending) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
                     else Text("Send to Watch", fontWeight = FontWeight.Medium)
                 }
-                if (!state.isConnected) Text("Connect your watch first", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                if (!state.isConnected) {
+                    Text("Connect your watch first", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                } else if (!state.supportsProprietaryCommands) {
+                    Text("Waiting for the watch's proprietary connection handshake.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                }
+                if (sendFailed) {
+                    Text("Android could not queue the QR command. Check the connection and try again.", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
