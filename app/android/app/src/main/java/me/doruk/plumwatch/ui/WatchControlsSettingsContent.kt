@@ -173,7 +173,11 @@ private fun LanguageSetting(
                 Text("Choose")
             }
             DropdownMenu(
-                expanded = expanded,\n                onDismissRequest = { expanded = false },\n                containerColor = MaterialTheme.colorScheme.surface,\n                tonalElevation = 6.dp\n            ) {
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
+            ) {
                 languages.forEach { (code, label) ->
                     DropdownMenuItem(
                         enabled = enabled,
