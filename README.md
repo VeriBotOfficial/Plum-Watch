@@ -20,7 +20,6 @@ Plum-Watch/
 └── watchfaces/                  # Companion-app watchface catalogue
 ```
 
-The firmware project is based on the `eh-lb525_hcpu` configuration in `amir1387aht/hk_watchs_hack`. The `eh-lb525_hcpu/ptab.json` in this repository is structurally and value-for-value identical to that upstream HK10 Ultra 3 reference file.
 
 **Important:** a matching reference partition table is not proof that a particular watch has the same live flash layout. Read and inspect the watch's own FTAB before using the reference offsets to dump other regions or flash anything.
 
@@ -94,4 +93,4 @@ The scripts use `SFTOOL_BIN`, `BAUD`, and `CONNECT_ATTEMPTS` environment variabl
 - Keep the complete original dump in at least two safe locations before flashing.
 - The flash helper requires an explicit typed confirmation and verifies writes.
 - The reference firmware's current `src/fs/fs.c` calls `dfs_mkfs()` if mounting fails. A custom firmware boot can therefore format the filesystem region at runtime even though the flash helper leaves that region untouched. Do not boot a modified image on the watch until this behaviour has been reviewed and the original filesystem has been backed up.
-- Flashing is not yet verified on the user's physical watch. No script can guarantee compatibility until the live FTAB and the actual ROM-UART interface are confirmed.
+- Flashing is not yet verified %100. No script can guarantee compatibility until the live FTAB and the actual ROM-UART interface are confirmed.
