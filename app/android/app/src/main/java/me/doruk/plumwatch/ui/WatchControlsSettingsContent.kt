@@ -195,7 +195,12 @@ private fun SleepModeSetting(
                 fontSize = 13.sp
             )
             TextButton(enabled = enabled, onClick = { expanded = true }) { Text("Mode") }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
+            ) {
                 listOf(0 to "Off", 1 to "Manual", 2 to "Automatic").forEach { (value, label) ->
                     DropdownMenuItem(text = { Text(label, color = MaterialTheme.colorScheme.onSurface) }, onClick = { mode = value; expanded = false })
                 }
@@ -301,9 +306,14 @@ private fun NotificationSetting(
                 fontSize = 13.sp
             )
             TextButton(enabled = enabled, onClick = { expanded = true }) { Text("Icon") }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
+            ) {
                 listOf(0 to "No icon", 1 to "Call", 2 to "Message", 3 to "App").forEach { (value, label) ->
-                    DropdownMenuItem(text = { Text(label) }, onClick = { icon = value; expanded = false })
+                    DropdownMenuItem(text = { Text(label, color = MaterialTheme.colorScheme.onSurface) }, onClick = { icon = value; expanded = false })
                 }
             }
         }
