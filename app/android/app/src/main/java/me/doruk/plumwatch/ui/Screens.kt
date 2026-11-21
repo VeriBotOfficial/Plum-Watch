@@ -2470,51 +2470,6 @@ private const val MAX_GITHUB_AVATAR_BYTES = 2 * 1024 * 1024
 
 
 @Composable
-private fun AlarmsDialog(
-    state: BleUiState,
-    onDismiss: () -> Unit,
-    onSend: (AlarmConfig) -> Unit
-) {
-
-    AppAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Watch Alarms") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .height(420.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    "Configure up to 8 alarms. Select an alarm to edit it, then send the settings to your watch.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    (0..7).forEach { id ->
-                        val alarm = remember { mutableStateOf(AlarmConfig(id = id)) }
-                        AlarmRow(
-                            alarm = alarm,
-                            onSend = { config ->
-                                if (state.isConnected) onSend(config)
-                            },
-                            onDelete = { config ->
-                                alarm.value = AlarmConfig(id = id)
-                                if (state.isConnected) onSend(config.copy(enabled = false, vibrate = false, sound = false))
-                            }
-                        )
-                        if (id < 7) Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
-    )
-}
-
-@Composable
 private fun AppAlertDialog(
     onDismissRequest: () -> Unit,
     title: @Composable () -> Unit,
