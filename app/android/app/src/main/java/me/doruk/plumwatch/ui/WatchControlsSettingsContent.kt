@@ -85,7 +85,6 @@ fun WatchControlsSettingsContent() {
         SettingPanel("Display and health") {
             var raiseToWake by remember { mutableStateOf(true) }
             var autoHealth by remember { mutableStateOf(false) }
-            var shakePhoto by remember { mutableStateOf(false) }
             var bodyTemperature by remember { mutableStateOf(false) }
 
             SettingSwitch(
@@ -109,16 +108,6 @@ fun WatchControlsSettingsContent() {
                 report("Automatic health measurements", sent)
             }
             SettingSwitch(
-                "Shake to take a photo",
-                "Enables the watch-side shake-to-photo trigger.",
-                shakePhoto,
-                canSend
-            ) {
-                val sent = manager.setShakeToPhoto(it)
-                if (sent) shakePhoto = it
-                report("Shake to photo", sent)
-            }
-            SettingSwitch(
                 "Body-temperature measurement",
                 "Enable or disable the watch's body-temperature measurement mode.",
                 bodyTemperature,
@@ -132,11 +121,6 @@ fun WatchControlsSettingsContent() {
 
         NotificationSetting(enabled = canSend) { icon, show, hide ->
             report("Notification display", manager.setNotificationDisplay(icon, show, hide))
-        }
-
-        HeartRateZonesSetting(enabled = canSend) { values ->
-            val sent = runCatching { manager.setHeartRateZones(values) }.getOrDefault(false)
-            report("Heart-rate zones", sent)
         }
 
     }
@@ -173,11 +157,11 @@ private fun LanguageSetting(
             TextButton(enabled = enabled, onClick = { expanded = true }) {
                 Text("Choose")
             }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenu(\n                expanded = expanded,\n                onDismissRequest = { expanded = false },\n                containerColor = MaterialTheme.colorScheme.surface,\n                tonalElevation = 6.dp\n            ) {
                 languages.forEach { (code, label) ->
                     DropdownMenuItem(
                         enabled = enabled,
-                        text = { Text(label) },
+                        text = { Text(label, color = MaterialTheme.colorScheme.onSurface) },
                         onClick = {
                             selectedCode = code
                             expanded = false
@@ -213,7 +197,7 @@ private fun SleepModeSetting(
             TextButton(enabled = enabled, onClick = { expanded = true }) { Text("Mode") }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 listOf(0 to "Off", 1 to "Manual", 2 to "Automatic").forEach { (value, label) ->
-                    DropdownMenuItem(text = { Text(label) }, onClick = { mode = value; expanded = false })
+                    DropdownMenuItem(text = { Text(label, color = MaterialTheme.colorScheme.onSurface) }, onClick = { mode = value; expanded = false })
                 }
             }
         }
