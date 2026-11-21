@@ -3,6 +3,12 @@ name: Android build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - fix/android-build-and-wearfit-ui
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -98,10 +104,10 @@ jobs:
           PLUM_SIGNING_KEY_ALIAS: ${{ secrets.PLUM_SIGNING_KEY_ALIAS }}
           PLUM_SIGNING_KEY_PASSWORD: ${{ secrets.PLUM_SIGNING_KEY_PASSWORD }}
         working-directory: app/android
-        run: sh ./gradlew --no-daemon assembleDebug
+        run: sh ./gradlew --no-daemon testDebugUnitTest assembleDebug
 
       - name: Publish latest APK to repository
-        if: steps.signing.outputs.configured == 'true'
+        if: steps.signing.outputs.configured == 'true' && github.ref == 'refs/heads/main'
         run: |
           APK_FILE="$RUNNER_TEMP/plum-watch-debug.apk"
           UPDATE_FILE="$RUNNER_TEMP/update.json"
@@ -138,7 +144,7 @@ jobs:
           fi
 
       - name: Upload stable debug APK artifact
-        if: always()
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: plum-watch-debug-apk
@@ -146,7 +152,7 @@ jobs:
           if-no-files-found: error
 
       - name: Report signing setup
-        if: steps.signing.outputs.configured != 'true'
+        if: success() && steps.signing.outputs.configured != 'true'
         run: |
-          echo "Build compilation succeeded, but no installable update was published."
+          echo "Build and tests succeeded, but no installable update was published."
           echo "Add the four PLUM_SIGNING_* repository secrets, then run this workflow manually."
