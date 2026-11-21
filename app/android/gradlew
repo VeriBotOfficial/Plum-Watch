@@ -2,6 +2,7 @@
 set -eu
 
 VERSION="9.3.1"
+SHA256="b266d5ff6b90eada6dc3b20cb090e3731302e553a27c5d3e4df1f0d76beaff06"
 BASE="${GRADLE_USER_HOME:-$HOME/.gradle}/plum-bootstrap"
 GRADLE_HOME="$BASE/gradle-$VERSION"
 APP_HOME="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
@@ -11,11 +12,21 @@ if [ ! -x "$GRADLE_HOME/bin/gradle" ]; then
     ARCHIVE="$BASE/gradle-$VERSION-bin.zip"
 
     if command -v curl >/dev/null 2>&1; then
-        curl -fL "https://services.gradle.org/distributions/gradle-$VERSION-bin.zip" -o "$ARCHIVE"
+        curl -fL "https://downloads.gradle.org/distributions/gradle-$VERSION-bin.zip" -o "$ARCHIVE"
     elif command -v wget >/dev/null 2>&1; then
-        wget -O "$ARCHIVE" "https://services.gradle.org/distributions/gradle-$VERSION-bin.zip"
+        wget -O "$ARCHIVE" "https://downloads.gradle.org/distributions/gradle-$VERSION-bin.zip"
     else
         echo "Install curl or wget to download Gradle." >&2
+        exit 1
+    fi
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf '%s  %s\n' "$SHA256" "$ARCHIVE" | sha256sum -c -
+    elif command -v shasum >/dev/null 2>&1; then
+        printf '%s  %s\n' "$SHA256" "$ARCHIVE" | shasum -a 256 -c -
+    else
+        echo "Install sha256sum or shasum to verify the Gradle distribution." >&2
+        rm -f "$ARCHIVE"
         exit 1
     fi
 
