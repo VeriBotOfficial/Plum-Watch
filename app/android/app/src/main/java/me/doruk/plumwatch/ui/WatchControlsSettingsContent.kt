@@ -157,7 +157,8 @@ private fun LanguageSetting(
             TextButton(enabled = enabled, onClick = { expanded = true }) {
                 Text("Choose")
             }
-            DropdownMenu(\n                expanded = expanded,\n                onDismissRequest = { expanded = false },\n                containerColor = MaterialTheme.colorScheme.surface,\n                tonalElevation = 6.dp\n            ) {
+            DropdownMenu(
+                expanded = expanded,\n                onDismissRequest = { expanded = false },\n                containerColor = MaterialTheme.colorScheme.surface,\n                tonalElevation = 6.dp\n            ) {
                 languages.forEach { (code, label) ->
                     DropdownMenuItem(
                         enabled = enabled,
