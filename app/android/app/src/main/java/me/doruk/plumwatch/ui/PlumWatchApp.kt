@@ -81,7 +81,11 @@ private enum class AppPage(val label: String) {
     WATCH("My Watch"),
     WATCHFACES("Watchfaces"),
     SETTINGS("Settings"),
-    WATCH_SETTINGS("Other Settings")
+    WATCH_SETTINGS("Other Settings"),
+    ALARMS("Alarms"),
+    HEALTH("Health"),
+    NOTIFICATIONS("Notifications"),
+    CAMERA("Camera")
 }
 
 @Composable
@@ -273,7 +277,10 @@ fun PlumWatchApp(
                                 onOpenWatchfaces = { page = AppPage.WATCHFACES },
                                 onOpenOtherSettings = { page = AppPage.WATCH_SETTINGS },
                                 onFindWatch = watchManager::findWatch,
-                                onRefreshHealth = watchManager::refreshHealth
+                                onOpenAlarms = { page = AppPage.ALARMS },
+                                onOpenHealth = { page = AppPage.HEALTH },
+                                onOpenNotifications = { page = AppPage.NOTIFICATIONS },
+                                onOpenCamera = { page = AppPage.CAMERA }
                             )
                             AppPage.WATCHFACES -> WatchfacesScreen(watchManager = watchManager, watchState = watchState)
                             AppPage.SETTINGS -> SettingsScreen(
@@ -292,6 +299,13 @@ fun PlumWatchApp(
                                 onInstallUpdate = onInstallUpdate
                             )
                             AppPage.WATCH_SETTINGS -> OtherWatchSettingsScreen(
+                                onBack = { page = AppPage.WATCH }
+                            )
+                            AppPage.ALARMS -> AlarmsScreen(onBack = { page = AppPage.WATCH })
+                            AppPage.HEALTH -> HealthScreen(onBack = { page = AppPage.WATCH })
+                            AppPage.NOTIFICATIONS -> NotificationsScreen(onBack = { page = AppPage.WATCH })
+                            AppPage.CAMERA -> CameraScreen(
+                                watchManager = watchManager,
                                 onBack = { page = AppPage.WATCH }
                             )
                         }
