@@ -71,7 +71,7 @@ The following C-BUS addresses are derived from the `eh-lb525_hcpu/ptab.json` ref
 | Flash part 2 | `0x19B00000` | `0x00080000` | 512 KiB |
 | Flash part 12 | `0x19B80000` | `0x00080000` | 512 KiB |
 
-These are reference values, not a substitute for reading the target watch's FTAB. In particular, do not copy the old malformed DFU address `0x1203E0000`; the correct address from this table is `0x123E0000`.
+These are reference values, not a substitute for reading the target watch's FTAB. The DFU C-BUS address is `0x123E0000`, derived from offset `0x003E0000`.
 
 ## SFTool
 
