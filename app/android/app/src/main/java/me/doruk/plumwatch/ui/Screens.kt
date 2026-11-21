@@ -68,6 +68,7 @@ import androidx.compose.material.icons.outlined.LocationSearching
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
@@ -105,6 +106,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -1516,6 +1518,252 @@ private fun AboutSettingsContent(appVersion: String) {
                 DeveloperRow("Doruk Çavdar", "VeriBotOfficial")
                 DeveloperRow("Troy Mitchell", "TroyMitchell911")
             }
+        }
+    }
+}
+
+private data class NotificationAppChoice(
+    val packageName: String,
+    val label: String
+)
+
+@Composable
+fun HealthScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    val manager = remember(context) { BleWatchManager.getInstance(context) }
+    val state by manager.state.collectAsStateWithLifecycle()
+    var feedback by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp)
+            .padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("My Watch")
+        }
+        PageTitle("Health")
+
+        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Heart rate", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        Text(
+                            state.heartRateBpm?.let { "$it bpm" } ?: "No reading yet",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 27.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Icon(Icons.Outlined.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                }
+                FilledTonalButton(
+                    enabled = state.isConnected && state.supportsProprietaryCommands,
+                    onClick = {
+                        feedback = if (manager.requestHeartRateMeasurement()) {
+                            "Heart-rate measurement requested."
+                        } else {
+                            "Could not send the measurement request. Check the watch connection."
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Measure heart rate")
+                }
+            }
+        }
+
+        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Blood oxygen", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Text(
+                    "Request an SpO₂ measurement from the watch.",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 14.sp
+                )
+                FilledTonalButton(
+                    enabled = state.isConnected && state.supportsProprietaryCommands,
+                    onClick = {
+                        feedback = if (manager.requestBloodOxygenMeasurement()) {
+                            "Blood-oxygen measurement requested."
+                        } else {
+                            "Could not send the measurement request. Check the watch connection."
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Measure blood oxygen")
+                }
+            }
+        }
+
+        if (feedback != null) {
+            Text(feedback!!, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        }
+        if (!state.isConnected) {
+            Text("Connect your watch to take measurements.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        }
+    }
+}
+
+private fun hasNotificationListenerAccess(context: Context): Boolean {
+    val enabled = Secure.getString(context.contentResolver, "enabled_notification_listeners").orEmpty()
+    return enabled.split(':').any {
+        ComponentName.unflattenFromString(it)?.packageName == context.packageName
+    }
+}
+
+@Composable
+fun NotificationsScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    val manager = remember(context) { BleWatchManager.getInstance(context) }
+    val watchState by manager.state.collectAsStateWithLifecycle()
+    val preferences = remember(context) {
+        context.getSharedPreferences("plum_watch_notifications", Context.MODE_PRIVATE)
+    }
+    val selectedPackages = remember {
+        mutableStateListOf<String>().apply {
+            addAll(preferences.getStringSet("selected_packages", emptySet()).orEmpty())
+        }
+    }
+    val apps = remember(context) {
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        context.packageManager.queryIntentActivities(launcherIntent, 0)
+            .mapNotNull { resolve ->
+                val activity = resolve.activityInfo ?: return@mapNotNull null
+                val packageName = activity.packageName
+                if (packageName == context.packageName) return@mapNotNull null
+                val label = runCatching { resolve.loadLabel(context.packageManager).toString() }
+                    .getOrDefault(packageName)
+                NotificationAppChoice(packageName, label)
+            }
+            .distinctBy { it.packageName }
+            .sortedBy { it.label.lowercase() }
+    }
+    var accessEnabled by remember { mutableStateOf(hasNotificationListenerAccess(context)) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp)
+            .padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("My Watch")
+        }
+        PageTitle("Notifications")
+
+        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    if (accessEnabled) "Notification access is enabled."
+                    else "Allow Plum Watch to read notifications from the apps you select.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+                FilledTonalButton(
+                    onClick = {
+                        runCatching {
+                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(if (accessEnabled) "Notification access settings" else "Enable notification access")
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SectionHeading("Apps")
+            Text("${selectedPackages.size} selected", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        }
+
+        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                apps.forEachIndexed { index, app ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            if (app.packageName in selectedPackages) selectedPackages.remove(app.packageName)
+                            else selectedPackages.add(app.packageName)
+                            preferences.edit().putStringSet("selected_packages", selectedPackages.toSet()).apply()
+                        }.padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(app.label, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text(app.packageName, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        Checkbox(
+                            checked = app.packageName in selectedPackages,
+                            onCheckedChange = { checked ->
+                                if (checked) {
+                                    if (app.packageName !in selectedPackages) selectedPackages.add(app.packageName)
+                                } else {
+                                    selectedPackages.remove(app.packageName)
+                                }
+                                preferences.edit().putStringSet("selected_packages", selectedPackages.toSet()).apply()
+                            }
+                        )
+                    }
+                    if (index < apps.lastIndex) Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+                }
+            }
+        }
+
+        if (selectedPackages.isEmpty()) {
+            Text(
+                "Choose at least one app. Only its notifications will be passed to the watch.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+        }
+        if (!watchState.isConnected) {
+            Text("Connect your watch to receive notifications.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            accessEnabled = hasNotificationListenerAccess(context)
+            delay(900L)
         }
     }
 }
