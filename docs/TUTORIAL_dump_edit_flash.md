@@ -1,4 +1,4 @@
-# HK 10 Pro Max — SF32LB525 dump, inspect and flash guide
+# HK 10 Pro Max - SF32LB525 dump, inspect and flash guide
 
 This guide is for the `eh-lb525_hcpu` SiFli project in `firmware/hk10promax/`.
 
