@@ -125,7 +125,7 @@ fun CameraScreen(
         }, ContextCompat.getMainExecutor(context))
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(watchCameraEnabled) {
         onDispose {
             runCatching { cameraProviderFuture.get().unbindAll() }
             if (watchCameraEnabled) watchManager.stopCamera()
