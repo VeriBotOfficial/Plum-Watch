@@ -1,373 +1,344 @@
-# Wearfit Pro BLE Protocol Reference
-*Reverse-engineered from `com.wakeup.howear` (Wearfit Pro) APK decompiled with jadx 1.5.1*
+# Wearfit Pro BLE research — APK-derived reference
+
+**Source package:** `com.wakeup.howear`  
+**Version:** `hw_5.6.21` (`versionCode=2026111322`)  
+**Analysis date:** 2026-11-21  
+**APK identity:** see [APK inventory](apk/README.md)  
+**Scope:** static analysis of the supplied split APK set. No live watch session or BLE packet capture was available.
+
+> **Important correction:** this replaces the earlier protocol notes. The old document incorrectly treated the Wearfit command channel and the SiFli serial transport as one universal characteristic/protocol. The APK contains separate app-level Wearfit command construction, a generic BLE stack with caller-supplied service/characteristic UUIDs, and a distinct SiFli serial/watchface stack. These layers must not be conflated.
+
+## Evidence labels
+
+- **Confirmed in APK:** directly visible in DEX method construction, method signatures, class constants, or call paths.
+- **Partially decoded:** the command marker/opcode/array structure is visible, but one or more fields, byte order, or fragment semantics remain unresolved.
+- **Capability only:** a Wearfit API, analyzer, or request class exists; this does not establish a complete packet definition or target-watch support.
+- **Device validation required:** requires an HK 10 Pro Max+ trace or a physical command test.
+
+The supplied APK was structurally inspected with a local DEX/AXML parser. This was **not** a full JADX source decompilation. Findings below cite package/class/method names so they can be rechecked against the exact APK hashes.
 
 ---
 
-## Overview
+## 1. The three BLE layers
 
-Wearfit Pro uses **two BLE command channels** on the same SiFli serial data characteristic (`00000000-0000-0200-6473-5f696c666973`):
+### 1.1 Wearfit app-level command protocol
 
-| Channel | Category | Marker | Description |
-|---------|----------|--------|-------------|
-| **SiFli Watchface** | 0x04 | 0x04 | Native watchface/file transfer (WFPUSH2) |
-| **Proprietary Wearfit** | 0x04 | 0xAB / 0xEA | All other commands (alarms, weather, music, health, etc.) |
+The application constructs command objects in:
 
-Both share the same GATT characteristic. The proprietary commands use a **different framing**:
-- **Marker**: 0xAB (171) or 0xEA (234)
-- **Length**: 2 bytes BE (payload length after header)
-- **Separator**: usually 0xFF; documented heartbeat and physical-training frames use 0x00
-- **Command ID**: 1 byte
-- **Special marker**: some documented outgoing setting frames use 0xDE rather than 0xAB/0xEA
-- **Data...**: Variable
+- `com.wakeup.module.ble.BleWatchServiceImpl` — concrete command builders.
+- `com.wakeup.commponent.module.ble.BleWatchService` — service interface with a large set of operations.
+- `com.wakeup.commponent.module.ble.BleOrderModel` — command envelope.
+- `com.wakeup.module.ble.OrderUtil` — app-level message splitting helper.
+- `com.wakeup.commponent.module.device.work.GetDeviceDataBiz` — device setup and synchronization orchestration.
+- `com.wakeup.module.device.work.analyzer.*` — incoming message analyzers.
 
----
+`BleOrderModel` carries a command `type`, a byte array, an `isSplit` flag and a `splitNum`. The application layer creates an order, then passes it through `DeviceManagerService.sendData(...)`. The concrete `DeviceManagerService` implementation is not present as a normal concrete class in the inspected DEX set; it is exposed through a service abstraction.
 
-## SiFli Watchface Protocol (Category 0x04)
+**Consequence:** a Wearfit command byte array is not itself a GATT characteristic UUID or a complete GATT write recipe. Do not assume that every command is written directly to the SiFli UUID shown below.
 
-### Inner Message Format
-```
-messageId (2 LE) + length (2 LE) + payload
-```
+### 1.2 Generic Wearfit BLE stack
 
-### Serial Framing
-- First frame: `category(1) + flag(1=0/1) + totalLen(2 LE) + payload`
-- Continuation: `category(1) + flag(2/3) + payload`
-- MTU-7 first, MTU-5 continuation
+The APK contains two interchangeable stack backends:
 
-### Watchface Commands
-| Msg ID | Name | Direction | Payload |
-|--------|------|-----------|---------|
-| 0 | ENTIRE_START_REQ | Phone→Watch | type(2) + phoneType(1=2) + totalBytes(4) |
-| 1 | ENTIRE_START_RSP | Watch→Phone | result(2) + maxDataLen(2) + version(2) + blockLength(2) + blockLeft(4) |
-| 2 | FILE_START_REQ | Phone→Watch | fileLen(4) + nameLen(2) + name(UTF-8) |
-| 3 | FILE_START_RSP | Watch→Phone | result(2) |
-| 4 | FILE_DATA_REQ | Phone→Watch | **index(4, starts at 1)** + data |
-| 5 | FILE_DATA_RSP | Watch→Phone | result(2) + expectIndex(4) |
-| 6 | FILE_END_REQ | Phone→Watch | (empty) |
-| 7 | FILE_END_RSP | Watch→Phone | result(2) |
-| 8 | ENTIRE_END_REQ | Phone→Watch | (empty) |
-| 9 | ENTIRE_END_RSP | Watch→Phone | result(2) |
-| 10 | LOSE_CHECK_REQ | Watch→Phone | expectIndex(4) |
-| 11 | LOSE_CHECK_RSP | Phone→Watch | (empty) |
-| 12 | ABORT_CMD | Phone→Watch | reason(1) |
-| 13 | FILE_INFO_REQ | Phone→Watch | fileCount(4) |
-| 14 | FILE_INFO_RSP | Watch→Phone | result(2) |
+- `com.wakeup.module.device.stack.FastBleStack`
+- `com.wakeup.module.device.stack.nordic.NordicBleStack`
 
-### File Transfer Rules (Type 0 = Watchface/DIALPLATE)
-- **Unzip on phone**, push each file **separately**
-- Destination path = `"/" + relativePathInZip` (e.g., `/dyn/dynamic_app/watchface/installer/wf_clock1003.dsc`)
-- **File data index starts at 1** (not 0)
-- **Sort**: descending by size, GIFs last
-- **No padding/CRC** for type 0 (only for type 3/CUSTOM or withByteAlign=true)
-- Max block length from START_RSP or 10KB default
+Both expose write/notify functions that accept a service UUID and characteristic UUID at call time. The Nordic implementation resolves the characteristic, checks the properties, queues a write and uses Nordic BLE library MTU splitting. The FastBle implementation delegates to its shared `BleManager`.
 
----
+The shared stack:
+- accepts the target service and characteristic UUIDs as arguments rather than baking in one universal Wearfit UUID at the public write/notify boundary;
+- has a 20-byte default split-write threshold in the FastBle path, with a warning that a write longer than 20 bytes needs a larger MTU or split-write handling;
+- supports MTU requests and connection/scan state management;
+- uses callbacks for write and notification completion/failure.
 
-## Proprietary Commands (Marker 0xAB/0xEA, Category 0x04)
+**The regular command route is identified in `DeviceConnectMgr` (classes4.dex):**
 
-### Common Header
-```
-0xAB/0xEA + lenHi + lenLo + 0xFF + cmdId + data...
-```
+| Role | UUID |
+|---|---|
+| Default watch-command service | `6E400001-B5A3-F393-E0A9-E50E24DCCA9E` |
+| Default watch-command write characteristic | `6E400002-B5A3-F393-E0A9-E50E24DCCA9E` |
+| Default watch-command notify characteristic | `6E400003-B5A3-F393-E0A9-E50E24DCCA9E` |
 
-### Outgoing Commands (Phone → Watch)
+The connection-success path calls `openWatchNotify()`, which calls `openNotify()`; that method enables notifications on the NUS-style notify characteristic. `execWrite()` supplies the matching NUS service/write characteristic when an order does not carry a UUID override, then submits the write through `IBleStack.write`. This is direct evidence for Wearfit's default command route—not an inference from the UUID strings merely appearing in the APK.
 
-| Command | Name | Payload (hex) | Description |
-|---------|------|---------------|-------------|
-| 0x0B (11) | Heartbeat Reply | `DE 00 03 00 0B 02` | Reply to watch heartbeat (cmd 11/1) |
-| 0x20 (32) | Phone System | `AB 00 05 FF 20 80 01 02` | Tell watch we're Android (1=Android, 2=phone) |
-| 0xE0 (-32) | Connect Request | `AB 00 LL FF E0 80 <type> <modelLen> <model...>` | Type 0/1/2 + phone model (max 11 bytes) |
-| 0x92 (146) | Get Device Info | `AB 00 04 FF 92 80 01` | Request device info (triggers battery cmd 145) |
-| 0x71 (113) | Find Band | `AB 00 03 FF 71 80` | Trigger watch vibration/alert |
-| 0x72 (114) | Smart Warn | `AB 00 05 FF 72 80 <msgId> <type>` | Notification reminder |
-| 0x73 (115) | Set Alarm | `AB 00 09 FF 73 80 <id> <status> <hour> <min> <repeat> <flags>` | Alarm config |
-| 0x74 (116) | Send User Info | `AB 00 0C FF 74 80 <step> <age> <height> <weight> <unit> <goal> <tempUnit> <energy> <gender>` | User profile |
-| 0x75 (117) | Sedentary Warn | `AB 00 09 FF 75 80 <ctrl> <sH> <sM> <eH> <eM> <interval>` | Sedentary reminder |
-| 0x77 (119) | Raise Wrist | `AB 00 04 FF 77 80 <ctrl>` | Wake screen on wrist raise |
-| 0x78 (120) | On-Time Measure | `AB 00 04 FF 78 80 <ctrl>` | Auto HR/SpO2 |
-| 0x79 (121) | Shake Photo | `AB 00 04 FF 79 80 <ctrl>` | Shake to take photo |
-| 0x7B (123) | Language | `AB 00 04 FF 7B 80 <lang>` | Language switch (0=CN, 1=EN, 5=RU, 6=JP, 13=FR, 24=VI, 8=DE, 9=KO, 10=TH, 11=AR) |
-| 0x7C (124) | 12/24 Hour | `AB 00 04 FF 7C 80 <ctrl>` | Time format |
-| 0x80 (128) | Set QR | Variable | QR code data |
-| 0x83 (-125) | Sync Sleep | `AB 00 07 FF 83 80 00 <y-2000> <m> <d>` | Pull sleep data |
-| 0x86 (-122) | Body Temp | `AB 00 04 FF 86 80 <ctrl>` | Temp measurement |
-| 0x88 (-120) | Weather (old) | `AB 00 11 FF 88 80 <7 days: max/min>` | 7-day forecast |
-| 0x90 (-112) | Time Sync | `AB 00 0B FF 90 80 00 <yHi> <yLo> <m> <d> <h> <m> <s>` | Set watch time |
-| 0x91 (-111) | Time Zone | Variable | Timezone sync |
-| 0xA0 (-96) | Reminder Switch | `AB 00 05 FF A0 80 <ctrlBits> <otherBits>` | Global reminder enable |
-| 0xA3 (-93) | Drink Water | `AB 00 09 FF A3 80 <ctrl> <sH> <sM> <eH> <eM> <interval>` | Water reminder |
-| 0xA4 (-92) | Contact Count | `AB 00 05 FF A4 80 <id> <num>` | SOS/contact count |
-| 0xA5 (-91) | Contact Name | Variable (split) | Contact name (multi-packet) |
-| 0xA6 (-90) | Contact Phone | Variable (split) | Contact phone (multi-packet) |
-| 0xC9 (201) | Market Apps | - | Query installed market apps |
-| 0xD5 (-43) | Music Control | - | Play/pause/next/prev/vol |
-| 0xE7 (231) | Camera Preview | - | Camera control |
-| 0xE8 (232) | Camera Photo | - | Photo taken event |
-| 0xFC (-4) | HR Warning | `DE 00 0B FF FC 01 <aerobic> <max1> <rest> <min> <max2> <sleep> <min2> <max3>` | HR zones |
+`DeviceConnectMgr.onNotifyReady()` flushes the pending write queue after notification setup completes. Writes are serialized through the queue. Write success advances the queue; recoverable write failure can pause it and trigger disconnect/reconnect handling. The Android GATT write callback is still only transport-level success, not proof that the watch applied the setting.
 
-### Incoming Commands (Watch → Phone)
+**Remaining uncertainty:** Wearfit has explicit model/protocol route overrides (see [wearfit_uuid_routes.md](wearfit_uuid_routes.md)); the NUS default must still be checked against the exact GATT table exposed by the user's HK 10 Pro Max+. The concrete `DeviceManagerService.sendData` adapter remains behind an app service abstraction in the inspected code.
 
-| Cmd ID | Name | Payload | Description |
-|--------|------|---------|-------------|
-| 0x0B (11) | Heartbeat Req | `01` | Watch requests keep-alive (arg=1) |
-| 0x20 (32) | BLE Request | `00=paired, 01=fail, 02=already` | Pairing status response |
-| 0x92 (146) | Device Info | `version(2) + hwVer(1) + fwVer(2) + ...` | Device capabilities |
-| 0x91 (145) | Battery | `level` at index 7 | Battery percentage (0-100) |
-| 0xE0 (224) | Connect State | `0=accept, 1=reject, 2=timeout, 3=unbound, 4=account` | Connection result |
-| 0x78 (120) | Find Phone | `01=start, 00=stop` | Watch requests phone alert |
-| 0xA8 (168) | QR Result | `result(1)` | QR scan result |
-| 0xAA (170) | SN Report | `SN string` | Device serial number |
-| 0x81 (129) | Language Ack | `lang` | Language set confirmation |
-| 0x87 (135) | Switch State | `switches bitmap` | Reminder switches state |
-| 0x89 (137) | Sport Disconnect | `status` | Sport mode disconnect |
-| 0xC9 (201) | Market Apps | `bitmap` | Installed apps bitmap |
-| 0xA1 (161) | Audio MAC | `6 bytes` | Classic BT MAC for audio |
-| 0xA6 (166) | Audio MAC v2 | - | Alternative audio MAC |
+### 1.3 Separate SiFli serial transport / watchface stack
+
+The app also embeds SiFli-specific transport and watchface code:
+
+- `com.sifli.serialtransport.serialTransService` — older serial transport service.
+- `com.sifli.siflicore.blecore.SFBLEManager` — newer SiFli GATT manager.
+- `com.sifli.watchfacesdk.manager.SFWatchfaceFilePushManager`
+- `com.sifli.watchfacesdk.modules.pushfile.SFPushFileModule`
+- `com.sifli.watchfacesdk.packet.*` — request/response packet classes.
+
+For the SiFli serial path, the APK contains these UUIDs:
+
+| Role | UUID |
+|---|---|
+| GATT service | `00000000-0000-0000-6473-5f696c666973` |
+| Serial data characteristic | `00000000-0000-0200-6473-5f696c666973` |
+| Additional SiFli characteristic | `00000000-0000-0100-6473-5f696c666973` |
+| Client Characteristic Configuration Descriptor | `00002902-0000-1000-8000-00805f9b34fb` |
+
+The SiFli manager resolves the service and read/write characteristic by UUID, enables notifications through CCCD, requests MTU and does not accept queued file-transfer writes before its internal handshake is complete. The older serial transport code also uses the service/data UUID pair and serializes GATT write requests.
+
+**Do not infer that the HK 10 Pro Max+ uses this transport just because Wearfit Pro contains it.** Wearfit Pro supports multiple hardware families. The target watch's advertised GATT table and a successful notification/handshake trace are required to establish applicability.
 
 ---
 
-## Analyzers & Their Command IDs
+## 2. Wearfit command framing and fragmentation
 
-| Analyzer | Marker | Cmd IDs (datas[4]) | Handles |
-|----------|--------|-------------------|---------|
-| ConnectAnalyzer | 171 (0xAB) | 32, 33, 146, 155, 161, 166, 203, 224 | Pairing, device info, connect state, audio MAC |
-| CommonAnalyzer | 171 (0xAB) | 121, 123, 125, 135, 145, 168, 170, 201 | Take photo, language, find phone, switches, **battery**, QR, SN, market apps |
-| OtherAnalyzer | 234 (0xEA) | 2, 11, 16, 17, 19, 20, 26, etc. | Memory, packages, music, license, MTU, screen, active, foreground |
-| RequestHealthAnalyzer | 234 (0xEA) | 199 (sub: 1=glucose, 2=breathe, 3=weight, 6=BMI) | Health data requests |
-| HealthDataAnalyzer | 234 (0xEA) | 131 | Sleep data |
-| HealthDataAnalyzer2 | 234 (0xEA) | 158 | Apnea data |
-| SportAnalyzer | 171/234 | 10, 11, 12, 13, 14, 15, 16 | Sport start/stop/pause/resume, GPS, HR |
-| SettingsAnalyzer | 234 (0xEA) | 34, 35, 36, 37, 38, 39 | Various settings ack |
-| CameraControlAnalyzer | 234 (0xEA) | 21 | Camera preview/photo state |
-| MusicControlAnalyzer | 234 (0xEA) | 19 (sub: 1=play, 2=pause, 3=next, 4=prev, 5=vol) | Music control from watch |
-| GpsAnalyzer | 234 (0xEA) | 9 | GPS/ephemeris |
-| MapNaviAnalyzer | 234 (0xEA) | 9, 10, 11, 12, 13 | Navigation data |
-| NetFtpOtaAnalyzer | 234 (0xEA) | 37 | FOTA over FTP |
-| DialAnalyzer | 171 (0xAB) | 138 | Watchface market index |
-| ScheduleAnalyzer | 234 (0xEA) | 54 | Calendar/schedule sync |
-| RecordingAnalyzer | 234 (0xEA) | 23 | Voice recording control |
-| CallRecordAnalyzer | 234 (0xEA) | 33, 34, 35 | Call logs |
+### 2.1 Common observed byte patterns
+
+Many command builders create arrays whose leading bytes resemble:
+
+```
+marker, length-high, length-low, separator, opcode, command-specific bytes...
+```
+
+Observed markers include `0xAB` and `0xEA`. Separators include `0xFF` and, for at least one physical-training command, `0x00`. Some commands use a `0x80` sub-opcode/control byte; others use `0x01` or `0x00`.
+
+**This is not a validated universal parser format.** The byte layout varies by command builder. Do not apply one generic encoder to all commands until every method has been decoded and compared with a packet capture.
+
+### 2.2 App-level splitting
+
+`OrderUtil.handleMessageBytes`:
+- recognizes message types beginning with `0xAB`, `0xEA`, and `0xC4`;
+- allocates a 20-byte first fragment;
+- uses subsequent fragments with 19-byte data blocks;
+- feeds fragments into an order list.
+
+The exact sequence/index byte semantics are not fully reconstructed in this static pass. The separate `BleOrderModel.isSplit` and `splitNum` fields also control split behaviour. `setSmartWarnCarryContent` explicitly uses a split writer with a 19-byte chunk size and a split count value of 20.
+
+At the BLE transport layer:
+- FastBle's common write path warns when the byte array exceeds 20 bytes and invokes its split writer;
+- the Nordic stack uses `DefaultMtuSplitter` and queues a characteristic write.
+
+These are **two distinct potential fragmentation layers**. Plum Watch should not blindly split a command itself and then ask the BLE library to split it again. First establish which layer owns framing for the specific device route.
+
+
+
+### 2.4 DeviceConnectMgr command queue and notification gate
+
+The regular app command path in `com.wakeup.module.device.work.DeviceConnectMgr` is important to reproducing the source application's behaviour:
+
+1. `onConnectSuccess()` calls `openWatchNotify()`.
+2. `openWatchNotify()` calls `openNotify()`, enabling the NUS notify characteristic.
+3. Pending orders are held until the notify-ready callback; `onNotifyReady()` then starts/flushed the write queue.
+4. `execWrite()` uses the NUS write characteristic by default, or the UUID route attached to an order/model override.
+5. `onWriteSuccess()` removes the completed queue item and advances to the next.
+6. `onWriteFailure()` can pause the queue and invoke recovery/reconnect handling.
+
+This means Plum should not simply set a "connected" flag and immediately fire a group of writes. It should complete service discovery, select the correct route, enable notifications, wait for CCCD completion, and serialize writes. Preserve each order's response/timeout semantics separately from the GATT write callback.
+
+### 2.3 Practical transport requirements
+
+1. Discover the real service/characteristic pair on the target watch.
+2. Check characteristic write properties (write vs write-without-response) and notify/indicate properties separately.
+3. Enable notifications only on the correct response characteristic; complete the CCCD descriptor write and await its callback.
+4. Request MTU, but record the *negotiated* MTU from the callback. A request is not proof that the MTU changed.
+5. Serialize GATT operations and handle callbacks/failures; do not treat a queued write as a device acknowledgement.
+6. Implement fragmentation only after establishing whether app-level or GATT-layer splitting is expected.
 
 ---
 
-## Key Feature Payloads
+## 3. Confirmed command builders
 
-### Weather (sendWeatherInfo2 - cmd 0x88 / -120)
-```
-AB 00 11 FF 88 80
-  [7 days × 2 bytes: maxTemp, minTemp]
-  [7 bytes: weatherIcon codes]
-  [7 bytes: windLevel]
-```
-Total 20 bytes payload. Icons: 0=sunny, 1=cloudy, 2=overcast, 3=shower, 4=thunder, 5=fog, 6=rain, 7=snow, 8=dust, 9=sand, 10=wind, 11=haze, 12=sleet.
+The byte arrays below are taken from `BleWatchServiceImpl` methods in `classes4.dex`. Values written as `<...>` are dynamic inputs; they are not literal bytes.
 
-### Alarms (setAlertClock - cmd 0x73 / 115)
-```
-AB 00 09 FF 73 80 <id> <status> <hour> <min> <repeat> <remindFlags>
-```
-- `id`: 0-7 (8 alarms)
-- `status`: 1=on, 0=off
-- `repeat`: bitmask (1=Mon, 2=Tue, 4=Wed, 8=Thu, 16=Fri, 32=Sat, 64=Sun, 128=once)
-- `remindFlags`: 1=vibrate, 2=sound
+### 3.1 Connection / keep-alive / discovery
 
-### Find Watch (findBand - cmd 0x71 / 113)
+| Operation | Builder | Observed bytes | Evidence |
+|---|---|---|---|
+| Identify phone platform | `setSendPhoneSystem()` | `AB 00 05 FF 20 80 01 02` | Confirmed in method fill-array-data |
+| Device info request | `getDeviceInfoData()` | `AB 00 04 FF 92 80 01` | Confirmed |
+| Find band | `findBand()` | `AB 00 03 FF 71 80` | Confirmed |
+| Heartbeat response | `replyDeviceHeartBeat()` | `EA 00 03 00 0B 02` | Confirmed |
+| Connect request | `sendConnectRequestType(type, model)` | Dynamic `AB ... E0 80 ...` message; model and other dynamic fields are included and the order is marked for splitting | Partially decoded |
+
+The phone-system packet and heartbeat response use **different marker/separator combinations**. Do not rewrite the heartbeat response as an `AB ... FF` packet.
+
+### 3.2 Time and timezone
+
+| Operation | Builder | Observed structure | Evidence |
+|---|---|---|---|
+| Clock sync | `setTimeSync()` | 14-byte array beginning `AB 00 0B FF 93 80`, followed by date/time-derived bytes | Header/opcode confirmed; dynamic byte order requires trace |
+| Timezone sync | `setTimeZoneSync()` | Starts `EA 00 07 FF 93 01`, then timezone offset/metadata and timezone ID bytes; variable length and passed through `OrderUtil.handleMessageBytes` | Partially decoded |
+| Sleep-history request | `syncSleepData(timestamp)` | 10-byte array beginning `AB 00 07 FF 52 80`, with requested date fields | Header/opcode and method signature confirmed |
+
+**Corrections to previous notes:** the time-sync builder uses opcode `0x93`, not `0x90`; the sleep-history request uses opcode `0x52`, not `0x83`. Do not transplant the previous field layouts for these commands.
+
+### 3.3 Device settings
+
+| Feature | Builder | Observed bytes / structure | Notes |
+|---|---|---|---|
+| Raise wrist (basic) | `setUpHandLightScreen(value)` | `AB 00 04 FF 77 80 <value>` | Simple switch form |
+| Raise wrist (extended) | `setWakeUpScreenSettings(a,b)` | `EA 00 05 FF 77 01 <a> <b>` | Separate extended form; not interchangeable |
+| 12/24-hour format | `set12HourSystem(value)` | `AB 00 04 FF 7C 80 <value>` | Confirmed |
+| Language | `setBandLanguage(value)` | `AB 00 04 FF 7B 80 <value>` | A second language setter also exists |
+| Automatic measurement | `setOnTimeMeasure(value)` | `AB 00 04 FF 78 80 <value>` | Method label says on-time/periodic measurement |
+| Single/real-time measurement | `setOnceOrRealTimeMeasure(a,b)` | `AB 00 04 FF 31 <a> <b>` | Distinct from command `0x78` |
+| Shake to photo | `setSharkTakePhoto(value)` | `AB 00 04 FF 79 80 <value>` | Toggle only; not the camera-transfer flow |
+| Body-temperature mode | `bodyTempMeasure(value)` | `AB 00 04 FF 86 80 <value>` | Toggle/config API exists |
+| Sleep mode | `setSleepMode(a,b,c,d)` | `EA 00 07 FF 7F 01 <four dynamic bytes>` | Ten-byte array; exact semantic mapping must be checked at call site |
+| Sleep-time range | `setSleepTimeRange(a,b,c,d,e)` | `AB 00 08 FF 7F 80 <five dynamic bytes>` | Separate command variant; do not combine with sleep-mode packet |
+| DND schedule/settings | `setDisturbanceModel(a,b,c,d,e)` | `AB 00 08 FF 76 80 <five dynamic bytes>` | Eleven-byte array |
+| DND mode | `notDisturbMode(a,b)` | `EA 00 05 FF 76 01 <a> <b>` | Separate eight-byte command |
+| Physical training | `setPhysicalTraining(a,b,c,d)` | Ten-byte array beginning `EA 00 07 00 01 01`, followed by four dynamic values | Separator is `00`, not `FF`; verify exact field meanings |
+
+### 3.4 Reminders and alarms
+
+| Feature | Builder | Observed bytes / structure | Notes |
+|---|---|---|---|
+| Reminder switch bitfields | `reminderSwitch(otherStr, controlStr)` | `AB 00 05 FF A0 80 <other-bits> <control-bits>` | Each string is converted with `BleUtil.bit2Byte`; bit ordering still needs verification |
+| Sedentary reminder | `setSedentaryWarn(...)` | `AB 00 09 FF 75 80 <six dynamic bytes>` | Returns **two** orders: schedule/config packet, then reminder-switch packet |
+| Water reminder | `setDrinkWater(...)` | `AB 00 09 FF 53 80 <six dynamic bytes>` | Uses opcode `0x53`, not `0xA3`; returns two orders |
+| Other reminders | `setRemind(...)` | `AB 00 08 FF 9E <six dynamic bytes>` | Also returns two orders; used for sport/eating/medicine/book/walk-style reminders |
+| HR early-warning zones | `setHrEarlyWarning(...)` | `EA 00 0B FF A0 00 <eight dynamic values>` | Not the same packet as `reminderSwitch`, despite both using opcode `0xA0` |
+| Alarm | `setAlertClock(...)` | 12-byte array beginning `AB 00 <dynamic> FF 73 80 ...` | Third byte is copied from a method input; it is **not a fixed `0x08`**. Six integer parameters are accepted. Decode caller-to-field mapping before implementing. |
+
+For the three schedule methods, the service returns an array of two `BleOrderModel` entries. Plum must send both in the original order. Sending only the obvious schedule packet omits the switch/enable state.
+
+The alarm call path in `GetDeviceDataBiz.setClock` retrieves alarm hour, minute, repeat and reminder flags from `ClockModel`, bit-packs repeat and passes them into `setAlertClock`. The precise meaning of all six method arguments and the dynamic length/control byte remains unresolved here.
+
+### 3.5 Notifications
+
+`mesNotifyPush(iconPrompt, show, hideDetails)` builds a 9-byte array:
+
 ```
-AB 00 03 FF 71 80
-```
-Watch vibrates/alerts. Uses standard Immediate Alert Service (0x1802) as fallback.
-
-### Music Control (from watch → phone, cmd 19)
-Watch sends: `EA 00 03 FF 13 <ctrl>`
-- ctrl: 1=play, 2=pause, 3=next, 4=prev, 5=volume
-
-### Camera Control
-- **Shake to Photo** (cmd 0x79/121): `AB 00 04 FF 79 80 <1=on/0=off>`
-- **Preview State** (watch→phone, cmd 21): `EA ... 15 <0=stop/1=start> <frame>`
-- **Photo Taken** (watch→phone, cmd 21): `EA ... 15 <2=photo> <result>`
-
-### Notifications (mesNotifyPush - cmd 0x72/114 variant)
-```
-DE 00 06 FF 72 01 <iconPrompt> <notifyDisplay> <hideDetail>
-```
-- iconPrompt: 0=none, 1=call, 2=msg, 3=app...
-- notifyDisplay: 1=show
-- hideDetail: 1=hide content
-
-### Sleep Mode (setSleepMode - cmd 0x7F/127)
-```
-DE 00 07 FF 7F 01 <autoOpen> <mode> <tracking> <chargeRemind>
-```
-- mode: 0=off, 1=manual, 2=auto
-
-### Physical Training (setPhysicalTraining - cmd 0x01)
-```
-DE 00 07 00 01 01 <autoPause> <startPrompt> <stopPrompt> <keyPause>
+EA 00 06 FF 72 01 <iconPrompt> <show> <hideDetails>
 ```
 
-### HR Early Warning (setHrEarlyWarning - cmd 0xFC/252)
-```
-DE 00 0B FF FC 01 <aerobic> <max1> <rest> <min> <max2> <sleep> <min2> <max3>
-```
+This is an `EA` marker packet. The old document's `DE ... 72` framing is not supported by the supplied builder.
 
-### Sedentary / Water / Drink Reminders
-All use `reminderSwitch` (cmd 0xA0/-96) bitmap + specific command:
-- Sedentary: 0x75 (117)
-- Drink Water: 0xA3 (163)
-- Medicine/Book/Travel: 0x9E (158) REMIND_4
+`setSmartWarnCarryContent(..., content)` builds notification content from bytes, uses a 19-byte split writer and marks the order for splitting. Keep this separate from the notification-display preferences.
 
-### Contacts
-- Count + SOS: cmd 0xA4 (-92) `AB 00 05 FF A4 80 <id> <num>`
-- Name: cmd 0xA5 (-91) split across packets (max 20 bytes/packet)
-- Phone: cmd 0xA6 (-90) split across packets
+### 3.6 Other confirmed builders
 
-### Health Data Requests (watch→phone, cmd 199 sub-commands)
-| Sub | Type | Description |
-|-----|------|-------------|
-| 1 | Glucose | Request glucose history |
-| 2 | Breathe | Request breath training data |
-| 3 | Weight | Request weight history |
-| 6 | BMI | Request BMI history |
-
-Watch expects phone to reply with data via `sendGlucose`, `sendBreathe`, `sendWeight`, `sendBmi`.
-
-### File Transfer (Non-watchface)
-Uses `sendFileTransHead` / `sendFileTransData` with MTU-sized chunks.
-- Head: `50 00 LL LL <fileInfo>`
-- Data: `51 00 LL LL <chunk>`
-- Response codes: 0=OK, 1=busy, 2=error, 3=retry
+- `getMtu(...)` — opcode `0xA9`; exact response negotiation semantics require call-site trace.
+- `sendWeatherInfo` / `sendWeatherInfo2` / `sendCityWeather` / `sendCityAllWeather` — builders exist, but this pass has not validated all fields and array lengths.
+- `sendUserInfo`, `syncMetGoal`, `sendTemperatureUnit` — user/device profile and unit synchronization APIs exist; payload definitions need more decoding before use.
 
 ---
 
-## Connection Handshake Sequence
+## 4. Device setup and capability gating
 
-1. **GATT connect** → service discovery
-2. **Enable notifications/indications** on the SiFli data characteristic when the watch exposes a CCCD; this is required for response-driven watchface transfer, but not for write-only settings
-3. **Request MTU 247** for the SiFli file-transfer path
-4. **Proprietary handshake** (once the writable serial characteristic is available):
-   - `setSendPhoneSystem()` → `AB 00 05 FF 20 80 01 02`
-   - `sendConnectRequestType(0, model)` → `AB 00 LL FF E0 80 00 <model>`
-   - `getDeviceInfoData()` → `AB 00 04 FF 92 80 01`
-5. **Watch replies** with device info (cmd 146) + battery (cmd 145)
-6. **Heartbeat**: reply to each received cmd 11/1 with `DE 00 03 00 0B 02`; do not send unsolicited periodic replies
+`GetDeviceDataBiz` shows that Wearfit does not simply blast every setting packet to every connected device.
 
----
+- `connectSend` checks whether the device is in an OTA state and skips ordinary synchronization while OTA is active.
+- It obtains device identity/SN and sends timezone, time and MTU-related commands during connection setup, alongside additional device-specific requests.
+- `deviceExpandSynchronize` syncs settings through individual methods (wrist wake, notifications, HR warning, DND, sleep settings, training, language, alarms, reminders and more).
+- Several operations are guarded by `DeviceDao.isSupport(...)` and device-type/support metadata.
+- Language setup can call both `setBandLanguage2` and `setBandLanguage`.
+- Alarm and reminder settings are assembled from persisted model objects rather than from raw UI booleans alone.
 
-## Battery Reporting
-
-Two paths:
-1. **Standard BLE Battery Service** (0x180F/0x2A19) - read/notify
-2. **Proprietary** (cmd 145 from watch, index 7) - auto-reported after device info request
-
-Battery refresh belongs to the device connection/card flow and uses the standard Battery Level characteristic and/or a device-info request. Health refresh is separate and is reserved for health measurements such as heart rate.
+**Implication for Plum Watch:** command knowledge alone is not enough. It needs device identification/capability gating, the real transport route, correct field values, and response verification. A writable GATT characteristic does not mean that the firmware recognises every Wearfit command.
 
 ---
 
-## Music File Transfer
+## 5. Incoming-message architecture
 
-`startPushMusic` → ZIP `music/song/<filename>` → `startTransfer(type=4, withByteAlign=true)`
+The APK contains dedicated analyzers, including:
 
-Uses SiFli file transfer (type 4 = music) with byte alignment + CRC.
+- `ConnectAnalyzer`
+- `CommonAnalyzer`
+- `OtherAnalyzer`
+- `SettingsAnalyzer`
+- `SportAnalyzer`
+- `RequestHealthAnalyzer`
+- `HealthDataAnalyzer` / `HealthDataAnalyzer2`
+- `CameraControlAnalyzer`
+- `MusicControlAnalyzer`
+- `GpsAnalyzer`
+- `MapNaviAnalyzer`
+- `ScheduleAnalyzer`
+- `NetFtpOtaAnalyzer`
+- `RecordingAnalyzer`
+- `CallRecordAnalyzer`
+- `DialAnalyzer`
+- `FriendsAnalyzer`
+- `MenstrualAnalyzer`
+- `PictureTransferAnalyzer`
+- `AiAnalyzer`
 
----
+`DataPackager` has buffering, package-completion and reset methods, which indicates that incoming messages may be assembled before analyzer dispatch. `OtherAnalyzer` handles the heartbeat path and sends `replyDeviceHeartBeat()`.
 
-## Watchface Market Install
-
-`marketInstall(typeId, data, weChatPaySwitch)` → `AB 00 05 FF CB 80 <typeId> <data> <pay>`
-
-Not the same as custom watchface transfer.
-
----
-
-## OTA / Firmware
-
-- **FTP OTA**: `ftpOTAStart(v1,v2,size)` → `ftpOTAFileList` → `ftpOTAProgress` → `ftpOTAEnd`
-- **ZK OTA**: `sendZkOtaFix1/2`, `startZkOta`
-- **Nucleic Acid Code**: `sendNucleicAcidCodeHead/Data` (COVID health codes)
-
----
-
-## GPS / Navigation
-
-- `sendEphemerisState(isOffline)` → `syncGpsData` → `sendLocation`
-- Navigation: `sendMapNaviStatus/Start/Data/Direction/Mode`
-- Commands: 0xE9-0xED range
-
----
-
-## AI / Voice / Translation
-
-- `sendGptResult`, `sendGptSteamResult`, `sendGptTodo`
-- `sendTransLangId`, `sendTransIdState`
-- `sendQuestionSteamResult`
+This confirms a structured receive pipeline rather than a fire-and-forget-only application. It does **not** provide a reliable complete response-opcode catalogue. Plum should not claim "watch confirmed" merely because Android's GATT write callback succeeded.
 
 ---
 
-## Error Codes (SiFli Watchface)
+## 6. Feature evidence: what is and is not established
 
-| Code | Constant | Meaning |
-|------|----------|---------|
-| 21 | FILE_SIZE_ALIGNED_MISSING | Size not 4-byte aligned |
-| 22 | STATUS_FILE_PATH_ERROR | **Destination path rejected** (fix: use `/` + relative path) |
-| 23 | STATUS_FILE_TYPE_ERROR | Invalid file type |
-| 29 | STATUS_FILE_EXTENSION_ERROR | Bad extension |
-| 30 | MKDIR_ERROR | Cannot create directory |
-| 31 | SWITCH_DIRECTORY_ERROR | Cannot change directory |
-| 34 | FILE_SIZE_ERROR | File size mismatch |
-
----
-
-## Implementation Notes for Plum Watch
-
-### Packet Construction Helper
-```kotlin
-fun proprietaryPacket(cmdId: Int, data: ByteArray): ByteArray {
-    val bodyLen = 2 + data.size  // 0xFF + cmdId + data
-    return byteArrayOf(
-        -85,                    // 0xAB marker
-        (bodyLen shr 8).toByte(),
-        (bodyLen and 0xFF).toByte(),
-        -1,                     // 0xFF separator
-        cmdId.toByte()
-    ) + data
-}
-```
-
-### Response Parsing
-```kotlin
-fun parseProprietaryResponse(bytes: ByteArray): ProprietaryResponse? {
-    if (bytes.size < 5) return null
-    if (bytes[0].toInt() and 0xFF != 0xAB && bytes[0].toInt() and 0xFF != 0xEA) return null
-    val len = ((bytes[1].toInt() and 0xFF) shl 8) | (bytes[2].toInt() and 0xFF)
-    if (bytes.size < 3 + len) return null
-    if (bytes[3].toInt() and 0xFF != 0xFF) return null
-    val cmdId = bytes[4].toInt() and 0xFF
-    val data = bytes.copyOfRange(5, 5 + len - 2)
-    return ProprietaryResponse(cmdId, data)
-}
-```
+| Feature | APK evidence | Plum recommendation |
+|---|---|---|
+| Find watch | Explicit builder `findBand` | Candidate after transport is identified |
+| Battery/device info | Device-info request and incoming analyzer classes | Parse actual response and battery source |
+| Heart rate | Standard health and request/response analyzers exist | Needs actual target service/notification trace |
+| Alarms | Builder + caller-side alarm model conversion | Rebuild after exact alarm byte mapping and device test |
+| Raise wrist / time format / language | Multiple builder variants | Treat each variant separately; confirm capability |
+| Periodic HR/SpO₂ / body-temperature options | Builders exist | Feature availability and parameter mapping need target test |
+| Sedentary / water / other reminders | Builders return two packets | Must send both and reproduce bitfield generation |
+| Notification display/content | Display builder + split content builder | Needs correct split and app ID mappings |
+| Sleep mode / time window / sleep history | Several distinct builders | Do not conflate three operations |
+| Music control | Inbound analyzer and media control APIs exist | Determine target command route and Android media integration |
+| Watchface | SiFli SDK file-push state machine exists | Only if the target exposes the matching SiFli service and handshake |
+| Weather | Several APIs exist | Do not use old guessed seven-day payload; decode fully |
+| DND | Two separate command builders exist | Do not assume old DE marker/payload |
+| Contacts / SOS | APIs exist | Fragmentation and field layout not fully established |
+| Sport / GPS / maps / OTA / Wi-Fi / calls / recordings / AI | Numerous APIs and analyzer classes exist | Capability/API evidence only; separate research required |
 
 ---
 
-## File References (Decompiled Sources)
+## 7. What this means for the current Plum implementation
 
-| File | Path | Description |
-|------|------|-------------|
-| WatchBleOrder | `out2/sources/com/wakeup/commponent/module/ble/WatchBleOrder.java` | All command name constants |
-| BleWatchServiceImpl | `out4/sources/com/wakeup/module/ble/BleWatchServiceImpl.java` | Outgoing command payloads |
-| ConnectAnalyzer | `out4/sources/com/wakeup/module/device/work/analyzer/ConnectAnalyzer.java` | Pairing/device info handlers |
-| CommonAnalyzer | `out4/sources/com/wakeup/module/device/work/analyzer/CommonAnalyzer.java` | Battery, language, find phone, QR, SN |
-| OtherAnalyzer | `out4/sources/com/wakeup/module/device/work/analyzer/OtherAnalyzer.java` | Memory, music, license, MTU, screen |
-| SportAnalyzer | `out4/sources/com/wakeup/module/device/work/analyzer/SportAnalyzer.java` | Sport control |
-| RequestHealthAnalyzer | `out4/sources/com/wakeup/module/device/work/analyzer/RequestHealthAnalyzer.java` | Health data requests |
-| HealthDataAnalyzer | `out4/sources/com/wakeup/module/device/work/analyzer/HealthDataAnalyzer.java` | Sleep data |
-| CameraControlAnalyzer | `out4/sources/com/wakeup/module/device/work/analyzer/CameraControlAnalyzer.java` | Camera |
-| MusicControlAnalyzer | `out4/sources/com/wakeup/module/device/work/analyzer/MusicControlAnalyzer.java` | Music |
-| SicheTransferMgr | `out4/sources/com/wakeup/module/device/trans/SicheTransferMgr.java` | File/music/watchface transfer |
-| SFWatchfaceFilePushManager | `out17/sources/com/sifli/watchfacesdk/manager/SFWatchfaceFilePushManager.java` | SiFli watchface protocol |
-| SFWatchfacePushFileTask | `out17/sources/com/sifli/watchfacesdk/task/SFWatchfacePushFileTask.java` | Per-file push logic |
-| SifliWFService | `out17/sources/com/sifli/watchfacelibrary/SifliWFService.java` | Legacy watchface service |
+The earlier Plum research and implementation assumed several packet layouts that do not match the actual methods in this APK. Known examples:
+
+1. Time sync: old `0x90` claim → APK builder uses `0x93`.
+2. Sleep history: old `0x83` claim → APK builder uses `0x52`.
+3. Notification display: old `DE` marker → APK builder uses `EA`.
+4. Water reminder: old `0xA3` claim → APK builder uses `0x53`.
+5. Sleep mode, sleep-time range and DND schedule are separate packet variants with different markers/separators.
+6. Sedentary, water and other reminder methods return a pair of orders; a single write is incomplete.
+7. Alarm's third header byte is dynamic, not a constant header length.
+8. Generic Wearfit command transport cannot be assumed to be the SiFli watchface characteristic.
+
+These are sufficient reasons to treat the earlier `WearfitProtocol.kt` assumptions as unverified and not build more features on top of them.
+
+### Recommended order for future Plum work
+
+1. **Capture the target's GATT map:** service UUIDs, characteristic UUIDs, properties, descriptors and MTU.
+2. **Capture a successful Wearfit Pro session with this exact watch:** connection/bonding, notification enable, handshake, device-info request, heartbeat, and one setting at a time.
+3. **Compare target trace with these APK-built payloads:** confirm marker, length, command, field offsets, byte order, split headers, acknowledgements and retries.
+4. **Identify the real app-to-stack routing:** establish which device family/transport backend and UUIDs Wearfit selects for the HK 10 Pro Max+.
+5. **Implement one safe command end-to-end:** require GATT write success plus a watch-originated acknowledgement/read-back or visible state change.
+6. **Only then add the rest of the settings and features.**
 
 ---
 
-*Generated from Wearfit Pro `com.wakeup.howear` v2.x (base.apk 202MB, 17 DEX files)*
-*Decompiled with jadx 1.5.1 (`--no-res` per DEX)*
+## 8. Source map inside the APK
+
+| Purpose | DEX | Class / method |
+|---|---|---|
+| Wearfit command construction | `classes4.dex` | `com.wakeup.module.ble.BleWatchServiceImpl` |
+| Command interface and order envelope | `classes2.dex` / `classes4.dex` | `BleWatchService`, `BleOrderModel` |
+| App-level splitting | `classes4.dex` | `com.wakeup.module.ble.OrderUtil.handleMessageBytes` |
+| Connection and synchronization | `classes4.dex` | `GetDeviceDataBiz.connectSend`, `deviceExpandSynchronize`, `deviceInfoBiz` |
+| Generic BLE transport | `classes4.dex` | `FastBleStack`, `NordicBleStack`, `BleManager` |
+| Incoming responses | `classes4.dex` | `com.wakeup.module.device.work.analyzer.*` |
+| SiFli serial transport | `classes12.dex` | `com.sifli.serialtransport.serialTransService` |
+| SiFli BLE manager | `classes14.dex` | `com.sifli.siflicore.blecore.SFBLEManager` |
+| SiFli watchface SDK | `classes17.dex` | `com.sifli.watchfacesdk.*` |
+
+## 9. Limitations
+
+- No live BLE capture from the user's HK 10 Pro Max+ was provided.
+- Wearfit's concrete `DeviceManagerService` transport adapter and all runtime UUID-selection paths were not reconstructed in this pass.
+- Some command methods were inspected at byte-array construction level; all caller argument semantics and all acknowledgements were not decoded.
+- The APK contains many optional APIs for device families other than the user's watch.
+- Static APK evidence establishes what this Wearfit build can construct and process, not what the target firmware accepts.
+
+**Do not promote a row marked Partially decoded / Capability only to "working" until a physical target-watch trace confirms it.**
