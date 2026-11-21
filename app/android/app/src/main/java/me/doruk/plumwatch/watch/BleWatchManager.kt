@@ -700,13 +700,9 @@ class BleWatchManager(context: Context) {
     }
 
     private fun finishServiceSetup(gatt: BluetoothGatt) {
-        // Current Time writes and Battery reads are independent optional GATT operations.
-        startCurrentTimeSync(gatt)
-        readPendingBattery(gatt)
-
-        if (sifliDataCharacteristic != null && sifliMtu <= 23) {
-            runCatching { gatt.requestMtu(SIFLI_REQUESTED_MTU) }
-        }
+        // A successful Current Time write calls readPendingBattery from its completion callback.
+        // If CTS is unavailable or its write cannot start, read battery immediately instead.
+        if (!startCurrentTimeSync(gatt)) readPendingBattery(gatt)
         startProprietaryHandshake(gatt)
     }
 
