@@ -293,7 +293,8 @@ fun MyWatchScreen(
     onReconnect: () -> Unit,
     onRemoveWatch: () -> Unit,
     onOpenWatchfaces: () -> Unit,
-    onFindWatch: () -> Unit
+    onFindWatch: () -> Unit,
+    onRefreshHealth: () -> Unit
 ) {
     val context = LocalContext.current
     var showRemoveDialog by remember { mutableStateOf(false) }
@@ -399,6 +400,7 @@ fun MyWatchScreen(
                     subtitle = state.heartRateBpm?.let { "$it bpm" } ?: "Heart rate",
                     enabled = state.isConnected,
                     onClick = {
+                        onRefreshHealth()
                         val message = state.heartRateBpm?.let { "Heart rate: $it bpm" }
                             ?: if (state.supportsHeartRate) {
                                 "Waiting for a heart-rate measurement from the watch."
@@ -701,13 +703,11 @@ private fun ConnectedWatchCard(
                 }
             }
 
-            if (supportsBattery || batteryPercent != null) {
-                WatchMetric(
-                    label = "Battery",
-                    value = batteryPercent?.let { "$it%" } ?: "Reading",
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            WatchMetric(
+                label = "Battery",
+                value = batteryPercent?.let { "$it%" } ?: "Checking",
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
