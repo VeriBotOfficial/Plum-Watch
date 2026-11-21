@@ -1,7 +1,6 @@
 package me.doruk.plumwatch.ui
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
@@ -67,6 +65,7 @@ fun CameraScreen(
     }
     var lensFacing by remember { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var watchCameraEnabled by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
     val previewView = remember(context) {
         PreviewView(context).apply {
@@ -90,7 +89,8 @@ fun CameraScreen(
 
     LaunchedEffect(hasCameraPermission) {
         if (hasCameraPermission) {
-            statusMessage = if (watchManager.startCamera()) {
+            watchCameraEnabled = watchManager.startCamera()
+            statusMessage = if (watchCameraEnabled) {
                 "Camera preview mode enabled on the watch."
             } else {
                 "Phone camera is ready; the watch command could not be queued."
@@ -128,7 +128,7 @@ fun CameraScreen(
     DisposableEffect(Unit) {
         onDispose {
             runCatching { cameraProviderFuture.get().unbindAll() }
-            watchManager.stopCamera()
+            if (watchCameraEnabled) watchManager.stopCamera()
         }
     }
 
