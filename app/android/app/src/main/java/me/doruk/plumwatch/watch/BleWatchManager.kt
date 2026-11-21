@@ -1405,52 +1405,27 @@ class BleWatchManager(context: Context) {
         sendProprietaryCommand(gatt, char, PROPRIETARY_PHONE_SYSTEM_PAYLOAD)
         handler.postDelayed({
             if (bluetoothGatt === gatt) {
-                sendProprietaryCommand(gatt, char, buildConnectRequestPayload())
-            }
-        }, 300L)
-
-        handler.postDelayed({
-            if (bluetoothGatt === gatt) {
                 sendProprietaryCommand(gatt, char, PROPRIETARY_DEVICE_INFO_PAYLOAD)
             }
-        }, 650L)
+        }, 300L)
     }
 
-
-    /** Builds the "connect request type" command: 0xAB 0x00 <len> 0xFF 0xE0 <type> <model>... */
-    private fun buildConnectRequestPayload(): ByteArray {
-        val modelBytes = android.os.Build.MODEL.toByteArray(StandardCharsets.UTF_8)
-        val model = if (modelBytes.size > 11) modelBytes.copyOfRange(0, 11) else modelBytes
-        // E0 80 <connection type=0> <model length> <model bytes>.
-        val payload = ByteArray(8 + model.size)
-        val bodyLength = payload.size - 3
-        payload[0] = 0xAB.toByte()
-        payload[1] = (bodyLength ushr 8).toByte()
-        payload[2] = bodyLength.toByte()
-        payload[3] = 0xFF.toByte()
-        payload[4] = 0xE0.toByte()
-        payload[5] = 0x80.toByte()
-        payload[6] = 0 // connect request type
-        payload[7] = model.size.toByte()
-        System.arraycopy(model, 0, payload, 8, model.size)
-        return payload
-    }
 
     @SuppressLint("MissingPermission")
     fun findWatch() {
         val gatt = bluetoothGatt ?: return
         handler.removeCallbacks(stopFindWatchTask)
 
-        val standardStarted = findWatchCharacteristic?.let { characteristic ->
-            writeAlertLevel(gatt, characteristic, ALERT_LEVEL_HIGH)
+        val proprietaryStarted = wearfitWriteCharacteristic?.let { characteristic ->
+            sendProprietaryCommand(gatt, characteristic, buildFindBandPayload())
         } ?: false
+        val standardStarted = if (proprietaryStarted) false else {
+            findWatchCharacteristic?.let { characteristic ->
+                writeAlertLevel(gatt, characteristic, ALERT_LEVEL_HIGH)
+            } ?: false
+        }
         if (standardStarted) {
             handler.postDelayed(stopFindWatchTask, FIND_WATCH_ALERT_DURATION_MS)
-        }
-        val proprietaryStarted = if (standardStarted) false else {
-            wearfitWriteCharacteristic?.let { characteristic ->
-                sendProprietaryCommand(gatt, characteristic, buildFindBandPayload())
-            } ?: false
         }
 
         if (!standardStarted && !proprietaryStarted) {
