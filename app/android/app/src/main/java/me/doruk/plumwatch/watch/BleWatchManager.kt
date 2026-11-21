@@ -90,8 +90,10 @@ data class BleUiState(
     val discoveredServiceCount: Int = 0,
     val batteryPercent: Int? = null,
     val heartRateBpm: Int? = null,
+    val bloodOxygenPercent: Int? = null,
     val supportsBattery: Boolean = false,
     val supportsHeartRate: Boolean = false,
+    val supportsBloodOxygen: Boolean = false,
     val canFindWatch: Boolean = false,
     val supportsTimeSync: Boolean = false,
     val lastTimeSyncAt: Long? = null,
@@ -725,6 +727,27 @@ class BleWatchManager(context: Context) {
                 if (level in 0..100) {
                     mutableState.update {
                         it.copy(batteryPercent = level, supportsBattery = true)
+                    }
+                }
+                return
+            }
+
+            // Wearfit measurement responses use command 0x31. The first data
+            // byte selects the measurement (9=heart rate, 17=SpO2), and the
+            // next byte contains the returned one-byte value.
+            if (commandId == 0x31 && cmd.size >= 7) {
+                val measurementType = cmd[5].toInt() and 0xFF
+                val reading = cmd[6].toInt() and 0xFF
+                when (measurementType) {
+                    9 -> if (reading in 1..255) {
+                        mutableState.update {
+                            it.copy(heartRateBpm = reading, supportsHeartRate = true)
+                        }
+                    }
+                    17 -> if (reading in 1..100) {
+                        mutableState.update {
+                            it.copy(bloodOxygenPercent = reading, supportsBloodOxygen = true)
+                        }
                     }
                 }
                 return
