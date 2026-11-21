@@ -15,4 +15,4 @@ scons --board=eh-lb525 -j8
 
 The board configuration describes an SF32LB525-class target. SFTool selects this chip family using `-c SF32LB52`.
 
-The included LB525 `ptab.json` should be confirmed against watch's live FTAB before relying on its addresses. See [the repository dump/flash guide](../../docs/TUTORIAL_dump_edit_flash.md).
+The included LB525 `ptab.json` should be confirmed against watch's live FTAB before relying on its addresses. See [dump/flash guide](../../docs/TUTORIAL_dump_edit_flash.md).
