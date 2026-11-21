@@ -1801,7 +1801,7 @@ private fun QrCodeSettingsContent(onBack: () -> Unit) {
                             sending = true
                             scope.launch {
                                 val queued = watchManager.setQrCode(qrText, qrType)
-                                if (queued) lastSent = qrText
+                                lastSent = if (queued) qrText else null
                                 sending = false
                             }
                         }
@@ -1890,7 +1890,7 @@ private fun AlarmRow(
                 TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Done" else "Edit") }
                 TextButton(
                     onClick = { onSend(config) },
-                    enabled = config.enabled
+                    enabled = true
                 ) { Text("Send", color = MaterialTheme.colorScheme.primary) }
                 IconButton(onClick = { onDelete(config) }) {
                     Icon(Icons.Outlined.DeleteOutline, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
@@ -1908,7 +1908,7 @@ private fun AlarmRow(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = config.hour.toString(),
-                        onValueChange = { v -> alarm.value = config.copy(hour = v.toIntOrNull() ?: config.hour) },
+                        onValueChange = { v -> alarm.value = config.copy(hour = (v.toIntOrNull() ?: config.hour).coerceIn(0, 23)) },
                         label = { Text("Hour") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -1916,7 +1916,7 @@ private fun AlarmRow(
                     )
                     OutlinedTextField(
                         value = config.minute.toString(),
-                        onValueChange = { v -> alarm.value = config.copy(minute = v.toIntOrNull() ?: config.minute) },
+                        onValueChange = { v -> alarm.value = config.copy(minute = (v.toIntOrNull() ?: config.minute).coerceIn(0, 59)) },
                         label = { Text("Minute") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -1960,7 +1960,14 @@ private fun RepeatMaskSelector(currentMask: Int, onChange: (Int) -> Unit) {
             val checked = (currentMask and bit) != 0
             FilterChip(
                 selected = checked,
-                onClick = { onChange(if (checked) currentMask and bit.inv() else currentMask or bit) },
+                onClick = {
+                    val nextMask = when {
+                        checked -> currentMask and bit.inv()
+                        bit == 128 -> 128
+                        else -> (currentMask and 128.inv()) or bit
+                    }
+                    onChange(nextMask)
+                },
                 label = { Text(label, fontSize = 11.sp) },
                 modifier = Modifier.padding(vertical = 4.dp)
             )
@@ -1969,7 +1976,7 @@ private fun RepeatMaskSelector(currentMask: Int, onChange: (Int) -> Unit) {
 }
 
 fun repeatSummary(mask: Int): String {
-    if (mask == 0) return "Once"
+    if (mask == 0 || mask == 128) return "Once"
     val days = listOf(1 to "Mon", 2 to "Tue", 4 to "Wed", 8 to "Thu", 16 to "Fri", 32 to "Sat", 64 to "Sun")
     val selected = days.filter { (mask and it.first) != 0 }.map { it.second }
     if (selected.size == 7) return "Daily"
