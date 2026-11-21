@@ -1,59 +1,9 @@
-# ESP8266 as a USB-to-UART adapter (fallback)
+# ESP8266 note — not recommended for SFTool flashing
 
-Use this only if no dedicated USB-to-UART adapter (CP2102, FTDI, CH340) is available. A dedicated adapter is more reliable for flashing the SF32LB525. The ESP8266 approach works for basic UART passthrough but is less stable at high baud rates and offers no hardware flow control.
+A bare ESP8266 is **not** a USB-to-UART adapter. The previous sketch in this document was not a valid transparent bridge: an ESP8266's UART and a development board's USB-to-serial connection are not an independent USB-CDC interface that can be bridged by calling `Serial.swap()`.
 
-## Principle
+For reliable SF32LB525 firmware reads/writes, use a dedicated 3.3 V TTL USB-to-UART adapter (CP2102, FTDI or CH340).
 
-Flash a simple sketch onto an ESP8266 (e.g., NodeMCU / Wemos D1 Mini) that bridges its hardware UART (TX/RX pins) to its USB-CDC serial port. The PC sees the ESP8266 as a COM port; connect the watch to the ESP8266's TX/RX pins.
+Some ESP8266 development boards include a USB-to-serial chip, but their USB/UART wiring and reset circuitry vary by board. Do not assume such a board can be used as a transparent adapter or connect its pins to the watch without checking its schematic.
 
-## Wiring (ESP8266 -> watch)
-
-| Watch pad | ESP8266 pin | Note |
-|---|---|---|
-| `DBG_TX0` | ESP8266 RX (e.g., GPIO3 / RX) | Watch -> ESP8266 -> PC |
-| `DBG_RX0` | ESP8266 TX (e.g., GPIO1 / TX) | PC -> ESP8266 -> Watch |
-| `GND` | GND | Common ground |
-
-Power the watch from its own battery; power the ESP8266 from USB. Share GND between them.
-
-## Example Arduino sketch
-
-```cpp
-// ESP8266 as a USB-to-UART bridge
-// PC <-> ESP8266 USB <-> ESP8266 UART1 <-> Watch
-
-void setup() {
-  // USB-CDC to PC
-  Serial.begin(115200);
-  // Hardware UART1 to watch (GPIO1=TX, GPIO3=RX on most ESP8266 boards)
-  Serial.swap();  // move Serial to UART1 pins (TX=GPIO1, RX=GPIO3)
-}
-
-void loop() {
-  // PC -> Watch
-  while (Serial.available()) {
-    Serial.write(Serial.read());  // after swap(), Serial is UART1
-  }
-  // Watch -> PC
-  while (Serial.available()) {
-    Serial.write(Serial.read());
-  }
-}
-```
-
-> On many ESP8266 boards `Serial.swap()` redirects the hardware UART to GPIO1/TX and GPIO3/RX. Verify your board's pinout. Match the baud rate to what sftool/the watch expect (default 1,000,000 for flashing; the boot ROM may use a lower rate).
-
-## Using it with sftool
-
-Once the ESP8266 appears as a COM port (e.g., `COM5` or `/dev/ttyUSB0`), point sftool at it as you would a CP2102:
-
-```bash
-sftool -c SF32LB52 -m nor -p /dev/ttyUSB0 --baud 1000000 read_flash dump.bin@0x12060000:0x380000
-```
-
-## Caveats
-
-- ESP8266 UART is 3.3 V — matches the watch.
-- No RTS/CTS hardware flow control; manual reset of the watch is required to enter download mode.
-- High baud rates (1 Mbps) may be unreliable over the ESP8266 USB bridge. If flashing fails, lower baud (`--baud 115200`).
-- Prefer a dedicated CP2102/FTDI/CH340 adapter for the actual dump/flash; keep this as a last resort.
+Do not connect any 5 V signal or adapter power pin to the watch. See [HARDWARE_PINOUT_CP2102.md](HARDWARE_PINOUT_CP2102.md).
