@@ -1,0 +1,236 @@
+package me.doruk.plumwatch.ui
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.Preview
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Cameraswitch
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import me.doruk.plumwatch.watch.BleWatchManager
+import java.io.File
+
+@Composable
+fun CameraScreen(
+    watchManager: BleWatchManager,
+    onBack: () -> Unit
+) {
+    BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var lensFacing by remember { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
+    var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    val previewView = remember(context) {
+        PreviewView(context).apply {
+            scaleType = PreviewView.ScaleType.FILL_CENTER
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        }
+    }
+    val cameraProviderFuture = remember(context) {
+        ProcessCameraProvider.getInstance(context)
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasCameraPermission = granted
+        if (!granted) statusMessage = "Camera permission is required for preview."
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
+    LaunchedEffect(hasCameraPermission) {
+        if (hasCameraPermission) {
+            statusMessage = if (watchManager.startCamera()) {
+                "Camera preview mode enabled on the watch."
+            } else {
+                "Phone camera is ready; the watch command could not be queued."
+            }
+        }
+    }
+
+    LaunchedEffect(hasCameraPermission, lensFacing, lifecycleOwner) {
+        if (!hasCameraPermission) return@LaunchedEffect
+        cameraProviderFuture.addListener({
+            val provider = runCatching { cameraProviderFuture.get() }.getOrNull()
+                ?: run {
+                    statusMessage = "Unable to open the phone camera."
+                    return@addListener
+                }
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(previewView.surfaceProvider)
+            }
+            val capture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .build()
+            val selector = CameraSelector.Builder()
+                .requireLensFacing(lensFacing)
+                .build()
+            runCatching {
+                provider.unbindAll()
+                provider.bindToLifecycle(lifecycleOwner, selector, preview, capture)
+                imageCapture = capture
+            }.onFailure {
+                statusMessage = "The selected camera could not be started."
+            }
+        }, ContextCompat.getMainExecutor(context))
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            runCatching { cameraProviderFuture.get().unbindAll() }
+            watchManager.stopCamera()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(horizontal = 22.dp)
+            .padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+            androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp))
+            Text("My Watch")
+        }
+        Text(
+            "Camera",
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(26.dp))
+        ) {
+            if (hasCameraPermission) {
+                AndroidView(
+                    factory = { previewView },
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Outlined.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(34.dp))
+                        Text("Camera permission is needed", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilledTonalButton(
+                onClick = {
+                    lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) {
+                        CameraSelector.LENS_FACING_FRONT
+                    } else {
+                        CameraSelector.LENS_FACING_BACK
+                    }
+                },
+                enabled = hasCameraPermission,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Outlined.Cameraswitch, contentDescription = null)
+                androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+                Text("Flip")
+            }
+            FilledTonalButton(
+                onClick = {
+                    val capture = imageCapture
+                    if (capture == null) {
+                        statusMessage = "Camera is still starting."
+                    } else {
+                        val output = File(context.cacheDir, "plum-camera-${System.currentTimeMillis()}.jpg")
+                        val options = ImageCapture.OutputFileOptions.Builder(output).build()
+                        capture.takePicture(
+                            options,
+                            ContextCompat.getMainExecutor(context),
+                            object : ImageCapture.OnImageSavedCallback {
+                                override fun onImageSaved(result: ImageCapture.OutputFileResults) {
+                                    statusMessage = "Photo captured on this phone."
+                                }
+
+                                override fun onError(exception: ImageCaptureException) {
+                                    statusMessage = "The photo could not be captured."
+                                }
+                            }
+                        )
+                    }
+                },
+                enabled = hasCameraPermission,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Outlined.CameraAlt, contentDescription = null)
+                androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+                Text("Capture")
+            }
+        }
+        if (statusMessage != null) {
+            Text(
+                statusMessage!!,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
