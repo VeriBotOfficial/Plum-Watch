@@ -604,6 +604,7 @@ class BleWatchManager(context: Context) {
         private fun processProprietaryCommand(cmd: ByteArray) {
             if (cmd.size < 5) return
             val marker = cmd[0].toInt() and 0xFF
+            if ((marker != 0xAB && marker != 0xEA) || (cmd[3].toInt() and 0xFF) != 0xFF) return
             val commandId = cmd[4].toInt() and 0xFF
 
             // Heartbeat request from watch: marker 171/234, cmd 11, arg 1
@@ -1309,17 +1310,28 @@ class BleWatchManager(context: Context) {
         minute: Int,
         repeatMask: Int = 0,      // bitmask: 1=Mon..64=Sun, 128=once
         remindFlags: Int = 3      // 1=vibrate, 2=sound, 3=both
-    ) {
-        val gatt = bluetoothGatt ?: return
-        val char = sifliDataCharacteristic ?: return
+    ): Boolean {
+        val gatt = bluetoothGatt ?: return false
+        val characteristic = sifliDataCharacteristic ?: return false
         if (!sifliHandshakeDone) {
             mutableState.update { it.copy(errorMessage = "Watch not ready for alarm. Wait for connection.") }
-            return
+            return false
         }
         require(id in 0..7) { "Alarm ID must be 0-7" }
         require(hour in 0..23) { "Hour must be 0-23" }
         require(minute in 0..59) { "Minute must be 0-59" }
-        sendProprietaryCommand(gatt, char, buildAlarmPayload(id, enabled, hour, minute, repeatMask, remindFlags))
+        require(repeatMask in 0..0xFF) { "Alarm repeat mask must fit in one byte." }
+        require(remindFlags in 0..3) { "Alarm reminder flags must be 0-3." }
+
+        val queued = sendProprietaryCommand(
+            gatt,
+            characteristic,
+            buildAlarmPayload(id, enabled, hour, minute, repeatMask, remindFlags)
+        )
+        mutableState.update {
+            it.copy(errorMessage = if (queued) null else "Android could not queue the alarm command.")
+        }
+        return queued
     }
 
     private fun buildFindBandPayload(): ByteArray {
