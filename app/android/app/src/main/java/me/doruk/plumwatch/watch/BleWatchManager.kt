@@ -38,6 +38,34 @@ import java.nio.ByteOrder
 import java.util.zip.ZipFile
 import java.nio.charset.StandardCharsets
 
+internal object WatchfaceArchivePaths {
+    /** Returns the absolute watch-side path while rejecting ZIP traversal and malformed names. */
+    fun toWatchPath(entryName: String): String {
+        val normalized = entryName.replace('\\', '/').trimStart('/')
+        require(normalized.isNotBlank()) { "The watchface archive contains an empty file path." }
+        val segments = normalized.split('/')
+        require(segments.all { segment ->
+            segment.isNotBlank() && segment != "." && segment != ".." &&
+                segment.none { character -> character == '\\u0000' || character.isISOControl() }
+        }) { "The watchface archive contains an unsafe file path." }
+        return "/" + segments.joinToString("/")
+    }
+
+    /** Resolves a watch-side path inside the app's extraction directory, never at filesystem root. */
+    fun resolveInside(root: File, watchPath: String): File {
+        require(watchPath.startsWith('/')) { "The watchface destination path must be absolute." }
+        val relativePath = watchPath.removePrefix("/")
+        require(relativePath.isNotBlank()) { "The watchface destination path is empty." }
+        val canonicalRoot = root.canonicalFile
+        val destination = File(canonicalRoot, relativePath).canonicalFile
+        val rootPrefix = canonicalRoot.path.trimEnd(File.separatorChar) + File.separator
+        require(destination.path.startsWith(rootPrefix)) {
+            "The watchface archive path escapes the extraction directory."
+        }
+        return destination
+    }
+}
+
 data class WatchDevice(
     val name: String,
     val address: String,
@@ -671,7 +699,13 @@ class BleWatchManager(context: Context) {
     }
 
     private fun finishServiceSetup(gatt: BluetoothGatt) {
-        if (!startCurrentTimeSync(gatt)) readPendingBattery(gatt)
+        // Current Time writes and Battery reads are independent optional GATT operations.
+        startCurrentTimeSync(gatt)
+        readPendingBattery(gatt)
+
+        if (sifliDataCharacteristic != null && sifliMtu <= 23) {
+            runCatching { gatt.requestMtu(SIFLI_REQUESTED_MTU) }
+        }
         startProprietaryHandshake(gatt)
     }
 
@@ -900,29 +934,58 @@ class BleWatchManager(context: Context) {
         val size: Long
     )
 
-    /** Unzips the archive into destDir and returns entries sorted by descending size (GIFs last). */
+    /** Unzips safely inside destDir and returns entries sorted by descending size (GIFs last). */
     private fun unzipArchive(archive: File, destDir: File): List<WatchfaceFileEntry> {
+        if (!destDir.exists() && !destDir.mkdirs()) {
+            throw IllegalStateException("Could not create the temporary watchface directory.")
+        }
+
         val entries = mutableListOf<WatchfaceFileEntry>()
+        var extractedBytes = 0L
         java.util.zip.ZipFile(archive).use { zip ->
             val enumeration = zip.entries()
             while (enumeration.hasMoreElements()) {
                 val entry = enumeration.nextElement()
                 if (entry.isDirectory) continue
-                val entryName = entry.name
-                // Normalise: use forward slashes, ensure a leading "/".
-                val normName = if (entryName.startsWith("/")) entryName else "/" + entryName
-                val destFile = File(destDir, normName)
-                destFile.parentFile?.mkdirs()
+                if (entries.size >= MAX_WATCHFACE_FILES) {
+                    throw IllegalArgumentException("The watchface archive contains too many files.")
+                }
+
+                // Keep the leading slash for the watch protocol, but strip it before local extraction.
+                val watchPath = WatchfaceArchivePaths.toWatchPath(entry.name)
+                val destFile = WatchfaceArchivePaths.resolveInside(destDir, watchPath)
+                val parent = destFile.parentFile
+                    ?: throw IllegalArgumentException("The watchface archive contains an invalid file path.")
+                if (!parent.exists() && !parent.mkdirs()) {
+                    throw IllegalStateException("Could not create a watchface extraction subdirectory.")
+                }
+
+                var fileBytes = 0L
                 zip.getInputStream(entry).use { input ->
-                    destFile.outputStream().use { output ->
-                        input.copyTo(output, 8192)
+                    destFile.outputStream().buffered().use { output ->
+                        val buffer = ByteArray(8 * 1024)
+                        while (true) {
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            fileBytes += count
+                            extractedBytes += count
+                            if (fileBytes > MAX_WATCHFACE_FILE_BYTES ||
+                                extractedBytes > MAX_WATCHFACE_TOTAL_BYTES
+                            ) {
+                                throw IllegalArgumentException("The watchface archive expands beyond the allowed size.")
+                            }
+                            output.write(buffer, 0, count)
+                        }
                     }
                 }
-                if (destFile.exists()) {
-                    entries += WatchfaceFileEntry(destFile, normName, destFile.length())
+
+                if (entry.size >= 0L && fileBytes != entry.size) {
+                    throw IllegalStateException("A watchface archive entry was extracted incompletely.")
                 }
+                entries += WatchfaceFileEntry(destFile, watchPath, fileBytes)
             }
         }
+
         // Sort by descending size; GIFs moved to the end (matches SiFli WatchfaceFileComparator).
         entries.sortWith(compareByDescending<WatchfaceFileEntry> { it.size }
             .thenBy { if (it.relativePath.lowercase().endsWith(".gif")) 1 else 0 }
@@ -1712,6 +1775,9 @@ class BleWatchManager(context: Context) {
         private const val PROPRIETARY_BATTERY_INTERVAL_MS = 60_000L
         private const val PROPRIETARY_CMD_TIMEOUT_MS = 5_000L
         private const val MAX_PROPRIETARY_MESSAGE_LENGTH = 16 * 1024
+        private const val MAX_WATCHFACE_FILES = 1_024
+        private const val MAX_WATCHFACE_FILE_BYTES = 64L * 1024 * 1024
+        private const val MAX_WATCHFACE_TOTAL_BYTES = 256L * 1024 * 1024
 
         // Proprietary command IDs (matching Wearfit Pro)
         private const val PROP_CMD_FIND_BAND = 0x71 // 113
