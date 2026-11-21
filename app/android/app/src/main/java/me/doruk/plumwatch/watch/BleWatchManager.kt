@@ -121,12 +121,6 @@ class BleWatchManager(context: Context) {
     // Reassembly buffer for proprietary (non-SiFli) commands that arrive fragmented.
     private val proprietaryAssembly = ByteArrayOutputStream()
 
-    // Proprietary watch connection state (handshake / heartbeat / battery via commands).
-    private var sifliHandshakeDone = false
-    private var watchConnected = false
-    private var proprietaryBatterySupported = false
-    private var heartbeatTask: Handler? = null
-
     private val stopFindWatchTask = Runnable {
         val gatt = bluetoothGatt ?: return@Runnable
         val characteristic = findWatchCharacteristic ?: return@Runnable

@@ -2,6 +2,8 @@ package me.doruk.plumwatch.ui
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -23,6 +25,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,23 +51,29 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Layers
-import androidx.compose.material.icons.outlined.Widgets
-import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.LocationSearching
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.SettingsBrightness
-import androidx.compose.material.icons.outlined.Watch
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.SettingsBrightness
+import androidx.compose.material.icons.outlined.Vibration
+import androidx.compose.material.icons.outlined.VolumeUp
+import androidx.compose.material.icons.outlined.Watch
+import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.AlertDialog as MaterialAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -75,12 +84,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilledButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Divider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -90,16 +111,35 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import kotlin.math.roundToInt
 import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.WatchDevice
+import me.doruk.plumwatch.watch.BleWatchManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.rememberCoroutineScope
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -886,6 +926,9 @@ enum class SettingsCategory(
     val icon: ImageVector
 ) {
     APPEARANCE("Appearance", Icons.Outlined.Palette),
+    ALARMS("Alarms", Icons.Outlined.Alarm),
+    FIND_WATCH("Find Watch", Icons.Outlined.LocationSearching),
+    QR_CODE("QR Code", Icons.Outlined.Code),
     UPDATES("App updates", Icons.Outlined.Download),
     ABOUT("About", Icons.Outlined.Info)
 }
@@ -2177,6 +2220,112 @@ private suspend fun loadGitHubAvatar(
 private const val GITHUB_AVATAR_CACHE_MAX_AGE_MS = 7L * 24 * 60 * 60 * 1_000
 private const val MAX_GITHUB_AVATAR_BYTES = 2 * 1024 * 1024
 
+
+@Composable
+private fun AlarmsDialog(
+    state: BleUiState,
+    onDismiss: () -> Unit,
+    onSend: (AlarmConfig) -> Unit,
+    onDelete: (AlarmConfig) -> Unit
+) {
+    val watchManager = BleWatchManager.getInstance(LocalContext.current)
+    val scope = rememberCoroutineScope()
+    var editingAlarm by remember { mutableStateOf<AlarmConfig?>(null) }
+
+    AppAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Watch Alarms") },
+        content = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .height(420.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Configure up to 8 alarms on your watch. Changes sync immediately.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    (0..7).forEach { id ->
+                        val alarm = remember { mutableStateOf(AlarmConfig(id = id)) }
+                        AlarmRow(
+                            alarm = alarm,
+                            onEdit = { editingAlarm = alarm.value },
+                            onSend = { config ->
+                                if (!state.isConnected) return@onSend
+                                scope.launch { watchManager.setAlarm(id = config.id, enabled = config.enabled, hour = config.hour, minute = config.minute, repeatMask = config.repeatMask, remindFlags = if (config.vibrate && config.sound) 3 else if (config.vibrate) 1 else 2) }
+                            },
+                            onDelete = { alarm.value = AlarmConfig(id = id) }
+                        )
+                        if (id < 7) Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+                    }
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+}
+
+@Composable
+private fun QrCodeDialog(
+    state: BleUiState,
+    onDismiss: () -> Unit,
+    onSend: (String, Int) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var qrText by remember { mutableStateOf("") }
+    var qrType by remember { mutableStateOf(0) }
+    var sending by remember { mutableStateOf(false) }
+
+    AppAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Send QR Code") },
+        content = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text("Send a QR code to your watch display. Useful for Wi-Fi, contacts, payments, etc.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                OutlinedTextField(
+                    value = qrText,
+                    onValueChange = { qrText = it },
+                    label = { Text("QR Content (URL, text, etc.)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Uri)
+                )
+                DropdownMenuButton(
+                    text = when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" },
+                    modifier = Modifier.width(110.dp)
+                ) {
+                    DropdownMenuItem(text = "General", onClick = { qrType = 0 })
+                    DropdownMenuItem(text = "Wi-Fi", onClick = { qrType = 1 })
+                    DropdownMenuItem(text = "Contact", onClick = { qrType = 2 })
+                }
+                FilledButton(
+                    onClick = {
+                        if (qrText.isBlank() || !state.isConnected || sending) return@onClick
+                        sending = true
+                        scope.launch { onSend(qrText, qrType); delay(1000); sending = false }
+                    },
+                    enabled = qrText.isNotBlank() && state.isConnected && !sending,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    if (sending) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    else Text("Send to Watch", fontWeight = FontWeight.Medium)
+                }
+                if (!state.isConnected) Text("Connect your watch first", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+}
 
 @Composable
 private fun AppAlertDialog(
