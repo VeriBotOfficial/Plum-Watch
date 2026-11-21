@@ -76,7 +76,7 @@ This reads each named region in one SFTool session:
 
 The filesystem region is 117.5 MiB. The final two regions are each 512 KiB. The download/info and extra regions do not have `img` fields in the ptab, but they are still listed flash regions and are included in the raw backup.
 
-The prior tutorial/scripts contained two important errors: the DFU address was written as `0x1203E0000` (extra zero; incorrect), and the bootloader dump size was `0x10000` (64 KiB) although its flash partition's `max_size` is `0x20000` (128 KiB).
+The previous bootloader dump size was only `0x10000` (64 KiB), although its flash partition's `max_size` is `0x20000` (128 KiB). The current scripts use the full partition allocation.
 
 The helper creates a timestamped output directory by default, or uses the output directory supplied as its second argument. It writes SHA-256 checksums when `sha256sum` is installed.
 
