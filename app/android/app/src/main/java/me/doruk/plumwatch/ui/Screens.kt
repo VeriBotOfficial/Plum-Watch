@@ -1546,7 +1546,7 @@ private fun AboutSettingsContent(appVersion: String) {
 @Composable
 private fun AlarmsSettingsContent(onBack: () -> Unit) {
     val watchManager = BleWatchManager.getInstance(LocalContext.current)
-    val uiState by watchManager.state.collectAsState()
+    val uiState by watchManager.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var editingAlarm by remember { mutableStateOf<AlarmConfig?>(null) }
 
@@ -1610,7 +1610,7 @@ private fun AlarmsSettingsContent(onBack: () -> Unit) {
 @Composable
 private fun FindWatchSettingsContent(onBack: () -> Unit) {
     val watchManager = BleWatchManager.getInstance(LocalContext.current)
-    val uiState by watchManager.state.collectAsState()
+    val uiState by watchManager.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var finding by remember { mutableStateOf(false) }
 
@@ -1700,7 +1700,7 @@ private fun FindWatchSettingsContent(onBack: () -> Unit) {
 @Composable
 private fun QrCodeSettingsContent(onBack: () -> Unit) {
     val watchManager = BleWatchManager.getInstance(LocalContext.current)
-    val uiState by watchManager.state.collectAsState()
+    val uiState by watchManager.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var qrText by remember { mutableStateOf("") }
     var qrType by remember { mutableStateOf(0) }
