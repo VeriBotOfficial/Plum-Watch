@@ -40,6 +40,22 @@ class SifliSerialProtocolTest {
     }
 
     @Test
+    fun negotiatedMaxMtuNeverCreatesOversizedGattAttributeValues() {
+        val payload = ByteArray(9_000) { (it % 251).toByte() }
+        val expected = SifliSerialProtocol.encodeMessage(4, payload)
+        val frames = SifliSerialProtocol.fragmentMessage(4, payload, mtu = 517)
+        val reassembler = SifliSerialProtocol.Reassembler()
+
+        assertEquals(true, frames.all { it.size <= 512 })
+        assertEquals(512, frames.first().size)
+        var actual: ByteArray? = null
+        frames.forEach { frame ->
+            reassembler.accept(frame)?.let { actual = it }
+        }
+        assertArrayEquals(expected, actual)
+    }
+
+    @Test
     fun ignoresOtherCategories() {
         val reassembler = SifliSerialProtocol.Reassembler()
         val otherCategory = byteArrayOf(0x05, 0x00, 0x04, 0x00, 0, 0, 0, 0)
