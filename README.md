@@ -16,7 +16,7 @@ Plum-Watch/
 │       ├── src/
 │       └── disk/
 ├── scripts/                     # Dump and guarded flash helpers
-├── dumps/                       # Created by dump_firmware.sh; keep backups offline
+├── dumps/                       # Created by dump_firmware.sh to store dumps
 └── watchfaces/                  # Companion-app watchface catalogue
 ```
 
