@@ -46,7 +46,7 @@ internal object WatchfaceArchivePaths {
         val segments = normalized.split('/')
         require(segments.all { segment ->
             segment.isNotBlank() && segment != "." && segment != ".." &&
-                segment.none { character -> character.code != 0 && !character.isISOControl() }
+                segment.none { character -> character.isISOControl() }
         }) { "The watchface archive contains an unsafe file path." }
         return "/" + segments.joinToString("/")
     }
