@@ -1303,7 +1303,11 @@ class BleWatchManager(context: Context) {
             (characteristic.uuid == SIFLI_SERIAL_DATA_UUID && sifliPushMutex.isLocked)
         ) return false
 
-        pendingWearfitWrites.addLast(payload.copyOf())
+        // Wearfit splits proprietary command frames into 19-byte BLE writes.
+        // Keep the same FIFO so fragments from one frame cannot interleave.
+        payload.asList().chunked(19).forEach { fragment ->
+            pendingWearfitWrites.addLast(fragment.toByteArray())
+        }
         if (activeWearfitWrite == null) startNextWearfitWrite(gatt)
         return activeWearfitWrite != null || pendingWearfitWrites.isNotEmpty()
     }
@@ -1474,6 +1478,50 @@ class BleWatchManager(context: Context) {
 
     fun setShakeToPhoto(enabled: Boolean): Boolean =
         sendWearfitSetting(0x79, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+
+    /** Wearfit's real-time camera preview mode; distinct from its shake-to-photo toggle. */
+    fun setCameraPreviewState(enabled: Boolean): Boolean =
+        sendWearfitSetting(
+            commandId = 0x15,
+            data = byteArrayOf(0x04, if (enabled) 1 else 0),
+            marker = 0xEA,
+            separator = 0x00
+        )
+
+    fun startCamera(): Boolean {
+        val shakeReady = setShakeToPhoto(true)
+        val previewReady = setCameraPreviewState(true)
+        return shakeReady && previewReady
+    }
+
+    fun stopCamera(): Boolean {
+        val previewStopped = setCameraPreviewState(false)
+        val shakeStopped = setShakeToPhoto(false)
+        return previewStopped && shakeStopped
+    }
+
+    /** One-shot measurement requests decoded from Wearfit Pro's Health screen callers. */
+    fun requestHeartRateMeasurement(realtime: Boolean = false): Boolean =
+        sendWearfitSetting(0x31, byteArrayOf(0x09, if (realtime) 1 else 0))
+
+    fun requestBloodOxygenMeasurement(realtime: Boolean = false): Boolean =
+        sendWearfitSetting(0x31, byteArrayOf(0x11, if (realtime) 1 else 0))
+
+    /**
+     * Generic app-notification message used by Wearfit's own notification listener.
+     * Message ID 34 is the generic fallback found in the supplied APK. App-specific
+     * icon IDs are not yet mapped, so all selected apps use this generic watch icon.
+     */
+    fun sendAppNotification(title: String, text: String): Boolean {
+        val content = listOf(title.trim(), text.trim())
+            .filter { it.isNotEmpty() }
+            .joinToString(": ")
+            .take(280)
+        if (content.isBlank()) return false
+        val body = byteArrayOf(0x80.toByte(), 0x02, 0x22) +
+            content.toByteArray(Charsets.UTF_8)
+        return sendWearfitSetting(0x72, body)
+    }
 
     fun setBodyTemperatureMeasurement(enabled: Boolean): Boolean =
         sendWearfitSetting(0x86, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
