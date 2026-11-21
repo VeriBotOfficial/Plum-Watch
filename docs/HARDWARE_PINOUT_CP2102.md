@@ -1,4 +1,4 @@
-# UART hardware guide — HK 10 Pro Max / SF32LB525
+# UART hardware guide - HK 10 Pro Max / SF32LB525
 
 Use a dedicated 3.3 V TTL USB-to-UART adapter such as CP2102, FTDI or CH340.
 
