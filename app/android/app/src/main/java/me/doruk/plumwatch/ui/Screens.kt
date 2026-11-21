@@ -660,6 +660,19 @@ private fun ConnectedWatchCard(
     supportsTimeSync: Boolean,
     lastTimeSyncAt: Long?
 ) {
+    val normalizedBattery = batteryPercent?.coerceIn(0, 100)
+    val animatedBattery by animateFloatAsState(
+        targetValue = (normalizedBattery ?: 0) / 100f,
+        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
+        label = "battery-level"
+    )
+    val batteryColor = when {
+        normalizedBattery == null -> MaterialTheme.colorScheme.primary
+        normalizedBattery <= 20 -> MaterialTheme.colorScheme.error
+        normalizedBattery <= 50 -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.primary
+    }
+
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(29.dp),
@@ -742,9 +755,9 @@ private fun ConnectedWatchCard(
                     )
                 }
                 LinearProgressIndicator(
-                    progress = ((batteryPercent ?: 0).coerceIn(0, 100) / 100f),
+                    progress = animatedBattery,
                     modifier = Modifier.fillMaxWidth().height(6.dp),
-                    color = MaterialTheme.colorScheme.primary,
+                    color = batteryColor,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
                 if (batteryPercent == null) {
