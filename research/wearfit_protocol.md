@@ -319,16 +319,19 @@ Not the same as custom watchface transfer.
 
 ## Implementation Notes for Plum Watch
 
-### Already Implemented ✓
-- SiFli watchface per-file transfer (fixes status 22)
-- Proprietary handshake + heartbeat + battery (cmd 11, 145, 146)
-- Find watch (standard Alert + proprietary cmd 113)
-- Time sync (standard CTS + proprietary cmd 144)
+### Current Plum Watch integration status
 
-### To Implement
+Implemented in the Android source:
+- SiFli watchface per-file transfer using type 0, ZIP-relative destination paths, one-based block indexes, descending-size order and GIFs last
+- Proprietary connection handshake, device-info request, heartbeat response (command 11) and battery report (command 145)
+- Find Watch through standard Immediate Alert with proprietary command 113 fallback
+- Alarm command 115 sender and an eight-slot editor; there is no acknowledgement/read-back path yet, so successful transmission is not confirmation that the watch stored the alarm
+- QR send command ID 128 (`0x80`) is identified; command 168 (`0xA8`) is a QR result response. The detailed QR payload schema is not present in these notes, so the app's current QR payload layout remains experimental and unverified
+- Writable standard Current Time Service synchronization when the watch exposes the characteristic
+
+Not implemented in the Android app:
 | Feature | Commands | Notes |
 |---------|----------|-------|
-| Alarms | 115 (set), 115 ack | 8 alarms, repeat bitmask |
 | Weather | 136 (0x88) | 7-day forecast, icons |
 | Notifications | 114 (0x72) | Icon, display, hide detail |
 | Music Control | 19 (watch→phone) | Play/pause/next/prev/vol |
@@ -342,8 +345,9 @@ Not the same as custom watchface transfer.
 | Language | 123 | 25 languages |
 | Screen Wake | 119 (0x77) | Raise wrist |
 | 12/24 Hour | 124 | Time format |
-| QR Code | 128 (0x80) | Variable length |
 | Do Not Disturb | 118 (0x76) | All-day + sport |
+
+The app currently uses the standard Current Time Service for time sync. Command 144 is documented in the protocol table but is not yet implemented in the Android app.
 
 ### Packet Construction Helper
 ```kotlin
