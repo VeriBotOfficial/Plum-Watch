@@ -1543,7 +1543,7 @@ private fun AboutSettingsContent(appVersion: String) {
 @Composable
 private fun AlarmsSettingsContent(onBack: () -> Unit) {
     val watchManager = BleWatchManager.getInstance(LocalContext.current)
-    val uiState by watchManager.state.collectAsStateWithLifecycle()
+    val uiState by watchManager.state.collectAsState()
     val scope = rememberCoroutineScope()
     var editingAlarm by remember { mutableStateOf<AlarmConfig?>(null) }
 
@@ -1583,7 +1583,7 @@ private fun AlarmsSettingsContent(onBack: () -> Unit) {
                         alarm = alarm,
                         onEdit = { editingAlarm = alarm.value },
                         onSend = { config ->
-                            if (!uiState.isConnected) return
+                            if (!uiState.isConnected) return@onSend
                             scope.launch {
                                 watchManager.setAlarm(
                                     id = config.id,
@@ -1607,7 +1607,7 @@ private fun AlarmsSettingsContent(onBack: () -> Unit) {
 @Composable
 private fun FindWatchSettingsContent(onBack: () -> Unit) {
     val watchManager = BleWatchManager.getInstance(LocalContext.current)
-    val uiState by watchManager.state.collectAsStateWithLifecycle()
+    val uiState by watchManager.state.collectAsState()
     val scope = rememberCoroutineScope()
     var finding by remember { mutableStateOf(false) }
 
@@ -1649,7 +1649,7 @@ private fun FindWatchSettingsContent(onBack: () -> Unit) {
                         modifier = Modifier.size(96.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        AnimatedVisibility(visible = finding) {
+                        androidx.compose.animation.AnimatedVisibility(visible = finding) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(96.dp),
                                 strokeWidth = 4.dp,
@@ -1666,7 +1666,7 @@ private fun FindWatchSettingsContent(onBack: () -> Unit) {
                 }
                 FilledTonalButton(
                     onClick = {
-                        if (!uiState.isConnected) return
+                        if (!uiState.isConnected) return@onClick
                         finding = true
                         scope.launch {
                             watchManager.findWatch()
@@ -1697,7 +1697,7 @@ private fun FindWatchSettingsContent(onBack: () -> Unit) {
 @Composable
 private fun QrCodeSettingsContent(onBack: () -> Unit) {
     val watchManager = BleWatchManager.getInstance(LocalContext.current)
-    val uiState by watchManager.state.collectAsStateWithLifecycle()
+    val uiState by watchManager.state.collectAsState()
     val scope = rememberCoroutineScope()
     var qrText by remember { mutableStateOf("") }
     var qrType by remember { mutableStateOf(0) }
@@ -1747,12 +1747,12 @@ private fun QrCodeSettingsContent(onBack: () -> Unit) {
                         keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Uri)
                     )
                     DropdownMenuButton(
-                        text = when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" },
+                        text = { Text(when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" }) },
                         modifier = Modifier.width(110.dp)
                     ) {
-                        DropdownMenuItem(text = "General", onClick = { qrType = 0 })
-                        DropdownMenuItem(text = "Wi-Fi", onClick = { qrType = 1 })
-                        DropdownMenuItem(text = "Contact", onClick = { qrType = 2 })
+                        DropdownMenuItem(text = { Text("General") }, onClick = { qrType = 0 })
+                        DropdownMenuItem(text = { Text("Wi-Fi") }, onClick = { qrType = 1 })
+                        DropdownMenuItem(text = { Text("Contact") }, onClick = { qrType = 2 })
                     }
                 }
 
@@ -2235,7 +2235,7 @@ private fun AlarmsDialog(
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Watch Alarms") },
-        content = {
+        text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2265,7 +2265,7 @@ private fun AlarmsDialog(
                 }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
 }
 
@@ -2283,7 +2283,7 @@ private fun QrCodeDialog(
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Send QR Code") },
-        content = {
+        text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2300,12 +2300,12 @@ private fun QrCodeDialog(
                     keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Uri)
                 )
                 DropdownMenuButton(
-                    text = when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" },
+                    text = { Text(when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" }) },
                     modifier = Modifier.width(110.dp)
                 ) {
-                    DropdownMenuItem(text = "General", onClick = { qrType = 0 })
-                    DropdownMenuItem(text = "Wi-Fi", onClick = { qrType = 1 })
-                    DropdownMenuItem(text = "Contact", onClick = { qrType = 2 })
+                    DropdownMenuItem(text = { Text("General") }, onClick = { qrType = 0 })
+                    DropdownMenuItem(text = { Text("Wi-Fi") }, onClick = { qrType = 1 })
+                    DropdownMenuItem(text = { Text("Contact") }, onClick = { qrType = 2 })
                 }
                 FilledButton(
                     onClick = {
@@ -2323,7 +2323,7 @@ private fun QrCodeDialog(
                 if (!state.isConnected) Text("Connect your watch first", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
 }
 
@@ -2331,12 +2331,14 @@ private fun QrCodeDialog(
 private fun AppAlertDialog(
     onDismissRequest: () -> Unit,
     title: @Composable () -> Unit,
+    text: @Composable () -> Unit = {},
     confirmButton: @Composable () -> Unit,
     dismissButton: (@Composable () -> Unit)? = null
 ) {
     MaterialAlertDialog(
         onDismissRequest = onDismissRequest,
         title = title,
+        text = text,
         confirmButton = confirmButton,
         dismissButton = dismissButton,
         containerColor = MaterialTheme.colorScheme.surface,

@@ -776,7 +776,7 @@ class BleWatchManager(context: Context) {
 
             var completedBytes = 0L
             for (fileEntry in files) {
-                val fileData = fileEntry.readBytes()
+                val fileData = fileEntry.file.readBytes()
                 val relPath = fileEntry.relativePath
                 val pathBytes = relPath.toByteArray(StandardCharsets.UTF_8)
                 require(pathBytes.isNotEmpty() && pathBytes.size <= 255) {
@@ -1143,7 +1143,7 @@ class BleWatchManager(context: Context) {
                 heartbeatTask?.postDelayed(this, PROPRIETARY_HEARTBEAT_INTERVAL_MS)
             }
         }
-        heartbeatTask?.post(task, PROPRIETARY_HEARTBEAT_INTERVAL_MS)
+        heartbeatTask?.postDelayed(task, PROPRIETARY_HEARTBEAT_INTERVAL_MS)
     }
 
     private fun stopHeartbeat() {
