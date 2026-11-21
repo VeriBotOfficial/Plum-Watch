@@ -40,9 +40,9 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Current app structure
 
-- **My Watch** — scans nearby BLE devices and maintains a Bluetooth LE GATT connection
-- **Watchfaces** — reads the Git tree under `/watchfaces/`, finds each folder's ZIP archive and preview image, and downloads the archive to `Downloads/Plum Watchfaces/`.
-- **Settings** — Various settings for the app.
+- **My Watch** — scans nearby BLE devices, maintains the GATT connection, and exposes capability-gated Find Watch, alarm, QR, battery and heart-rate controls.
+- **Watchfaces** — loads `/watchfaces/index.json`, previews available faces, and transfers the selected ZIP to the watch using the per-file SiFli protocol.
+- **Settings** — app appearance, interface style, update checks, and device controls.
 
 The floating navigation bar uses the backdrop renderer and sample tab components from [Kyant0/AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) (Apache-2.0), with `io.github.kyant0:backdrop:2.0.1` and `io.github.kyant0:shapes:1.2.1`.
 
@@ -69,15 +69,22 @@ The Android GATT layer currently capability-detects these standard Bluetooth ser
 
 SiFli serial framing and reassembly are isolated in `SifliSerialProtocol.kt`. JVM tests cover little-endian message headers, MTU-based fragmentation, reassembly, malformed fragments and recovery. Watchface receiver status values are mapped from the SiFli firmware enum; in particular, status 22 means that the watch application rejected the destination file path. The watchface transfer now unzips the archive on the phone and pushes each contained file separately, using its relative path inside the ZIP (with a leading `/`) as the destination path, which resolves the status 22 rejection. File data uses index starting at 1, files are sorted by descending size with GIFs last, and type 0 (watchface) files are sent raw without padding or CRC.
 
-Proprietary Wearfit-compatible commands are implemented on the same SiFli serial data characteristic: a connection handshake (phone system → connect request → device info), heartbeat keep-alive and response, and battery level reporting via command 145.
+Proprietary Wearfit-compatible commands are implemented on the same SiFli serial data characteristic:
+
+- **Connection setup:** phone system, connect request (type 0 and an 11-byte-limited phone model), then device-info request.
+- **Keep-alive:** responds to the watch's command 11 heartbeat with the documented `DE 00 03 00 0B 02` packet.
+- **Battery:** reads the proprietary battery report (command 145) independently of the standard Battery Service.
+- **Find Watch:** uses standard Immediate Alert when available and falls back to proprietary command 113 after the proprietary handshake.
+- **Alarms:** the UI sends command 115 with ID, enabled state, time, repeat mask, and reminder flags. Acknowledgements/read-back are not implemented, so the resulting watch state is not confirmed by the app.
+- **QR:** command ID 128 (`0x80`) is the send command; `0xA8` is the QR result response. The research notes do not fully document the QR payload schema. The current sender is experimental until packet capture and physical-device testing confirm its fields and transfer behavior.
+
+The watchface extractor validates archive paths, keeps local extraction inside the app cache, enforces file-count and expanded-size limits, and preserves the leading slash only in the path sent to the watch.
 
 ### HK-specific limitations
 
-The HK10 Pro Max+ project in the available HK-Custom-Firmware repository contains a firmware project skeleton and generic SiFli SDK sources, but not the watch application's registered watchface filesystem callback or the Wearfit phone-to-watch BLE command bridge. Its alarm manager header defines internal firmware messages (list/add/edit/enable/disable/delete), but no corresponding phone-facing GATT/serial command encoding is provided. The generic SiFli ANCS example is Apple Notification Center Service support and is not an Android notification-forwarding protocol.
+The HK10 Pro Max+ project in the available HK-Custom-Firmware repository contains a firmware project skeleton and generic SiFli SDK sources, but not the watch application's registered watchface filesystem callback or the complete Wearfit phone-to-watch BLE command bridge. The generic SiFli ANCS example is Apple Notification Center Service support and is not an Android notification-forwarding protocol.
 
-For that reason, notifications, alarm synchronization, music/camera controls are not presented as implemented. They require a successful reference-app packet trace or equivalent model-specific protocol source, followed by physical-device testing.
-
-The Android CI workflow runs `testDebugUnitTest` and `assembleDebug` for pull requests and BLE foundation branches.
+Notifications, weather, music/camera controls, health-history requests, contacts, and reminder synchronization are not implemented. They require a successful reference-app packet trace or equivalent model-specific protocol source, followed by physical-device testing.
 
 ### Reference transfer examples are not interchangeable
 
