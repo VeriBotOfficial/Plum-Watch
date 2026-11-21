@@ -6,7 +6,7 @@ import org.junit.Test
 
 class WearfitProtocolTest {
     @Test
-    fun buildsDocumentedLanguagePacket() {
+    fun buildsLanguagePacket() {
         assertArrayEquals(
             byteArrayOf(0xAB.toByte(), 0, 4, 0xFF.toByte(), 0x7B, 0x80.toByte(), 1),
             WearfitProtocol.enabledSetting(0x7B, true)
@@ -14,25 +14,25 @@ class WearfitProtocolTest {
     }
 
     @Test
-    fun buildsNotificationPacketWithWearfitMarker() {
+    fun buildsNotificationPacketWithEaMarker() {
         assertArrayEquals(
-            byteArrayOf(0xDE.toByte(), 0, 6, 0xFF.toByte(), 0x72, 1, 3, 1, 1),
+            byteArrayOf(0xEA.toByte(), 0, 6, 0xFF.toByte(), 0x72, 1, 3, 1, 1),
             WearfitProtocol.notificationDisplay(iconPrompt = 3, show = true, hideDetails = true)
         )
     }
 
     @Test
-    fun buildsSleepModePacket() {
+    fun buildsSleepModePacketWithEaMarker() {
         assertArrayEquals(
-            byteArrayOf(0xDE.toByte(), 0, 7, 0xFF.toByte(), 0x7F, 1, 1, 2, 1, 1),
+            byteArrayOf(0xEA.toByte(), 0, 7, 0xFF.toByte(), 0x7F, 1, 1, 2, 1, 1),
             WearfitProtocol.sleepMode(enabled = true, mode = 2, tracking = true, chargeReminder = true)
         )
     }
 
     @Test
-    fun preservesNonStandardPhysicalTrainingSeparator() {
+    fun buildsPhysicalTrainingPacketWithEaMarkerAndZeroSeparator() {
         assertArrayEquals(
-            byteArrayOf(0xDE.toByte(), 0, 7, 0, 1, 1, 1, 1, 0, 1),
+            byteArrayOf(0xEA.toByte(), 0, 7, 0, 1, 1, 1, 1, 0, 1),
             WearfitProtocol.physicalTraining(
                 autoPause = true,
                 startPrompt = true,
@@ -43,19 +43,54 @@ class WearfitProtocolTest {
     }
 
     @Test
-    fun buildsHeartRateZonePacketWithEightThresholds() {
+    fun buildsHeartRateWarningPacketWithA0Command() {
         val packet = WearfitProtocol.heartRateZones((1..8).toList())
         assertEquals(14, packet.size)
-        assertEquals(0xFC.toByte(), packet[4])
-        assertEquals(1, packet[5].toInt())
+        assertEquals(0xEA.toByte(), packet[0])
+        assertEquals(0xA0.toByte(), packet[4])
+        assertEquals(0, packet[5].toInt())
         assertEquals(8, packet.last().toInt())
     }
 
     @Test
-    fun buildsSedentaryReminderPacket() {
+    fun buildsSedentaryReminderSchedule() {
         assertArrayEquals(
             byteArrayOf(0xAB.toByte(), 0, 9, 0xFF.toByte(), 0x75, 0x80.toByte(), 1, 9, 0, 21, 30, 60),
-            WearfitProtocol.reminder(0x75, true, 9, 0, 21, 30, 60)
+            WearfitProtocol.reminderSchedule(0x75, true, 9, 0, 21, 30, 60)
+        )
+    }
+
+    @Test
+    fun buildsWaterReminderWithCommand53() {
+        assertArrayEquals(
+            byteArrayOf(0xAB.toByte(), 0, 9, 0xFF.toByte(), 0x53, 0x80.toByte(), 1, 9, 0, 21, 30, 60),
+            WearfitProtocol.reminderSchedule(0x53, true, 9, 0, 21, 30, 60)
+        )
+    }
+
+    @Test
+    fun buildsAlarmWithLengthDerivedFromPayload() {
+        assertArrayEquals(
+            byteArrayOf(
+                0xAB.toByte(), 0, 9, 0xFF.toByte(), 0x73, 0x80.toByte(),
+                2, 1, 7, 30, 0x7F, 3
+            ),
+            WearfitProtocol.alarm(
+                id = 2,
+                enabled = true,
+                hour = 7,
+                minute = 30,
+                repeatMask = 0x7F,
+                remindFlags = 3
+            )
+        )
+    }
+
+    @Test
+    fun reminderSwitchKeepsWearfitOtherThenControlOrder() {
+        assertArrayEquals(
+            byteArrayOf(0xAB.toByte(), 0, 5, 0xFF.toByte(), 0xA0.toByte(), 0x80.toByte(), 0x12, 0x34),
+            WearfitProtocol.reminderSwitch(otherBits = 0x12, controlBits = 0x34)
         )
     }
 
@@ -66,6 +101,6 @@ class WearfitProtocolTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun rejectsInvalidReminderTime() {
-        WearfitProtocol.reminder(0xA3, true, 25, 0, 21, 0, 60)
+        WearfitProtocol.reminderSchedule(0x53, true, 25, 0, 21, 0, 60)
     }
 }

@@ -293,6 +293,7 @@ fun MyWatchScreen(
     onReconnect: () -> Unit,
     onRemoveWatch: () -> Unit,
     onOpenWatchfaces: () -> Unit,
+    onOpenOtherSettings: () -> Unit,
     onFindWatch: () -> Unit,
     onRefreshHealth: () -> Unit
 ) {
@@ -433,6 +434,18 @@ fun MyWatchScreen(
             }
         }
 
+        FilledTonalButton(
+            onClick = onOpenOtherSettings,
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            Icon(Icons.Outlined.Widgets, contentDescription = null, modifier = Modifier.size(19.dp))
+            Spacer(Modifier.width(9.dp))
+            Text("Other Settings", fontWeight = FontWeight.Medium)
+            Spacer(Modifier.weight(1f))
+            Icon(Icons.Outlined.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
+
         AnimatedVisibility(
             visible = state.savedDevice != null,
             enter = fadeIn(tween(180)),
@@ -505,6 +518,30 @@ fun MyWatchScreen(
                 )
             }
         )
+    }
+}
+
+@Composable
+fun OtherWatchSettingsScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp)
+            .padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("My Watch")
+        }
+        PageTitle("Other Settings")
+        WatchControlsSettingsContent()
+        AlarmsSettingsContent(onBack = {})
+        FindWatchSettingsContent(onBack = {})
     }
 }
 
@@ -915,9 +952,6 @@ enum class SettingsCategory(
     val icon: ImageVector
 ) {
     APPEARANCE("Appearance", Icons.Outlined.Palette),
-    WATCH_CONTROLS("Watch controls", Icons.Outlined.Widgets),
-    ALARMS("Alarms", Icons.Outlined.Alarm),
-    FIND_WATCH("Find Watch", Icons.Outlined.LocationSearching),
     UPDATES("App updates", Icons.Outlined.Download),
     ABOUT("About", Icons.Outlined.Info)
 }
@@ -1034,34 +1068,6 @@ private fun SettingsHomeScreen(
                         category = SettingsCategory.UPDATES,
                         value = appVersion,
                         onClick = { onOpenCategory(SettingsCategory.UPDATES) }
-                    )
-                }
-            }
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            SettingsGroupLabel("DEVICE")
-            AppSurface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(23.dp)
-            ) {
-                Column {
-                    SettingsCategoryRow(
-                        category = SettingsCategory.WATCH_CONTROLS,
-                        value = null,
-                        onClick = { onOpenCategory(SettingsCategory.WATCH_CONTROLS) }
-                    )
-                    SettingsRowDivider()
-                    SettingsCategoryRow(
-                        category = SettingsCategory.ALARMS,
-                        value = null,
-                        onClick = { onOpenCategory(SettingsCategory.ALARMS) }
-                    )
-                    SettingsRowDivider()
-                    SettingsCategoryRow(
-                        category = SettingsCategory.FIND_WATCH,
-                        value = null,
-                        onClick = { onOpenCategory(SettingsCategory.FIND_WATCH) }
                     )
                 }
             }
@@ -1264,27 +1270,6 @@ private fun SettingsCategoryPage(
                     onBack = onBack
                 )
                 AboutSettingsContent(appVersion = appVersion)
-            }
-            SettingsCategory.WATCH_CONTROLS -> {
-                SettingsDetailHeader(
-                    title = "Watch controls",
-                    onBack = onBack
-                )
-                WatchControlsSettingsContent()
-            }
-            SettingsCategory.ALARMS -> {
-                SettingsDetailHeader(
-                    title = "Alarms",
-                    onBack = onBack
-                )
-                AlarmsSettingsContent(onBack = onBack)
-            }
-            SettingsCategory.FIND_WATCH -> {
-                SettingsDetailHeader(
-                    title = "Find Watch",
-                    onBack = onBack
-                )
-                FindWatchSettingsContent(onBack = onBack)
             }
         }
     }

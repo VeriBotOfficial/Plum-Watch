@@ -80,7 +80,8 @@ import me.doruk.plumwatch.watch.WatchDevice
 private enum class AppPage(val label: String) {
     WATCH("My Watch"),
     WATCHFACES("Watchfaces"),
-    SETTINGS("Settings")
+    SETTINGS("Settings"),
+    WATCH_SETTINGS("Other Settings")
 }
 
 @Composable
@@ -270,6 +271,7 @@ fun PlumWatchApp(
                                 onReconnect = watchManager::reconnectSavedDevice,
                                 onRemoveWatch = onRemoveWatch,
                                 onOpenWatchfaces = { page = AppPage.WATCHFACES },
+                                onOpenOtherSettings = { page = AppPage.WATCH_SETTINGS },
                                 onFindWatch = watchManager::findWatch,
                                 onRefreshHealth = watchManager::refreshHealth
                             )
@@ -288,6 +290,9 @@ fun PlumWatchApp(
                                 downloadState = updateDownloadState,
                                 onCheckUpdates = checkUpdates,
                                 onInstallUpdate = onInstallUpdate
+                            )
+                            AppPage.WATCH_SETTINGS -> OtherWatchSettingsScreen(
+                                onBack = { page = AppPage.WATCH }
                             )
                         }
                     }
@@ -345,7 +350,7 @@ private fun FloatingNavigationBar(
     backdrop: com.kyant.backdrop.Backdrop?,
     modifier: Modifier = Modifier
 ) {
-    val pages = AppPage.values()
+    val pages = listOf(AppPage.WATCH, AppPage.WATCHFACES, AppPage.SETTINGS)
     val selectedIndex = pages.indexOf(selectedPage).coerceAtLeast(0)
     val selectedTabIndex = remember(selectedIndex) { { selectedIndex } }
 
@@ -443,6 +448,7 @@ private fun IconsForPage(page: AppPage): ImageVector = when (page) {
     AppPage.WATCH -> Icons.Outlined.Watch
     AppPage.WATCHFACES -> Icons.Outlined.GridView
     AppPage.SETTINGS -> Icons.Outlined.Settings
+    AppPage.WATCH_SETTINGS -> Icons.Outlined.Settings
 }
 
 private fun missingBluetoothPermissions(context: android.content.Context): Array<String> {

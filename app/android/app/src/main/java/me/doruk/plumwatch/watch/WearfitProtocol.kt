@@ -1,9 +1,6 @@
 package me.doruk.plumwatch.watch
 
-/**
- * Small, deterministic packet builder for the Wearfit commands whose layouts are documented
- * in research/wearfit_protocol.md. It deliberately does not invent undocumented payloads.
- */
+/** Packet builders for command layouts verified in the supplied Wearfit Pro APK. */
 internal object WearfitProtocol {
     fun packet(
         commandId: Int,
@@ -33,7 +30,7 @@ internal object WearfitProtocol {
         return packet(
             commandId = 0x72,
             data = byteArrayOf(0x01, iconPrompt.toByte(), if (show) 1 else 0, if (hideDetails) 1 else 0),
-            marker = 0xDE
+            marker = 0xEA
         )
     }
 
@@ -48,7 +45,7 @@ internal object WearfitProtocol {
                 if (tracking) 1 else 0,
                 if (chargeReminder) 1 else 0
             ),
-            marker = 0xDE
+            marker = 0xEA
         )
     }
 
@@ -66,7 +63,7 @@ internal object WearfitProtocol {
             if (stopPrompt) 1 else 0,
             if (keyPause) 1 else 0
         ),
-        marker = 0xDE,
+        marker = 0xEA,
         separator = 0x00
     )
 
@@ -74,13 +71,13 @@ internal object WearfitProtocol {
         require(values.size == 8) { "Exactly eight heart-rate thresholds are required." }
         require(values.all { it in 0..255 }) { "Heart-rate thresholds must fit in one byte." }
         return packet(
-            commandId = 0xFC,
-            data = byteArrayOf(0x01) + values.map { it.toByte() }.toByteArray(),
-            marker = 0xDE
+            commandId = 0xA0,
+            data = byteArrayOf(0x00) + values.map { it.toByte() }.toByteArray(),
+            marker = 0xEA
         )
     }
 
-    fun reminder(
+    fun reminderSchedule(
         commandId: Int,
         enabled: Boolean,
         startHour: Int,
@@ -89,7 +86,7 @@ internal object WearfitProtocol {
         endMinute: Int,
         intervalMinutes: Int
     ): ByteArray {
-        require(commandId == 0x75 || commandId == 0xA3)
+        require(commandId == 0x75 || commandId == 0x53)
         require(startHour in 0..23 && endHour in 0..23)
         require(startMinute in 0..59 && endMinute in 0..59)
         require(intervalMinutes in 1..255)
@@ -104,6 +101,42 @@ internal object WearfitProtocol {
                 endMinute.toByte(),
                 intervalMinutes.toByte()
             )
+        )
+    }
+
+    fun alarm(
+        id: Int,
+        enabled: Boolean,
+        hour: Int,
+        minute: Int,
+        repeatMask: Int,
+        remindFlags: Int
+    ): ByteArray {
+        require(id in 0..7)
+        require(hour in 0..23)
+        require(minute in 0..59)
+        require(repeatMask in 0..0xFF)
+        require(remindFlags in 0..3)
+        return packet(
+            commandId = 0x73,
+            data = byteArrayOf(
+                0x80.toByte(),
+                id.toByte(),
+                if (enabled) 1 else 0,
+                hour.toByte(),
+                minute.toByte(),
+                repeatMask.toByte(),
+                remindFlags.toByte()
+            )
+        )
+    }
+
+    /** Byte order is confirmed by the APK; the meaning of each individual bit remains model data. */
+    fun reminderSwitch(otherBits: Int, controlBits: Int): ByteArray {
+        require(otherBits in 0..0xFF && controlBits in 0..0xFF)
+        return packet(
+            commandId = 0xA0,
+            data = byteArrayOf(0x80.toByte(), otherBits.toByte(), controlBits.toByte())
         )
     }
 }

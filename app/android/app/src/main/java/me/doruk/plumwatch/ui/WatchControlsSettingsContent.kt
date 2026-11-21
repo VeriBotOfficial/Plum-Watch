@@ -41,20 +41,21 @@ fun WatchControlsSettingsContent() {
     val canSend = state.isConnected && state.supportsProprietaryCommands
 
     fun report(label: String, queued: Boolean) {
-        val message = if (queued) {
-            "$label command queued. The watch does not confirm that it saved the setting."
-        } else {
-            "Could not send $label. Check the watch connection and try again."
+        if (!queued) {
+            Toast.makeText(
+                context,
+                "Could not update $label. Check the watch connection and try again.",
+                Toast.LENGTH_SHORT
+            ).show()
         }
-        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = when {
                 !state.isConnected -> "Connect your watch to change its settings."
-                !state.supportsProprietaryCommands -> "This connection has no writable Wearfit command channel."
-                else -> "Watch command channel ready"
+                !state.supportsProprietaryCommands -> "Watch settings are unavailable right now."
+                else -> "Ready"
             },
             color = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
@@ -129,35 +130,8 @@ fun WatchControlsSettingsContent() {
             }
         }
 
-        SleepModeSetting(enabled = canSend) { isOn, mode, tracking, charge ->
-            report("Sleep mode", manager.setSleepMode(isOn, mode, tracking, charge))
-        }
-
-        ReminderSetting(
-            title = "Sedentary reminder",
-            description = "Command 0x75. Uses a start/end time and an interval in minutes.",
-            enabled = canSend,
-            onSend = manager::setSedentaryReminder,
-            onResult = { report("Sedentary reminder", it) }
-        )
-
-        ReminderSetting(
-            title = "Drink-water reminder",
-            description = "Command 0xA3. Uses a start/end time and an interval in minutes.",
-            enabled = canSend,
-            onSend = manager::setDrinkWaterReminder,
-            onResult = { report("Drink-water reminder", it) }
-        )
-
         NotificationSetting(enabled = canSend) { icon, show, hide ->
             report("Notification display", manager.setNotificationDisplay(icon, show, hide))
-        }
-
-        TrainingSetting(enabled = canSend) { autoPause, start, stop, keyPause ->
-            report(
-                "Physical training",
-                manager.setPhysicalTraining(autoPause, start, stop, keyPause)
-            )
         }
 
         HeartRateZonesSetting(enabled = canSend) { values ->
@@ -165,24 +139,6 @@ fun WatchControlsSettingsContent() {
             report("Heart-rate zones", sent)
         }
 
-        SettingPanel(
-            title = "Protocol gaps",
-            description = "These are not locked controls. The research file does not contain enough reliable packet details to implement them safely."
-        ) {
-            Text(
-                "Weather payload length and field layout conflict in the notes. Do Not Disturb has no payload layout. Contact-name/phone fragmentation is incomplete. Historical health requests do not include the phone reply format or a data-source integration. Those items need a verified Wearfit packet trace before they can be added.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                lineHeight = 18.sp
-            )
-        }
-
-        Text(
-            "The settings above are built from documented command layouts. A successful send means Android accepted the BLE write; it is not confirmation that the watch applied or retained the setting. The watch protocol currently has no read-back implementation for these settings.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 11.sp,
-            lineHeight = 16.sp
-        )
     }
 }
 
@@ -205,7 +161,7 @@ private fun LanguageSetting(
     )
     var selectedCode by remember { mutableStateOf(1) }
     var expanded by remember { mutableStateOf(false) }
-    SettingPanel("Watch language", "Only language codes listed in the protocol notes are offered.") {
+    SettingPanel("Watch language", "Choose the language used by your watch.") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 languages.first { it.first == selectedCode }.second,
@@ -245,7 +201,7 @@ private fun SleepModeSetting(
     var chargeReminder by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
 
-    SettingPanel("Sleep mode", "Command 0x7F: off, manual, or automatic mode.") {
+    SettingPanel("Sleep mode", "Choose how sleep mode behaves.") {
         SettingSwitch("Enable sleep mode", null, active, enabled) { active = it }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -352,7 +308,7 @@ private fun NotificationSetting(
     var show by remember { mutableStateOf(true) }
     var hideDetails by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
-    SettingPanel("Notification display", "Command 0x72 controls the watch's notification prompt/display options.") {
+    SettingPanel("Notification display", "Choose how notifications appear on your watch.") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 when (icon) { 0 -> "No icon"; 1 -> "Call"; 2 -> "Message"; else -> "App" },
@@ -384,7 +340,7 @@ private fun TrainingSetting(
     var startPrompt by remember { mutableStateOf(true) }
     var stopPrompt by remember { mutableStateOf(true) }
     var keyPause by remember { mutableStateOf(false) }
-    SettingPanel("Physical training", "Command 0x01 controls the documented training prompts and pause options.") {
+    SettingPanel("Physical training", "Set automatic pause and workout prompts.") {
         SettingSwitch("Auto-pause", null, autoPause, enabled) { autoPause = it }
         SettingSwitch("Start prompt", null, startPrompt, enabled) { startPrompt = it }
         SettingSwitch("Stop prompt", null, stopPrompt, enabled) { stopPrompt = it }
@@ -405,8 +361,8 @@ private fun HeartRateZonesSetting(
     val context = LocalContext.current
     var values by remember { mutableStateOf("") }
     SettingPanel(
-        "Heart-rate zones",
-        "Command 0xFC takes eight one-byte thresholds in the order described in the research notes."
+        "Heart-rate warning",
+        "Set the eight thresholds used for heart-rate alerts."
     ) {
         OutlinedTextField(
             value = values,
