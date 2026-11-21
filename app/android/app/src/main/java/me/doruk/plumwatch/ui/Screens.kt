@@ -1,6 +1,10 @@
 package me.doruk.plumwatch.ui
 
 import android.content.Context
+import android.content.ComponentName
+import android.content.Intent
+import android.provider.Settings
+import android.provider.Settings.Secure
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
@@ -45,6 +49,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -99,6 +104,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -295,12 +301,14 @@ fun MyWatchScreen(
     onOpenWatchfaces: () -> Unit,
     onOpenOtherSettings: () -> Unit,
     onFindWatch: () -> Unit,
-    onRefreshHealth: () -> Unit
+    onRefreshHealth: () -> Unit,
+    onOpenAlarms: () -> Unit,
+    onOpenHealth: () -> Unit,
+    onOpenNotifications: () -> Unit,
+    onOpenCamera: () -> Unit
 ) {
     val context = LocalContext.current
     var showRemoveDialog by remember { mutableStateOf(false) }
-    var showAlarmsDialog by remember { mutableStateOf(false) }
-    val watchManager = BleWatchManager.getInstance(context)
 
     Column(
         modifier = Modifier
@@ -388,31 +396,30 @@ fun MyWatchScreen(
                 QuickFeature("Find Watch", Icons.Outlined.LocationSearching,
                     subtitle = "Ping your watch",
                     enabled = state.isConnected && (state.canFindWatch || state.supportsProprietaryCommands),
-                    onClick = {
-                        if (state.isConnected && (state.canFindWatch || state.supportsProprietaryCommands)) onFindWatch()
-                    }
+                    onClick = { if (state.isConnected) onFindWatch() }
                 ),
                 QuickFeature("Alarms", Icons.Outlined.Alarm,
-                    subtitle = "Set up to 8 alarms",
+                    subtitle = "Create and manage alarms",
                     enabled = state.isConnected && state.supportsProprietaryCommands,
-                    onClick = { if (state.isConnected && state.supportsProprietaryCommands) showAlarmsDialog = true }
+                    onClick = onOpenAlarms
                 ),
                 QuickFeature("Health", Icons.Outlined.FavoriteBorder,
-                    subtitle = state.heartRateBpm?.let { "$it bpm" } ?: "Heart rate",
-                    enabled = state.isConnected,
-                    onClick = {
-                        onRefreshHealth()
-                        val message = state.heartRateBpm?.let { "Heart rate: $it bpm" }
-                            ?: if (state.supportsHeartRate) {
-                                "Waiting for a heart-rate measurement from the watch."
-                            } else {
-                                "This watch does not expose the standard BLE heart-rate measurement."
-                            }
-                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                    }
+                    subtitle = state.heartRateBpm?.let { "$it bpm" } ?: "Heart rate and SpO₂",
+                    enabled = state.isConnected && state.supportsProprietaryCommands,
+                    onClick = onOpenHealth
+                ),
+                QuickFeature("Notifications", Icons.Outlined.Notifications,
+                    subtitle = "Choose app alerts",
+                    enabled = state.isConnected && state.supportsProprietaryCommands,
+                    onClick = onOpenNotifications
+                ),
+                QuickFeature("Camera", Icons.Outlined.CameraAlt,
+                    subtitle = "Use your phone camera",
+                    enabled = state.isConnected && state.supportsProprietaryCommands,
+                    onClick = onOpenCamera
                 ),
                 QuickFeature("Watchfaces", Icons.Outlined.Watch,
-                    subtitle = "Browse & install",
+                    subtitle = "Browse and install",
                     enabled = state.isConnected && state.supportsSifliWatchface,
                     onClick = { if (state.isConnected && state.supportsSifliWatchface) onOpenWatchfaces() }
                 )
@@ -498,27 +505,6 @@ fun MyWatchScreen(
             }
         )
     }
-    if (showAlarmsDialog) {
-        AlarmsDialog(
-            state = state,
-            onDismiss = { showAlarmsDialog = false },
-            onSend = { config ->
-                watchManager.setAlarm(
-                    id = config.id,
-                    enabled = config.enabled,
-                    hour = config.hour,
-                    minute = config.minute,
-                    repeatMask = config.repeatMask,
-                    remindFlags = when {
-                        config.vibrate && config.sound -> 3
-                        config.vibrate -> 1
-                        config.sound -> 2
-                        else -> 0
-                    }
-                )
-            }
-        )
-    }
 }
 
 @Composable
@@ -540,8 +526,6 @@ fun OtherWatchSettingsScreen(onBack: () -> Unit) {
         }
         PageTitle("Other Settings")
         WatchControlsSettingsContent()
-        AlarmsSettingsContent(onBack = {})
-        FindWatchSettingsContent(onBack = {})
     }
 }
 
@@ -740,11 +724,33 @@ private fun ConnectedWatchCard(
                 }
             }
 
-            WatchMetric(
-                label = "Battery",
-                value = batteryPercent?.let { "$it%" } ?: "Checking",
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Battery", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text(
+                        batteryPercent?.let { "$it%" } ?: "—",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = ((batteryPercent ?: 0).coerceIn(0, 100) / 100f),
+                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                if (batteryPercent == null) {
+                    Text("Waiting for battery data", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                }
+            }
         }
     }
 }
@@ -1515,80 +1521,188 @@ private fun AboutSettingsContent(appVersion: String) {
 }
 
 @Composable
-private fun AlarmsSettingsContent(onBack: () -> Unit) {
-    val watchManager = BleWatchManager.getInstance(LocalContext.current)
+fun AlarmsScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    val watchManager = remember(context) { BleWatchManager.getInstance(context) }
     val uiState by watchManager.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionHeading("Watch Alarms")
-        AppSurface(
+    val preferences = remember(context) {
+        context.getSharedPreferences("plum_watch_alarms", Context.MODE_PRIVATE)
+    }
+    val alarms = remember {
+        mutableStateListOf<AlarmConfig>().apply {
+            (0..7).forEach { id ->
+                if (preferences.getBoolean("alarm_$id_exists", false)) {
+                    add(
+                        AlarmConfig(
+                            id = id,
+                            enabled = preferences.getBoolean("alarm_$id_enabled", false),
+                            hour = preferences.getInt("alarm_$id_hour", 8),
+                            minute = preferences.getInt("alarm_$id_minute", 0),
+                            repeatMask = preferences.getInt("alarm_$id_repeat", 0),
+                            vibrate = preferences.getBoolean("alarm_$id_vibrate", true),
+                            sound = preferences.getBoolean("alarm_$id_sound", true)
+                        )
+                    )
+                }
+            }
+        }
+    }
+    var newlyCreatedId by remember { mutableStateOf<Int?>(null) }
+
+    fun persist(config: AlarmConfig) {
+        preferences.edit()
+            .putBoolean("alarm_${config.id}_exists", true)
+            .putBoolean("alarm_${config.id}_enabled", config.enabled)
+            .putInt("alarm_${config.id}_hour", config.hour)
+            .putInt("alarm_${config.id}_minute", config.minute)
+            .putInt("alarm_${config.id}_repeat", config.repeatMask)
+            .putBoolean("alarm_${config.id}_vibrate", config.vibrate)
+            .putBoolean("alarm_${config.id}_sound", config.sound)
+            .apply()
+    }
+
+    fun send(config: AlarmConfig, enabled: Boolean = config.enabled) {
+        if (!uiState.isConnected) return
+        scope.launch {
+            watchManager.setAlarm(
+                id = config.id,
+                enabled = enabled,
+                hour = config.hour,
+                minute = config.minute,
+                repeatMask = config.repeatMask,
+                remindFlags = when {
+                    config.vibrate && config.sound -> 3
+                    config.vibrate -> 1
+                    config.sound -> 2
+                    else -> 0
+                }
+            )
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp)
+            .padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("My Watch")
+        }
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            PageTitle("Alarms")
+            IconButton(
+                enabled = uiState.isConnected && uiState.supportsProprietaryCommands && alarms.size < 8,
+                onClick = {
+                    val used = alarms.map { it.id }.toSet()
+                    val id = (0..7).firstOrNull { it !in used } ?: return@IconButton
+                    val config = AlarmConfig(id = id, enabled = true)
+                    alarms.add(config)
+                    persist(config)
+                    newlyCreatedId = id
+                }
             ) {
-                Text(
-                    "Configure up to 8 alarms. Select an alarm to edit it, then send the settings to your watch.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
-                )
+                Icon(Icons.Outlined.Add, contentDescription = "Add alarm", tint = MaterialTheme.colorScheme.primary)
             }
         }
 
-        AppSurface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                (0..7).forEach { id ->
-                    val alarm = remember { mutableStateOf(AlarmConfig(id = id)) }
-                    AlarmRow(
-                        alarm = alarm,
-                        onSend = { config ->
-                            if (uiState.isConnected) {
-                                scope.launch {
-                                    watchManager.setAlarm(
-                                        id = config.id,
-                                        enabled = config.enabled,
-                                        hour = config.hour,
-                                        minute = config.minute,
-                                        repeatMask = config.repeatMask,
-                                        remindFlags = when {
-                                            config.vibrate && config.sound -> 3
-                                            config.vibrate -> 1
-                                            config.sound -> 2
-                                            else -> 0
-                                        }
-                                    )
-                                }
-                            }
-                        },
-                        onDelete = { config ->
-                            alarm.value = AlarmConfig(id = id)
-                            if (uiState.isConnected) {
-                                scope.launch {
-                                    watchManager.setAlarm(
-                                        id = config.id,
-                                        enabled = false,
-                                        hour = config.hour,
-                                        minute = config.minute,
-                                        repeatMask = config.repeatMask,
-                                        remindFlags = 0
-                                    )
-                                }
-                            }
-                        }
+        if (!uiState.isConnected) {
+            Text(
+                "Connect your watch to create or update alarms.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp
+            )
+        }
+
+        if (alarms.isEmpty()) {
+            AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Outlined.Alarm, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
+                    Text("No alarms yet", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Add an alarm when you need one. Nothing is created automatically.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
                     )
-                    if (id < 7) Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+                    FilledTonalButton(
+                        enabled = uiState.isConnected && uiState.supportsProprietaryCommands,
+                        onClick = {
+                            val config = AlarmConfig(id = 0, enabled = true)
+                            alarms.add(config)
+                            persist(config)
+                            newlyCreatedId = config.id
+                        }
+                    ) {
+                        Icon(Icons.Outlined.Add, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Add alarm")
+                    }
+                }
+            }
+        } else {
+            AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    alarms.sortedBy { it.id }.forEachIndexed { index, config ->
+                        key(config.id) {
+                            val alarmState = remember(config.id) { mutableStateOf(config) }
+                            AlarmRow(
+                                alarm = alarmState,
+                                startExpanded = newlyCreatedId == config.id,
+                                onSend = { updated ->
+                                    val position = alarms.indexOfFirst { it.id == updated.id }
+                                    if (position >= 0) alarms[position] = updated
+                                    persist(updated)
+                                    send(updated)
+                                    newlyCreatedId = null
+                                },
+                                onDelete = { deleted ->
+                                    alarms.removeAll { it.id == deleted.id }
+                                    preferences.edit().remove("alarm_${deleted.id}_exists").apply()
+                                    send(deleted, enabled = false)
+                                }
+                            )
+                        }
+                        if (index < alarms.lastIndex) {
+                            Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+                        }
+                    }
+                    if (alarms.size < 8) {
+                        TextButton(
+                            onClick = {
+                                val used = alarms.map { it.id }.toSet()
+                                val id = (0..7).firstOrNull { it !in used } ?: return@TextButton
+                                val config = AlarmConfig(id = id, enabled = true)
+                                alarms.add(config)
+                                persist(config)
+                                newlyCreatedId = id
+                            },
+                            enabled = uiState.isConnected && uiState.supportsProprietaryCommands,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        ) {
+                            Icon(Icons.Outlined.Add, contentDescription = null)
+                            Spacer(Modifier.width(5.dp))
+                            Text("Add another")
+                        }
+                    }
                 }
             }
         }
@@ -1700,10 +1814,11 @@ data class AlarmConfig(
 private fun AlarmRow(
     alarm: MutableState<AlarmConfig>,
     onSend: (AlarmConfig) -> Unit,
-    onDelete: (AlarmConfig) -> Unit
+    onDelete: (AlarmConfig) -> Unit,
+    startExpanded: Boolean = false
 ) {
     val config = alarm.value
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(startExpanded) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
