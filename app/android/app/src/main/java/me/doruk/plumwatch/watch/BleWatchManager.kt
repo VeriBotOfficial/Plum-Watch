@@ -48,7 +48,11 @@ internal object WatchfaceArchivePaths {
             segment.isNotBlank() && segment != "." && segment != ".." &&
                 segment.none { character -> character.isISOControl() }
         }) { "The watchface archive contains an unsafe file path." }
-        return "/" + segments.joinToString("/")
+        val watchPath = "/" + segments.joinToString("/")
+        require(watchPath.toByteArray(StandardCharsets.UTF_8).size <= 255) {
+            "The watchface archive contains a file path that is too long for the watch protocol."
+        }
+        return watchPath
     }
 
     /** Resolves a watch-side path inside the app's extraction directory, never at filesystem root. */
@@ -938,6 +942,7 @@ class BleWatchManager(context: Context) {
         }
 
         val entries = mutableListOf<WatchfaceFileEntry>()
+        val seenWatchPaths = HashSet<String>()
         var extractedBytes = 0L
         java.util.zip.ZipFile(archive).use { zip ->
             val enumeration = zip.entries()
@@ -950,6 +955,9 @@ class BleWatchManager(context: Context) {
 
                 // Keep the leading slash for the watch protocol, but strip it before local extraction.
                 val watchPath = WatchfaceArchivePaths.toWatchPath(entry.name)
+                if (!seenWatchPaths.add(watchPath)) {
+                    throw IllegalArgumentException("The watchface archive contains a duplicate path: $watchPath")
+                }
                 val destFile = WatchfaceArchivePaths.resolveInside(destDir, watchPath)
                 val parent = destFile.parentFile
                     ?: throw IllegalArgumentException("The watchface archive contains an invalid file path.")
