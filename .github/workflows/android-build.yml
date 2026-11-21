@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - fix/android-build-and-wearfit-ui
+      - fix/plum-watch-controls-camera-notifications
       - feat/unlock-wearfit-controls
   pull_request:
     branches:
