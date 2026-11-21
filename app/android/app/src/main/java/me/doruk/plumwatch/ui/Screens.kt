@@ -303,13 +303,11 @@ fun MyWatchScreen(
     onOpenWatchfaces: () -> Unit,
     onOpenOtherSettings: () -> Unit,
     onFindWatch: () -> Unit,
-    onRefreshHealth: () -> Unit,
     onOpenAlarms: () -> Unit,
     onOpenHealth: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenCamera: () -> Unit
 ) {
-    val context = LocalContext.current
     var showRemoveDialog by remember { mutableStateOf(false) }
 
     Column(
