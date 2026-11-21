@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - fix/android-build-and-wearfit-ui
+      - feat/unlock-wearfit-controls
   pull_request:
     branches:
       - main

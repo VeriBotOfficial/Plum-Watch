@@ -72,7 +72,6 @@ import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.material.icons.outlined.Wifi
-import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.AlertDialog as MaterialAlertDialog
@@ -294,13 +293,11 @@ fun MyWatchScreen(
     onReconnect: () -> Unit,
     onRemoveWatch: () -> Unit,
     onOpenWatchfaces: () -> Unit,
-    onFindWatch: () -> Unit,
-    onRefreshHealth: () -> Unit
+    onFindWatch: () -> Unit
 ) {
     val context = LocalContext.current
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showAlarmsDialog by remember { mutableStateOf(false) }
-    var showQrDialog by remember { mutableStateOf(false) }
     val watchManager = BleWatchManager.getInstance(context)
 
     Column(
@@ -330,9 +327,7 @@ fun MyWatchScreen(
                     ConnectedWatchCard(
                         device = device,
                         batteryPercent = state.batteryPercent,
-                        heartRateBpm = state.heartRateBpm,
                         supportsBattery = state.supportsBattery,
-                        supportsHeartRate = state.supportsHeartRate,
                         supportsTimeSync = state.supportsTimeSync,
                         lastTimeSyncAt = state.lastTimeSyncAt
                     )
@@ -391,32 +386,25 @@ fun MyWatchScreen(
                 QuickFeature("Find Watch", Icons.Outlined.LocationSearching,
                     subtitle = "Ping your watch",
                     enabled = state.isConnected && (state.canFindWatch || state.supportsProprietaryCommands),
-                    onClick = { if (state.isConnected && state.canFindWatch) onFindWatch() }
+                    onClick = {
+                        if (state.isConnected && (state.canFindWatch || state.supportsProprietaryCommands)) onFindWatch()
+                    }
                 ),
                 QuickFeature("Alarms", Icons.Outlined.Alarm,
                     subtitle = "Set up to 8 alarms",
                     enabled = state.isConnected && state.supportsProprietaryCommands,
                     onClick = { if (state.isConnected && state.supportsProprietaryCommands) showAlarmsDialog = true }
                 ),
-                QuickFeature("QR Code", Icons.Outlined.Code,
-                    subtitle = "Send Wi-Fi, contact, etc.",
-                    enabled = state.isConnected && state.supportsProprietaryCommands,
-                    onClick = { if (state.isConnected && state.supportsProprietaryCommands) showQrDialog = true }
-                ),
                 QuickFeature("Health", Icons.Outlined.FavoriteBorder,
-                    subtitle = "Heart rate & battery",
-                    enabled = state.isConnected && (state.supportsHeartRate || state.supportsBattery),
+                    subtitle = state.heartRateBpm?.let { "$it bpm" } ?: "Heart rate",
+                    enabled = state.isConnected,
                     onClick = {
-                        onRefreshHealth()
-                        val readings = listOfNotNull(
-                            state.heartRateBpm?.let { "$it bpm" },
-                            state.batteryPercent?.let { "Battery $it%" }
-                        )
-                        val message = when {
-                            readings.isNotEmpty() -> readings.joinToString(" · ")
-                            state.supportsHeartRate -> "Waiting for a heart-rate measurement from the watch."
-                            else -> "This watch does not expose the standard BLE heart-rate service."
-                        }
+                        val message = state.heartRateBpm?.let { "Heart rate: $it bpm" }
+                            ?: if (state.supportsHeartRate) {
+                                "Waiting for a heart-rate measurement from the watch."
+                            } else {
+                                "This watch does not expose the standard BLE heart-rate measurement."
+                            }
                         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                     }
                 ),
@@ -515,9 +503,6 @@ fun MyWatchScreen(
                 )
             }
         )
-    }
-    if (showQrDialog) {
-        QrCodeDialog(state = state, onDismiss = { showQrDialog = false }, onSend = watchManager::setQrCode)
     }
 }
 
@@ -648,9 +633,7 @@ private fun ReconnectingWatchCard(
 private fun ConnectedWatchCard(
     device: WatchDevice,
     batteryPercent: Int?,
-    heartRateBpm: Int?,
     supportsBattery: Boolean,
-    supportsHeartRate: Boolean,
     supportsTimeSync: Boolean,
     lastTimeSyncAt: Long?
 ) {
@@ -718,23 +701,12 @@ private fun ConnectedWatchCard(
                 }
             }
 
-            if (supportsBattery || supportsHeartRate) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (supportsHeartRate) {
-                        WatchMetric(
-                            label = "Heart rate",
-                            value = heartRateBpm?.let { "$it bpm" } ?: "Waiting",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    if (supportsBattery) {
-                        WatchMetric(
-                            label = "Battery",
-                            value = batteryPercent?.let { "$it%" } ?: "Reading",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
+            if (supportsBattery || batteryPercent != null) {
+                WatchMetric(
+                    label = "Battery",
+                    value = batteryPercent?.let { "$it%" } ?: "Reading",
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
@@ -943,9 +915,9 @@ enum class SettingsCategory(
     val icon: ImageVector
 ) {
     APPEARANCE("Appearance", Icons.Outlined.Palette),
+    WATCH_CONTROLS("Watch controls", Icons.Outlined.Widgets),
     ALARMS("Alarms", Icons.Outlined.Alarm),
     FIND_WATCH("Find Watch", Icons.Outlined.LocationSearching),
-    QR_CODE("QR Code", Icons.Outlined.Code),
     UPDATES("App updates", Icons.Outlined.Download),
     ABOUT("About", Icons.Outlined.Info)
 }
@@ -1075,6 +1047,12 @@ private fun SettingsHomeScreen(
             ) {
                 Column {
                     SettingsCategoryRow(
+                        category = SettingsCategory.WATCH_CONTROLS,
+                        value = null,
+                        onClick = { onOpenCategory(SettingsCategory.WATCH_CONTROLS) }
+                    )
+                    SettingsRowDivider()
+                    SettingsCategoryRow(
                         category = SettingsCategory.ALARMS,
                         value = null,
                         onClick = { onOpenCategory(SettingsCategory.ALARMS) }
@@ -1084,12 +1062,6 @@ private fun SettingsHomeScreen(
                         category = SettingsCategory.FIND_WATCH,
                         value = null,
                         onClick = { onOpenCategory(SettingsCategory.FIND_WATCH) }
-                    )
-                    SettingsRowDivider()
-                    SettingsCategoryRow(
-                        category = SettingsCategory.QR_CODE,
-                        value = null,
-                        onClick = { onOpenCategory(SettingsCategory.QR_CODE) }
                     )
                 }
             }
@@ -1293,6 +1265,13 @@ private fun SettingsCategoryPage(
                 )
                 AboutSettingsContent(appVersion = appVersion)
             }
+            SettingsCategory.WATCH_CONTROLS -> {
+                SettingsDetailHeader(
+                    title = "Watch controls",
+                    onBack = onBack
+                )
+                WatchControlsSettingsContent()
+            }
             SettingsCategory.ALARMS -> {
                 SettingsDetailHeader(
                     title = "Alarms",
@@ -1306,13 +1285,6 @@ private fun SettingsCategoryPage(
                     onBack = onBack
                 )
                 FindWatchSettingsContent(onBack = onBack)
-            }
-            SettingsCategory.QR_CODE -> {
-                SettingsDetailHeader(
-                    title = "QR Code",
-                    onBack = onBack
-                )
-                QrCodeSettingsContent(onBack = onBack)
             }
         }
     }
@@ -1722,115 +1694,6 @@ private fun FindWatchSettingsContent(onBack: () -> Unit) {
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QrCodeSettingsContent(onBack: () -> Unit) {
-    val watchManager = BleWatchManager.getInstance(LocalContext.current)
-    val uiState by watchManager.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    var qrText by remember { mutableStateOf("") }
-    var qrType by remember { mutableStateOf(0) }
-    var sending by remember { mutableStateOf(false) }
-    var lastSent by remember { mutableStateOf<String?>(null) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionHeading("Send QR Code")
-        AppSurface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    "Send a QR code to your watch display. Useful for Wi-Fi, contacts, payments, etc.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
-                )
-            }
-        }
-
-        AppSurface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = qrText,
-                        onValueChange = { qrText = it },
-                        label = { Text("QR Content (URL, text, etc.)") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Uri)
-                    )
-                    Box {
-                        var qrTypeMenuExpanded by remember { mutableStateOf(false) }
-                        TextButton(onClick = { qrTypeMenuExpanded = true }) {
-                            Text(when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" })
-                        }
-                        DropdownMenu(expanded = qrTypeMenuExpanded, onDismissRequest = { qrTypeMenuExpanded = false }) {
-                            DropdownMenuItem(text = { Text("General") }, onClick = { qrType = 0; qrTypeMenuExpanded = false })
-                            DropdownMenuItem(text = { Text("Wi-Fi") }, onClick = { qrType = 1; qrTypeMenuExpanded = false })
-                            DropdownMenuItem(text = { Text("Contact") }, onClick = { qrType = 2; qrTypeMenuExpanded = false })
-                        }
-                    }
-                }
-
-
-                Button(
-                    onClick = {
-                        if (qrText.isNotBlank() && uiState.isConnected && uiState.supportsProprietaryCommands && !sending) {
-                            sending = true
-                            scope.launch {
-                                val queued = watchManager.setQrCode(qrText, qrType)
-                                lastSent = if (queued) qrText else null
-                                sending = false
-                            }
-                        }
-                    },
-                    enabled = qrText.isNotBlank() && uiState.isConnected && uiState.supportsProprietaryCommands && !sending,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    if (sending) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    else Text("Send to Watch", fontWeight = FontWeight.Medium)
-                }
-
-                if (!uiState.isConnected) {
-                    Text(
-                        "Connect your watch first",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                lastSent?.let {
-                    Text(
-                        "Last sent: ${if (it.length > 40) it.substring(0, 40) + "…" else it}",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 11.sp,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -2295,80 +2158,6 @@ private fun AlarmsDialog(
                         )
                         if (id < 7) Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                     }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
-    )
-}
-
-@Composable
-private fun QrCodeDialog(
-    state: BleUiState,
-    onDismiss: () -> Unit,
-    onSend: (String, Int) -> Boolean
-) {
-    val scope = rememberCoroutineScope()
-    var qrText by remember { mutableStateOf("") }
-    var qrType by remember { mutableStateOf(0) }
-    var sending by remember { mutableStateOf(false) }
-    var sendFailed by remember { mutableStateOf(false) }
-
-    AppAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Send QR Code") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Text("Send a QR code to your watch display. Useful for Wi-Fi, contacts, payments, etc.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                OutlinedTextField(
-                    value = qrText,
-                    onValueChange = { qrText = it },
-                    label = { Text("QR Content (URL, text, etc.)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Uri)
-                )
-                Box {
-                    var qrTypeMenuExpanded by remember { mutableStateOf(false) }
-                    TextButton(onClick = { qrTypeMenuExpanded = true }) {
-                        Text(when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" })
-                    }
-                    DropdownMenu(expanded = qrTypeMenuExpanded, onDismissRequest = { qrTypeMenuExpanded = false }) {
-                        DropdownMenuItem(text = { Text("General") }, onClick = { qrType = 0; qrTypeMenuExpanded = false })
-                        DropdownMenuItem(text = { Text("Wi-Fi") }, onClick = { qrType = 1; qrTypeMenuExpanded = false })
-                        DropdownMenuItem(text = { Text("Contact") }, onClick = { qrType = 2; qrTypeMenuExpanded = false })
-                    }
-                }
-                Button(
-                    onClick = {
-                        if (qrText.isNotBlank() && state.isConnected && state.supportsProprietaryCommands && !sending) {
-                            sending = true
-                            scope.launch {
-                                sendFailed = !onSend(qrText, qrType)
-                                delay(350L)
-                                sending = false
-                            }
-                        }
-                    },
-                    enabled = qrText.isNotBlank() && state.isConnected && state.supportsProprietaryCommands && !sending,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    if (sending) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    else Text("Send to Watch", fontWeight = FontWeight.Medium)
-                }
-                if (!state.isConnected) {
-                    Text("Connect your watch first", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                } else if (!state.supportsProprietaryCommands) {
-                    Text("Waiting for the watch's proprietary connection handshake.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                }
-                if (sendFailed) {
-                    Text("Android could not queue the QR command. Check the connection and try again.", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                 }
             }
         },

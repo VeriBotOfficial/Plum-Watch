@@ -15,8 +15,9 @@ Wearfit Pro uses **two BLE command channels** on the same SiFli serial data char
 Both share the same GATT characteristic. The proprietary commands use a **different framing**:
 - **Marker**: 0xAB (171) or 0xEA (234)
 - **Length**: 2 bytes BE (payload length after header)
-- **0xFF**: Fixed separator byte
+- **Separator**: usually 0xFF; documented heartbeat and physical-training frames use 0x00
 - **Command ID**: 1 byte
+- **Special marker**: some documented outgoing setting frames use 0xDE rather than 0xAB/0xEA
 - **Data...**: Variable
 
 ---
@@ -240,14 +241,14 @@ Uses `sendFileTransHead` / `sendFileTransData` with MTU-sized chunks.
 ## Connection Handshake Sequence
 
 1. **GATT connect** → service discovery
-2. **Enable notifications** on `00000000-0000-0200-...` (SiFli data char)
-3. **Request MTU 247** (SiFli handshake = MTU success)
-4. **Proprietary handshake** (after notifications ready):
+2. **Enable notifications/indications** on the SiFli data characteristic when the watch exposes a CCCD; this is required for response-driven watchface transfer, but not for write-only settings
+3. **Request MTU 247** for the SiFli file-transfer path
+4. **Proprietary handshake** (once the writable serial characteristic is available):
    - `setSendPhoneSystem()` → `AB 00 05 FF 20 80 01 02`
    - `sendConnectRequestType(0, model)` → `AB 00 LL FF E0 80 00 <model>`
    - `getDeviceInfoData()` → `AB 00 04 FF 92 80 01`
 5. **Watch replies** with device info (cmd 146) + battery (cmd 145)
-6. **Start heartbeat** (30s interval, reply to cmd 11/1 with `DE 00 03 00 0B 02`)
+6. **Heartbeat**: reply to each received cmd 11/1 with `DE 00 03 00 0B 02`; do not send unsolicited periodic replies
 
 ---
 
@@ -257,9 +258,7 @@ Two paths:
 1. **Standard BLE Battery Service** (0x180F/0x2A19) - read/notify
 2. **Proprietary** (cmd 145 from watch, index 7) - auto-reported after device info request
 
-`refreshHealth()` should:
-- Read standard Battery Level characteristic if available
-- Send `getDeviceInfoData()` to trigger proprietary battery report
+Battery refresh belongs to the device connection/card flow and uses the standard Battery Level characteristic and/or a device-info request. Health refresh is separate and is reserved for health measurements such as heart rate.
 
 ---
 
@@ -318,36 +317,6 @@ Not the same as custom watchface transfer.
 ---
 
 ## Implementation Notes for Plum Watch
-
-### Current Plum Watch integration status
-
-Implemented in the Android source:
-- SiFli watchface per-file transfer using type 0, ZIP-relative destination paths, one-based block indexes, descending-size order and GIFs last
-- Proprietary connection handshake, device-info request, heartbeat response (command 11) and battery report (command 145)
-- Find Watch through standard Immediate Alert with proprietary command 113 fallback
-- Alarm command 115 sender and an eight-slot editor; there is no acknowledgement/read-back path yet, so successful transmission is not confirmation that the watch stored the alarm
-- QR send command ID 128 (`0x80`) is identified; command 168 (`0xA8`) is a QR result response. The detailed QR payload schema is not present in these notes, so the app's current QR payload layout remains experimental and unverified
-- Writable standard Current Time Service synchronization when the watch exposes the characteristic
-
-Not implemented in the Android app:
-| Feature | Commands | Notes |
-|---------|----------|-------|
-| Weather | 136 (0x88) | 7-day forecast, icons |
-| Notifications | 114 (0x72) | Icon, display, hide detail |
-| Music Control | 19 (watch→phone) | Play/pause/next/prev/vol |
-| Camera | 121 (shake), 21 (preview/photo) | Shake photo, remote shutter |
-| Sleep Mode | 127 (0x7F) | Auto/manual, tracking |
-| Physical Training | 1 | Auto-pause, prompts |
-| HR Zones | 252 (0xFC) | 8 thresholds |
-| Sedentary/Water | 117, 163 | ReminderSwitch + specific |
-| Contacts | 164, 165, 166 | Count, name(split), phone(split) |
-| Health Data | 199 sub-cmds | Glucose, breathe, weight, BMI |
-| Language | 123 | 25 languages |
-| Screen Wake | 119 (0x77) | Raise wrist |
-| 12/24 Hour | 124 | Time format |
-| Do Not Disturb | 118 (0x76) | All-day + sport |
-
-The app currently uses the standard Current Time Service for time sync. Command 144 is documented in the protocol table but is not yet implemented in the Android app.
 
 ### Packet Construction Helper
 ```kotlin

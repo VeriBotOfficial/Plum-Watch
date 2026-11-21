@@ -10,6 +10,8 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothStatusCodes
+import android.media.AudioManager
+import android.view.KeyEvent
 import android.os.Build
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
@@ -128,6 +130,7 @@ class BleWatchManager(context: Context) {
 
     private var bluetoothGatt: BluetoothGatt? = null
     private var batteryCharacteristic: BluetoothGattCharacteristic? = null
+    private var heartRateCharacteristic: BluetoothGattCharacteristic? = null
     private var findWatchCharacteristic: BluetoothGattCharacteristic? = null
     private var currentTimeCharacteristic: BluetoothGattCharacteristic? = null
     private var sifliDataCharacteristic: BluetoothGattCharacteristic? = null
@@ -144,11 +147,8 @@ class BleWatchManager(context: Context) {
     private var autoReconnectEnabled = initialSavedDevice != null
     private var reconnectAttempts = 0
 
-    // Proprietary watch connection state (handshake / heartbeat / battery via commands).
+    // Proprietary handshake state is informational; writable settings do not wait for this reply.
     private var sifliHandshakeDone = false
-    private var watchConnected = false
-    private var proprietaryBatterySupported = false
-    private var heartbeatTask: Handler? = null
 
     // Reassembly buffer for proprietary (non-SiFli) commands that arrive fragmented.
     private val proprietaryAssembly = ByteArrayOutputStream()
@@ -270,13 +270,11 @@ class BleWatchManager(context: Context) {
                     )
                 }
                 batteryCharacteristic = null
+                heartRateCharacteristic = null
                 findWatchCharacteristic = null
                 sifliDataCharacteristic = null
                 sifliHandshakeDone = false
-                watchConnected = false
-                proprietaryBatterySupported = false
                 proprietaryAssembly.reset()
-                stopHeartbeat()
                 sifliNotificationsReady = false
                 sifliMtu = 23
                 sifliReassembler.reset()
@@ -304,16 +302,14 @@ class BleWatchManager(context: Context) {
                     handler.removeCallbacks(connectionTimeoutTask)
                     handler.removeCallbacks(stopFindWatchTask)
                     batteryCharacteristic = null
+                    heartRateCharacteristic = null
                     findWatchCharacteristic = null
                     sifliDataCharacteristic = null
                     sifliNotificationsReady = false
                     sifliMtu = 23
                     sifliReassembler.reset()
                     sifliHandshakeDone = false
-                    watchConnected = false
-                    proprietaryBatterySupported = false
                     proprietaryAssembly.reset()
-                    stopHeartbeat()
                     pendingNotificationDescriptors.clear()
                     notificationDescriptorWritePending = false
                     pendingBatteryRead = null
@@ -390,12 +386,12 @@ class BleWatchManager(context: Context) {
                     BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE or
                         BluetoothGattCharacteristic.PROPERTY_WRITE
                 )) != 0
-            val sifliCanNotify = sifliData != null &&
-                (sifliData.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
-
             batteryCharacteristic = battery
+            heartRateCharacteristic = heartRate
             currentTimeCharacteristic = currentTime?.takeIf { timeSyncWritable }
-            sifliDataCharacteristic = sifliData?.takeIf { sifliCanWrite && sifliCanNotify }
+            // Proprietary settings only require a writable serial characteristic. Watchface
+            // transfers separately require notifications so responses can be received.
+            sifliDataCharacteristic = sifliData?.takeIf { sifliCanWrite }
             sifliNotificationsReady = false
             findWatchCharacteristic = alertLevel?.takeIf {
                 it.properties and (
@@ -416,10 +412,11 @@ class BleWatchManager(context: Context) {
                         BluetoothGattCharacteristic.PROPERTY_NOTIFY or
                             BluetoothGattCharacteristic.PROPERTY_INDICATE
                     ) != 0,
-                    canFindWatch = findWatchCharacteristic != null,
+                    canFindWatch = findWatchCharacteristic != null || sifliDataCharacteristic != null,
                     supportsTimeSync = currentTimeCharacteristic != null,
                     lastTimeSyncAt = null,
                     supportsSifliWatchface = false,
+                    supportsProprietaryCommands = sifliDataCharacteristic != null,
                     connectionMessage = "Connected"
                 )
             }
@@ -437,8 +434,6 @@ class BleWatchManager(context: Context) {
                         characteristic.getDescriptor(CLIENT_CONFIG_UUID)?.let {
                             pendingNotificationDescriptors.add(it)
                         }
-                    } else if (characteristic.uuid == SIFLI_SERIAL_DATA_UUID) {
-                        sifliDataCharacteristic = null
                     }
                 }
             }
@@ -608,7 +603,8 @@ class BleWatchManager(context: Context) {
         private fun processProprietaryCommand(cmd: ByteArray) {
             if (cmd.size < 5) return
             val marker = cmd[0].toInt() and 0xFF
-            if ((marker != 0xAB && marker != 0xEA) || (cmd[3].toInt() and 0xFF) != 0xFF) return
+            val separator = cmd[3].toInt() and 0xFF
+            if ((marker != 0xAB && marker != 0xEA) || (separator != 0xFF && separator != 0x00)) return
             val commandId = cmd[4].toInt() and 0xFF
 
             // Heartbeat request from watch: marker 171/234, cmd 11, arg 1
@@ -626,17 +622,15 @@ class BleWatchManager(context: Context) {
                 // Watch reports it is paired/connected. Mark proprietary channel alive.
                 if (!sifliHandshakeDone) {
                     sifliHandshakeDone = true
-                    watchConnected = true
                     mutableState.update {
                         it.copy(
-                            supportsProprietaryCommands = true,
+                            supportsProprietaryCommands = sifliDataCharacteristic != null,
                             canFindWatch = it.canFindWatch || sifliDataCharacteristic != null,
                             watchConnected = true,
                             connectionMessage = "Connected · watch handshake complete"
                         )
                     }
-                    startHeartbeat()
-                }
+                    }
                 return
             }
 
@@ -644,9 +638,16 @@ class BleWatchManager(context: Context) {
             if (commandId == PROPRIETARY_CMD_BATTERY && cmd.size >= 8) {
                 val level = cmd[7].toInt() and 0xFF
                 if (level in 0..100) {
-                    proprietaryBatterySupported = true
-                    mutableState.update { it.copy(batteryPercent = level) }
+                    mutableState.update {
+                        it.copy(batteryPercent = level, supportsBattery = true)
+                    }
                 }
+                return
+            }
+
+            // Watch-originated media controls use marker 0xEA, command 19.
+            if (marker == 0xEA && commandId == 19 && cmd.size >= 6) {
+                dispatchPhoneMediaCommand(cmd[5].toInt() and 0xFF)
                 return
             }
 
@@ -663,6 +664,24 @@ class BleWatchManager(context: Context) {
         }
     }
 
+
+    private fun dispatchPhoneMediaCommand(command: Int) {
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        val keyCode = when (command) {
+            1 -> KeyEvent.KEYCODE_MEDIA_PLAY
+            2 -> KeyEvent.KEYCODE_MEDIA_PAUSE
+            3 -> KeyEvent.KEYCODE_MEDIA_NEXT
+            4 -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+            5 -> {
+                audioManager.adjustVolume(AudioManager.ADJUST_RAISE, 0)
+                return
+            }
+            else -> return
+        }
+        audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+        audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+    }
+
     @SuppressLint("MissingPermission")
     private fun writeNextNotificationDescriptor(gatt: BluetoothGatt) {
         if (bluetoothGatt !== gatt || notificationDescriptorWritePending) return
@@ -671,7 +690,12 @@ class BleWatchManager(context: Context) {
             finishServiceSetup(gatt)
             return
         }
-        val value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+        val properties = descriptor.characteristic.properties
+        val value = if (properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0) {
+            BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+        } else {
+            BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+        }
         val started = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             gatt.writeDescriptor(descriptor, value) == BluetoothStatusCodes.SUCCESS
         } else {
@@ -1137,18 +1161,24 @@ class BleWatchManager(context: Context) {
     @SuppressLint("MissingPermission")
     fun refreshHealth() {
         val gatt = bluetoothGatt ?: return
+        val characteristic = heartRateCharacteristic ?: return
+        if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
+            gatt.readCharacteristic(characteristic)
+        }
+    }
+
+    /** Refreshes battery state for the device card, independently of health metrics. */
+    @SuppressLint("MissingPermission")
+    fun refreshBattery() {
+        val gatt = bluetoothGatt ?: return
         val standardBattery = batteryCharacteristic
         if (standardBattery != null &&
             standardBattery.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0
         ) {
             gatt.readCharacteristic(standardBattery)
         }
-
-        // A proprietary battery report is independent of the standard Battery Service.
-        if (proprietaryBatterySupported && sifliHandshakeDone) {
-            sifliDataCharacteristic?.let { characteristic ->
-                sendProprietaryCommand(gatt, characteristic, PROPRIETARY_DEVICE_INFO_PAYLOAD)
-            }
+        sifliDataCharacteristic?.let { characteristic ->
+            sendProprietaryCommand(gatt, characteristic, PROPRIETARY_DEVICE_INFO_PAYLOAD)
         }
     }
 
@@ -1180,11 +1210,11 @@ class BleWatchManager(context: Context) {
         }
     }
 
-    /** Starts the proprietary watch handshake once SiFli notifications are ready. */
+    /** Starts the proprietary command handshake once a writable serial characteristic is ready. */
     @SuppressLint("MissingPermission")
     private fun startProprietaryHandshake(gatt: BluetoothGatt) {
         val char = sifliDataCharacteristic ?: return
-        if (!sifliNotificationsReady) return
+        // This handshake is write-driven; an optional notification descriptor is not required.
         // Step 1: tell the watch we are an Android phone.
         sendProprietaryCommand(gatt, char, PROPRIETARY_PHONE_SYSTEM_PAYLOAD)
         // Step 2: request device info (also triggers the battery report at cmd 145).
@@ -1197,13 +1227,41 @@ class BleWatchManager(context: Context) {
                 )
             }
         }, 300L)
+        // Fall back to the documented proprietary clock command if standard CTS is absent.
+        if (currentTimeCharacteristic == null) {
+            handler.postDelayed({
+                runCatching { sendProprietaryTimeSync(gatt, char) }
+            }, 450L)
+        }
         handler.postDelayed({
             runCatching {
                 sendProprietaryCommand(gatt, char, PROPRIETARY_DEVICE_INFO_PAYLOAD)
             }
-        }, 600L)
-        // Start the keep-alive heartbeat after the handshake.
-        handler.postDelayed({ startHeartbeat() }, 1000L)
+        }, 650L)
+    }
+
+
+    private fun sendProprietaryTimeSync(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic
+    ): Boolean {
+        val now = java.time.LocalDateTime.now()
+        val year = now.year
+        val payload = WearfitProtocol.packet(
+            commandId = 0x90,
+            data = byteArrayOf(
+                0x80.toByte(),
+                0x00,
+                (year ushr 8).toByte(),
+                year.toByte(),
+                now.monthValue.toByte(),
+                now.dayOfMonth.toByte(),
+                now.hour.toByte(),
+                now.minute.toByte(),
+                now.second.toByte()
+            )
+        )
+        return sendProprietaryCommand(gatt, characteristic, payload)
     }
 
     /** Builds the "connect request type" command: 0xAB 0x00 <len> 0xFF 0xE0 <type> <model>... */
@@ -1225,33 +1283,6 @@ class BleWatchManager(context: Context) {
         return payload
     }
 
-    /** Starts periodic keep-alive heartbeat to the watch. */
-    @SuppressLint("MissingPermission")
-    private fun startHeartbeat() {
-        stopHeartbeat()
-        heartbeatTask = Handler(Looper.getMainLooper())
-        val char = sifliDataCharacteristic ?: return
-        val gatt = bluetoothGatt ?: return
-        val task = object : Runnable {
-            override fun run() {
-                if (!watchConnected || bluetoothGatt !== gatt) {
-                    stopHeartbeat()
-                    return
-                }
-                runCatching {
-                    sendProprietaryCommand(gatt, char, PROPRIETARY_HEARTBEAT_RESPONSE)
-                }
-                heartbeatTask?.postDelayed(this, PROPRIETARY_HEARTBEAT_INTERVAL_MS)
-            }
-        }
-        heartbeatTask?.postDelayed(task, PROPRIETARY_HEARTBEAT_INTERVAL_MS)
-    }
-
-    private fun stopHeartbeat() {
-        heartbeatTask?.removeCallbacksAndMessages(null)
-        heartbeatTask = null
-    }
-
     @SuppressLint("MissingPermission")
     fun findWatch() {
         val gatt = bluetoothGatt ?: return
@@ -1262,11 +1293,9 @@ class BleWatchManager(context: Context) {
         } ?: false
         if (standardStarted) handler.postDelayed(stopFindWatchTask, FIND_WATCH_ALERT_DURATION_MS)
 
-        val proprietaryStarted = if (sifliHandshakeDone) {
-            sifliDataCharacteristic?.let { characteristic ->
-                sendProprietaryCommand(gatt, characteristic, buildFindBandPayload())
-            } ?: false
-        } else false
+        val proprietaryStarted = sifliDataCharacteristic?.let { characteristic ->
+            sendProprietaryCommand(gatt, characteristic, buildFindBandPayload())
+        } ?: false
 
         if (!standardStarted && !proprietaryStarted) {
             mutableState.update {
@@ -1277,32 +1306,141 @@ class BleWatchManager(context: Context) {
         }
     }
 
-    /** Sends a QR code to the watch (e.g. for Wi-Fi, payment, contact). */
-    @SuppressLint("MissingPermission")
-    fun setQrCode(qrContent: String, qrType: Int = 0): Boolean {
+
+    /** Sends a documented Wearfit setting without waiting for a device-info response. */
+    private fun sendWearfitSetting(
+        commandId: Int,
+        data: ByteArray,
+        marker: Int = 0xAB,
+        separator: Int = 0xFF
+    ): Boolean {
         val gatt = bluetoothGatt ?: return false
         val characteristic = sifliDataCharacteristic ?: return false
-        if (!sifliHandshakeDone) {
-            mutableState.update { it.copy(errorMessage = "Watch not ready for QR code. Wait for connection.") }
-            return false
-        }
-        if (qrContent.isBlank() || qrType !in 0..0xFF) {
-            mutableState.update { it.copy(errorMessage = "Enter QR content and select a valid QR type.") }
-            return false
-        }
-
-        val payload = buildQrCodePayload(qrContent, qrType)
-        if (payload.size > sifliMtu - 3) {
-            mutableState.update {
-                it.copy(errorMessage = "This QR payload exceeds the negotiated BLE packet size. Shorten the content.")
-            }
-            return false
-        }
-        val queued = sendProprietaryCommand(gatt, characteristic, payload)
+        val queued = sendProprietaryCommand(
+            gatt,
+            characteristic,
+            WearfitProtocol.packet(commandId, data, marker, separator)
+        )
         mutableState.update {
-            it.copy(errorMessage = if (queued) null else "Android could not queue the QR command.")
+            it.copy(errorMessage = if (queued) null else "Android could not queue the watch setting.")
         }
         return queued
+    }
+
+    fun setWatchLanguage(languageCode: Int): Boolean {
+        if (languageCode !in setOf(0, 1, 5, 6, 8, 9, 10, 11, 13, 24)) return false
+        return sendWearfitSetting(0x7B, byteArrayOf(0x80.toByte(), languageCode.toByte()))
+    }
+
+    fun setTimeFormat(use24Hour: Boolean): Boolean =
+        sendWearfitSetting(0x7C, byteArrayOf(0x80.toByte(), if (use24Hour) 1 else 0))
+
+    fun setRaiseToWake(enabled: Boolean): Boolean =
+        sendWearfitSetting(0x77, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+
+    fun setAutomaticHealthMeasurements(enabled: Boolean): Boolean =
+        sendWearfitSetting(0x78, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+
+    fun setShakeToPhoto(enabled: Boolean): Boolean =
+        sendWearfitSetting(0x79, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+
+    fun setBodyTemperatureMeasurement(enabled: Boolean): Boolean =
+        sendWearfitSetting(0x86, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+
+    fun setNotificationDisplay(iconPrompt: Int, display: Boolean, hideDetails: Boolean): Boolean {
+        require(iconPrompt in 0..3)
+        return sendWearfitSetting(
+            commandId = 0x72,
+            data = byteArrayOf(0x01, iconPrompt.toByte(), if (display) 1 else 0, if (hideDetails) 1 else 0),
+            marker = 0xDE
+        )
+    }
+
+    fun setSleepMode(enabled: Boolean, mode: Int, tracking: Boolean, chargeReminder: Boolean): Boolean {
+        require(mode in 0..2)
+        return sendWearfitSetting(
+            commandId = 0x7F,
+            data = byteArrayOf(
+                0x01,
+                if (enabled) 1 else 0,
+                mode.toByte(),
+                if (tracking) 1 else 0,
+                if (chargeReminder) 1 else 0
+            ),
+            marker = 0xDE
+        )
+    }
+
+    fun setPhysicalTraining(
+        autoPause: Boolean,
+        startPrompt: Boolean,
+        stopPrompt: Boolean,
+        keyPause: Boolean
+    ): Boolean = sendWearfitSetting(
+        commandId = 0x01,
+        data = byteArrayOf(
+            0x01,
+            if (autoPause) 1 else 0,
+            if (startPrompt) 1 else 0,
+            if (stopPrompt) 1 else 0,
+            if (keyPause) 1 else 0
+        ),
+        marker = 0xDE,
+        separator = 0x00
+    )
+
+    fun setHeartRateZones(values: List<Int>): Boolean {
+        require(values.size == 8) { "Exactly eight heart-rate thresholds are required." }
+        require(values.all { it in 0..255 }) { "Heart-rate thresholds must fit in one byte." }
+        return sendWearfitSetting(
+            commandId = 0xFC,
+            data = byteArrayOf(0x01) + values.map { it.toByte() }.toByteArray(),
+            marker = 0xDE
+        )
+    }
+
+    fun setSedentaryReminder(
+        enabled: Boolean,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        intervalMinutes: Int
+    ): Boolean = sendReminder(0x75, enabled, startHour, startMinute, endHour, endMinute, intervalMinutes)
+
+    fun setDrinkWaterReminder(
+        enabled: Boolean,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        intervalMinutes: Int
+    ): Boolean = sendReminder(0xA3, enabled, startHour, startMinute, endHour, endMinute, intervalMinutes)
+
+    private fun sendReminder(
+        commandId: Int,
+        enabled: Boolean,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        intervalMinutes: Int
+    ): Boolean {
+        require(startHour in 0..23 && endHour in 0..23)
+        require(startMinute in 0..59 && endMinute in 0..59)
+        require(intervalMinutes in 1..255)
+        return sendWearfitSetting(
+            commandId,
+            byteArrayOf(
+                0x80.toByte(),
+                if (enabled) 1 else 0,
+                startHour.toByte(),
+                startMinute.toByte(),
+                endHour.toByte(),
+                endMinute.toByte(),
+                intervalMinutes.toByte()
+            )
+        )
     }
 
     /** Configures an alarm on the watch (up to 8 alarms, ID 0-7). */
@@ -1317,10 +1455,6 @@ class BleWatchManager(context: Context) {
     ): Boolean {
         val gatt = bluetoothGatt ?: return false
         val characteristic = sifliDataCharacteristic ?: return false
-        if (!sifliHandshakeDone) {
-            mutableState.update { it.copy(errorMessage = "Watch not ready for alarm. Wait for connection.") }
-            return false
-        }
         require(id in 0..7) { "Alarm ID must be 0-7" }
         require(hour in 0..23) { "Hour must be 0-23" }
         require(minute in 0..59) { "Minute must be 0-59" }
@@ -1341,21 +1475,6 @@ class BleWatchManager(context: Context) {
     private fun buildFindBandPayload(): ByteArray {
         // 0xAB 00 03 FF 71 80
         return byteArrayOf(-85, 0, 3, -1, PROP_CMD_FIND_BAND.toByte(), Byte.MIN_VALUE)
-    }
-
-    private fun buildQrCodePayload(qrContent: String, qrType: Int): ByteArray {
-        val qrBytes = qrContent.toByteArray(StandardCharsets.UTF_8)
-        // QR send is command 0x80; 0xA8 is the incoming QR result response.
-        val bodyLength = 3 + qrBytes.size // separator + command + type + content
-        require(bodyLength <= 0xFFFF) { "QR payload is too large." }
-        return byteArrayOf(
-            0xAB.toByte(),
-            (bodyLength ushr 8).toByte(),
-            bodyLength.toByte(),
-            0xFF.toByte(),
-            PROP_CMD_SET_QR.toByte(),
-            qrType.toByte()
-        ) + qrBytes
     }
 
     private fun buildAlarmPayload(
@@ -1604,16 +1723,14 @@ class BleWatchManager(context: Context) {
         handler.removeCallbacks(connectionTimeoutTask)
         handler.removeCallbacks(stopFindWatchTask)
         batteryCharacteristic = null
+        heartRateCharacteristic = null
         findWatchCharacteristic = null
         sifliDataCharacteristic = null
         sifliNotificationsReady = false
         sifliMtu = 23
         sifliReassembler.reset()
         sifliHandshakeDone = false
-        watchConnected = false
-        proprietaryBatterySupported = false
         proprietaryAssembly.reset()
-        stopHeartbeat()
         pendingSifliWrite?.complete(false)
         pendingSifliWrite = null
         pendingSifliMtuChange?.completeExceptionally(
@@ -1787,8 +1904,6 @@ class BleWatchManager(context: Context) {
         private val PROPRIETARY_PHONE_SYSTEM_PAYLOAD = byteArrayOf(-85, 0, 5, -1, 32, Byte.MIN_VALUE, 1, 2)
         private val PROPRIETARY_DEVICE_INFO_PAYLOAD = byteArrayOf(-85, 0, 4, -1, -110, Byte.MIN_VALUE, 1)
 
-        private const val PROPRIETARY_HEARTBEAT_INTERVAL_MS = 30_000L
-        private const val PROPRIETARY_BATTERY_INTERVAL_MS = 60_000L
         private const val PROPRIETARY_CMD_TIMEOUT_MS = 5_000L
         private const val MAX_PROPRIETARY_MESSAGE_LENGTH = 16 * 1024
         private const val MAX_WATCHFACE_FILES = 1_024
@@ -1797,7 +1912,6 @@ class BleWatchManager(context: Context) {
 
         // Proprietary command IDs (matching Wearfit Pro)
         private const val PROP_CMD_FIND_BAND = 0x71 // 113
-        private const val PROP_CMD_SET_QR = 0x80  // 128: send QR; 0xA8 is the result response
         private const val PROP_CMD_SET_ALARM = 0x73 // 115
 
         private val BATTERY_SERVICE_UUID = java.util.UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")

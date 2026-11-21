@@ -1,6 +1,6 @@
 # Plum Watch Android app
 
-A lightweight Android companion app for HK-series watches or any watch flashed with plumOS.
+A lightweight Android companion app for HK-series watches and watches exposing the supported SiFli / Wearfit BLE protocols.
 
 ## Build
 
@@ -9,7 +9,7 @@ A lightweight Android companion app for HK-series watches or any watch flashed w
 - A current Android Studio release compatible with Android Gradle Plugin 9.1.1
 - Internet access for Gradle and Maven Central dependency downloads
 - JDK 17
-- Android SDK Platform 37 (Android 17)
+- Android SDK Platform 37
 - Android SDK Build-Tools 37.0.0
 
 Open **this folder** in Android Studio:
@@ -18,7 +18,7 @@ Open **this folder** in Android Studio:
 
 Allow Gradle sync to finish, select the `app` run configuration, then use **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
 
-The repository includes small Gradle bootstrap scripts. On Windows, from this folder, run:
+From this folder, build on Windows with:
 
 ```powershell
 .\gradlew.bat assembleDebug
@@ -27,22 +27,21 @@ The repository includes small Gradle bootstrap scripts. On Windows, from this fo
 On macOS or Linux:
 
 ```sh
-sh ./gradlew assembleDebug
+sh ./gradlew testDebugUnitTest assembleDebug
 ```
 
-The first run downloads Gradle 9.3.1 into the local Gradle user directory. It does not install Android Studio or the Android SDK for you.
-
-The debug APK is written to:
+The first run downloads Gradle 9.3.1 into the local Gradle user directory. The debug APK is written to:
 
 ```
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Current app structure
+## App structure
 
-- **My Watch** — scans nearby BLE devices, maintains the GATT connection, and exposes capability-gated Find Watch, alarm, QR, battery and heart-rate controls.
+- **My Watch** — BLE discovery, connection state, battery status, Find Watch, alarms, Health (heart rate) and watchface transfer.
 - **Watchfaces** — loads `/watchfaces/index.json`, previews available faces, and transfers the selected ZIP to the watch using the per-file SiFli protocol.
-- **Settings** — app appearance, interface style, update checks, and device controls.
+- **Settings → Watch controls** — documented Wearfit settings including language, time format, wrist wake, automatic health measurements, body-temperature mode, sleep mode, sedentary and water reminders, notification display preferences, physical-training options and heart-rate zones.
+- **Settings → Alarms / Find Watch** — dedicated device controls.
 
 The floating navigation bar uses the backdrop renderer and sample tab components from [Kyant0/AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) (Apache-2.0), with `io.github.kyant0:backdrop:2.0.1` and `io.github.kyant0:shapes:1.2.1`.
 
@@ -52,48 +51,60 @@ The floating navigation bar uses the backdrop renderer and sample tab components
 2. Open **My Watch → Connect a watch**.
 3. Grant the Nearby Devices permission.
 4. Select the watch from the scan results.
-5. Wait for the GATT connection and service discovery to complete.
+5. Wait for GATT service discovery to complete.
 
 If another companion app currently holds the watch connection, disconnect it there before testing. Some watch models expose different BLE services or require a separate bonding step.
 
-**Protocol status:** the app implements standard GATT Battery, Heart Rate, and Immediate Alert profiles only when the watch advertises those exact services and characteristics. These are capability-detected; a supported sensor chip does not guarantee the firmware exposes the standard profile. The HK10 PRO MAX+ is listed by Chronos, but Chronos notes that individual features are not guaranteed. Wearfit Pro's private command protocol is not yet implemented. Notifications, alarms, and other proprietary controls still require a captured, model-specific protocol exchange and physical-device testing. A successful GATT connection alone does not mean those actions are implemented.
+A successful BLE link is not, by itself, proof that every protocol feature is present. The app detects the writable proprietary serial characteristic independently from its notification support. This distinction matters: documented Wearfit settings and alarms use BLE writes, while the SiFli watchface transfer requires response notifications/indications as well.
 
-## BLE protocol implementation status
+## BLE and Wearfit capabilities
 
-The Android GATT layer currently capability-detects these standard Bluetooth services:
+### Standard Bluetooth services
 
-- Battery Service (0x180F): read and/or subscribe to the Battery Level characteristic when the advertised properties allow it.
-- Heart Rate Service (0x180D): subscribe to Heart Rate Measurement when notifications or indications are available.
-- Immediate Alert Service (0x1802): send the standard alert-level command for Find Watch.
-- Current Time Service (0x1805): set the phone's local date/time only when the watch exposes the Current Time characteristic with the standard Write property. Read-only CTS implementations are not treated as synchronizable.
+- **Battery Service (0x180F):** read or subscribe to Battery Level (0x2A19) when the characteristic exposes the required properties.
+- **Heart Rate Service (0x180D):** subscribe to Heart Rate Measurement (0x2A37) when notifications or indications are available.
+- **Immediate Alert Service (0x1802):** send the standard alert-level command for Find Watch.
+- **Current Time Service (0x1805):** synchronize the phone's local time when the watch exposes a writable Current Time characteristic.
 
-SiFli serial framing and reassembly are isolated in `SifliSerialProtocol.kt`. JVM tests cover little-endian message headers, MTU-based fragmentation, reassembly, malformed fragments and recovery. Watchface receiver status values are mapped from the SiFli firmware enum; in particular, status 22 means that the watch application rejected the destination file path. The watchface transfer now unzips the archive on the phone and pushes each contained file separately, using its relative path inside the ZIP (with a leading `/`) as the destination path, which resolves the status 22 rejection. File data uses index starting at 1, files are sorted by descending size with GIFs last, and type 0 (watchface) files are sent raw without padding or CRC.
+### Wearfit proprietary channel
 
-Proprietary Wearfit-compatible commands are implemented on the same SiFli serial data characteristic:
+The Android app uses the same SiFli serial characteristic for proprietary Wearfit commands. A writable characteristic is enough to enable the command controls; notifications are only required for response-driven features such as watchface transfer.
 
-- **Connection setup:** phone system, connect request (type 0 and an 11-byte-limited phone model), then device-info request.
-- **Keep-alive:** responds to the watch's command 11 heartbeat with the documented `DE 00 03 00 0B 02` packet.
-- **Battery:** reads the proprietary battery report (command 145) independently of the standard Battery Service.
-- **Find Watch:** uses standard Immediate Alert when available and falls back to proprietary command 113 after the proprietary handshake.
-- **Alarms:** the UI sends command 115 with ID, enabled state, time, repeat mask, and reminder flags. Acknowledgements/read-back are not implemented, so the resulting watch state is not confirmed by the app.
-- **QR:** command ID 128 (`0x80`) is the send command; `0xA8` is the QR result response. The research notes do not fully document the QR payload schema. The current sender is experimental until packet capture and physical-device testing confirm its fields and transfer behavior.
+Implemented command paths:
 
-The watchface extractor validates archive paths, keeps local extraction inside the app cache, enforces file-count and expanded-size limits, and preserves the leading slash only in the path sent to the watch.
+- **Connection setup and battery:** phone-system identification, connect request, device-info request and battery report (145).
+- **Find Watch:** standard Immediate Alert when available, plus proprietary command 113 fallback.
+- **Alarms:** command 115 with eight alarm slots, time, repeat mask and vibration/sound flags.
+- **Device settings:** raise wrist (119), automatic HR/SpO₂ mode (120), shake-to-photo mode (121), language (123), 12/24-hour format (124), body temperature mode (134), sleep mode (127), notification display preferences (114 variant), physical-training options (1) and HR zones (252).
+- **Reminders:** sedentary (117) and drink-water (163) schedules.
+- **Phone media controls:** incoming watch commands for play, pause, next, previous and volume-up are translated into Android media/audio key events.
+- **Time synchronization:** standard Current Time Service when writable; proprietary command 144 as a fallback when standard CTS is absent.
+- **Watchfaces:** SiFli per-file transfer, gated separately on successful notification/indication setup.
 
-### HK-specific limitations
+For settings that have no read-back or acknowledgement in the available protocol notes, the UI reports that Android queued the BLE write. It does not claim that the watch confirmed or retained the setting.
 
-The HK10 Pro Max+ project in the available HK-Custom-Firmware repository contains a firmware project skeleton and generic SiFli SDK sources, but not the watch application's registered watchface filesystem callback or the complete Wearfit phone-to-watch BLE command bridge. The generic SiFli ANCS example is Apple Notification Center Service support and is not an Android notification-forwarding protocol.
+### Protocol limitations
 
-Notifications, weather, music/camera controls, health-history requests, contacts, and reminder synchronization are not implemented. They require a successful reference-app packet trace or equivalent model-specific protocol source, followed by physical-device testing.
+The current research notes do not provide reliable enough payload definitions to implement these end-to-end:
 
-### Reference transfer examples are not interchangeable
+- Weather: the documented length field conflicts with the listed seven-day temperature, icon and wind arrays.
+- Do Not Disturb: command ID is known, but its payload layout is not documented.
+- Contact-name/phone synchronization: the packet fragmentation and ordering are incomplete.
+- Historical health replies: command 199 describes watch-originated requests, but not the phone reply formats or an integrated health-data source.
+- Camera preview/photo transfer: the watch-side shake-to-photo toggle is implemented; the camera preview/photo event flow is not.
+- GPS, map navigation, OTA, voice/AI, calendar, recordings and call-log transfers: analyzer names are present in the reference, but complete payload/transport formats and the required app services are not.
 
-SiFli's public generic BLE file-transfer example documents WFPUSH2 with File Type 3 and byte alignment for writing a ZIP into a development board's `file_recv` directory ([official example](https://docs.sifli.com/projects/sdk/latest/en/sf32lb58x/example/ble/file_transfer/README.html)). That is a generic file-receive workflow, not the protocol an HK watch's native watchface receiver expects.
+QR Code sending is intentionally not part of the Android app.
 
-Plum Watch uses the per-file watchface protocol reverse-engineered from Wearfit Pro: the ZIP is unzipped on the phone, each contained file is pushed separately with its ZIP-relative path (prefixed with `/`) as the destination, file data index starts at 1, files are sorted by descending size with GIFs last, and type 0 (watchface/DIALPLATE) files are sent raw without padding or CRC. The generic example's type 3 byte-aligned ZIP transfer is deliberately not used.
+The HK10 Pro Max+ firmware project in the available HK-Custom-Firmware repository is a firmware skeleton and generic SiFli SDK source, not a complete Wearfit command bridge. Features still need validation against the physical watch model. No successful BLE write can guarantee that a particular firmware build supports that setting.
 
-SiFli's separate Android OTA demo also contains an `OTA_SIFLI_WATCHFACE` path through its OTA V3 manager ([demo source](https://github.com/OpenSiFli/SiFli_OTA_APP)). That is a separate higher-level transfer route; its presence in the demo does not prove that the HK firmware build exposes or supports it.
+## SiFli watchface transfer
 
+SiFli serial framing and reassembly are isolated in `SifliSerialProtocol.kt`. JVM tests cover little-endian message headers, MTU-based fragmentation, reassembly, malformed fragments and recovery.
+
+Plum Watch unzips a watchface archive on the phone, then pushes each file separately with its ZIP-relative path (prefixed with `/`) as the destination path. File data indexes start at 1, files are sorted by descending size with GIFs last, and type 0 (watchface/DIALPLATE) files are sent raw without padding or CRC. The extractor validates paths, prevents traversal outside the cache directory, and enforces file-count and expanded-size limits.
+
+The generic SiFli WFPUSH2 sample uses a different transfer type and is not interchangeable with the HK watch's native receiver. SiFli's separate Android OTA demo also contains an `OTA_SIFLI_WATCHFACE` route; its presence does not prove that the HK firmware build exposes it.
 
 ## Watchface folder format
 
@@ -106,7 +117,7 @@ watchfaces/
     preview.png
 ```
 
-Accepted preview formats are PNG, JPG, JPEG, and WebP. Each folder must contain both an archive and an image to appear in the app. The app chooses a preview named `preview.*`, `cover.*`, or `thumbnail.*` first when present.
+Accepted preview formats are PNG, JPG, JPEG and WebP. Each folder must contain both an archive and an image to appear in the app. The app chooses a preview named `preview.*`, `cover.*` or `thumbnail.*` first when present.
 
 ## Package
 
