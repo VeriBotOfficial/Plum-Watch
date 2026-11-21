@@ -1594,9 +1594,10 @@ fun HealthScreen(onBack: () -> Unit) {
             ) {
                 Text("Blood oxygen", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 Text(
-                    "Request an SpO₂ measurement from the watch.",
+                    state.bloodOxygenPercent?.let { "$it%" } ?: "No reading yet",
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 14.sp
+                    fontSize = 27.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
                 FilledTonalButton(
                     enabled = state.isConnected && state.supportsProprietaryCommands,
@@ -1701,6 +1702,8 @@ fun NotificationsScreen(onBack: () -> Unit) {
                 }
             }
         }
+
+        NotificationDisplaySettingsContent()
 
         Row(
             modifier = Modifier.fillMaxWidth(),
