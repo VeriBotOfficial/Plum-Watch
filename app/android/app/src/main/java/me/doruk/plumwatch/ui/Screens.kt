@@ -259,6 +259,10 @@ fun MyWatchScreen(
 ) {
     val context = LocalContext.current
     var showRemoveDialog by remember { mutableStateOf(false) }
+    var showAlarmsDialog by remember { mutableStateOf(false) }
+    var showQrDialog by remember { mutableStateOf(false) }
+    val watchManager = BleWatchManager.getInstance(context)
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -344,57 +348,55 @@ fun MyWatchScreen(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionHeading("Quick controls")
 
-            val features = listOf(
-                FeatureItem("Notifications", Icons.Outlined.Notifications),
-                FeatureItem("Alarms", Icons.Outlined.Alarm),
-                FeatureItem("Find watch", Icons.Outlined.LocationSearching),
-                FeatureItem("Health", Icons.Outlined.FavoriteBorder),
-                FeatureItem("Weather", Icons.Outlined.Cloud),
-                FeatureItem("Camera", Icons.Outlined.CameraAlt),
-                FeatureItem("Music", Icons.Outlined.MusicNote),
-                FeatureItem("Watchfaces", Icons.Outlined.Watch)
+            val implementedFeatures = listOf(
+                QuickFeature("Find Watch", Icons.Outlined.LocationSearching,
+                    subtitle = "Ping your watch",
+                    enabled = state.isConnected && state.canFindWatch,
+                    onClick = { if (state.isConnected && state.canFindWatch) onFindWatch() }
+                ),
+                QuickFeature("Alarms", Icons.Outlined.Alarm,
+                    subtitle = "Set up to 8 alarms",
+                    enabled = state.isConnected,
+                    onClick = { if (state.isConnected) showAlarmsDialog = true }
+                ),
+                QuickFeature("QR Code", Icons.Outlined.Code,
+                    subtitle = "Send Wi-Fi, contact, etc.",
+                    enabled = state.isConnected && state.supportsProprietaryCommands,
+                    onClick = { if (state.isConnected && state.supportsProprietaryCommands) showQrDialog = true }
+                ),
+                QuickFeature("Health", Icons.Outlined.FavoriteBorder,
+                    subtitle = "Heart rate & battery",
+                    enabled = state.isConnected && (state.supportsHeartRate || state.supportsBattery),
+                    onClick = {
+                        onRefreshHealth()
+                        val readings = listOfNotNull(
+                            state.heartRateBpm?.let { "$it bpm" },
+                            state.batteryPercent?.let { "Battery $it%" }
+                        )
+                        val message = when {
+                            readings.isNotEmpty() -> readings.joinToString(" · ")
+                            state.supportsHeartRate -> "Waiting for a heart-rate measurement from the watch."
+                            else -> "This watch does not expose the standard BLE heart-rate service."
+                        }
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    }
+                ),
+                QuickFeature("Watchfaces", Icons.Outlined.Watch,
+                    subtitle = "Browse & install",
+                    enabled = state.isConnected && state.supportsSifliWatchface,
+                    onClick = { if (state.isConnected && state.supportsSifliWatchface) onOpenWatchfaces() }
+                )
             )
 
-            features.chunked(2).forEach { pair ->
+            implementedFeatures.chunked(2).forEach { pair ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     pair.forEach { feature ->
-                        FeatureTile(
+                        QuickFeatureTile(
                             feature = feature,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                when (feature.title) {
-                                    "Watchfaces" -> onOpenWatchfaces()
-                                    "Find watch" -> {
-                                        if (state.canFindWatch) onFindWatch()
-                                        else Toast.makeText(
-                                            context,
-                                            "This watch does not expose the standard Find Watch service.",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                    "Health" -> {
-                                        onRefreshHealth()
-                                        val readings = listOfNotNull(
-                                            state.heartRateBpm?.let { "$it bpm" },
-                                            state.batteryPercent?.let { "Battery $it%" }
-                                        )
-                                        val message = when {
-                                            readings.isNotEmpty() -> readings.joinToString(" · ")
-                                            state.supportsHeartRate -> "Waiting for a heart-rate measurement from the watch."
-                                            else -> "This watch does not expose the standard BLE heart-rate service."
-                                        }
-                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                    }
-                                    else -> Toast.makeText(
-                                        context,
-                                        "Not available yet",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
+                            modifier = Modifier.weight(1f)
                         )
                     }
                     if (pair.size == 1) Spacer(modifier = Modifier.weight(1f))
@@ -453,6 +455,12 @@ fun MyWatchScreen(
                 }
             }
         )
+    }
+    if (showAlarmsDialog) {
+        AlarmsDialog(state = state, onDismiss = { showAlarmsDialog = false }, onSend = {}, onDelete = {})
+    }
+    if (showQrDialog) {
+        QrCodeDialog(state = state, onDismiss = { showQrDialog = false }, onSend = { _, _ -> })
     }
 }
 
@@ -795,6 +803,74 @@ private fun FeatureTile(
     }
 }
 
+private data class QuickFeature(
+    val title: String,
+    val icon: ImageVector,
+    val subtitle: String,
+    val enabled: Boolean = true,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun QuickFeatureTile(
+    feature: QuickFeature,
+    modifier: Modifier = Modifier
+) {
+    AppClickableSurface(
+        onClick = if (feature.enabled) feature.onClick else null,
+        modifier = modifier.height(100.dp),
+        shape = RoundedCornerShape(22.dp),
+        enabled = feature.enabled
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = feature.icon,
+                    contentDescription = null,
+                    tint = if (feature.enabled) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+                if (!feature.enabled) {
+                    Icon(
+                        imageVector = Icons.Outlined.Lock,
+                        contentDescription = "Locked",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    feature.title,
+                    color = if (feature.enabled) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    feature.subtitle,
+                    color = if (feature.enabled) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun SectionHeading(title: String) {
     Text(
@@ -805,7 +881,7 @@ private fun SectionHeading(title: String) {
     )
 }
 
-private enum class SettingsCategory(
+enum class SettingsCategory(
     val title: String,
     val icon: ImageVector
 ) {
@@ -926,6 +1002,34 @@ private fun SettingsHomeScreen(
                         category = SettingsCategory.UPDATES,
                         value = appVersion,
                         onClick = { onOpenCategory(SettingsCategory.UPDATES) }
+                    )
+                }
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            SettingsGroupLabel("DEVICE")
+            AppSurface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(23.dp)
+            ) {
+                Column {
+                    SettingsCategoryRow(
+                        category = SettingsCategory.ALARMS,
+                        value = null,
+                        onClick = { onOpenCategory(SettingsCategory.ALARMS) }
+                    )
+                    SettingsRowDivider()
+                    SettingsCategoryRow(
+                        category = SettingsCategory.FIND_WATCH,
+                        value = null,
+                        onClick = { onOpenCategory(SettingsCategory.FIND_WATCH) }
+                    )
+                    SettingsRowDivider()
+                    SettingsCategoryRow(
+                        category = SettingsCategory.QR_CODE,
+                        value = null,
+                        onClick = { onOpenCategory(SettingsCategory.QR_CODE) }
                     )
                 }
             }
@@ -1128,6 +1232,27 @@ private fun SettingsCategoryPage(
                     onBack = onBack
                 )
                 AboutSettingsContent(appVersion = appVersion)
+            }
+            SettingsCategory.ALARMS -> {
+                SettingsDetailHeader(
+                    title = "Alarms",
+                    onBack = onBack
+                )
+                AlarmsSettingsContent(onBack = onBack)
+            }
+            SettingsCategory.FIND_WATCH -> {
+                SettingsDetailHeader(
+                    title = "Find Watch",
+                    onBack = onBack
+                )
+                FindWatchSettingsContent(onBack = onBack)
+            }
+            SettingsCategory.QR_CODE -> {
+                SettingsDetailHeader(
+                    title = "QR Code",
+                    onBack = onBack
+                )
+                QrCodeSettingsContent(onBack = onBack)
             }
         }
     }
@@ -1370,6 +1495,415 @@ private fun AboutSettingsContent(appVersion: String) {
             }
         }
     }
+}
+
+@Composable
+private fun AlarmsSettingsContent(onBack: () -> Unit) {
+    val watchManager = BleWatchManager.getInstance(LocalContext.current)
+    val uiState by watchManager.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var editingAlarm by remember { mutableStateOf<AlarmConfig?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Watch Alarms")
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Configure up to 8 alarms on your watch. Changes sync immediately.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                (0..7).forEach { id ->
+                    val alarm = remember { mutableStateOf(AlarmConfig(id = id)) }
+                    AlarmRow(
+                        alarm = alarm,
+                        onEdit = { editingAlarm = alarm.value },
+                        onSend = { config ->
+                            if (!uiState.isConnected) return
+                            scope.launch {
+                                watchManager.setAlarm(
+                                    id = config.id,
+                                    enabled = config.enabled,
+                                    hour = config.hour,
+                                    minute = config.minute,
+                                    repeatMask = config.repeatMask,
+                                    remindFlags = if (config.vibrate && config.sound) 3 else if (config.vibrate) 1 else 2
+                                )
+                            }
+                        },
+                        onDelete = { alarm.value = AlarmConfig(id = id) }
+                    )
+                    if (id < 7) Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FindWatchSettingsContent(onBack: () -> Unit) {
+    val watchManager = BleWatchManager.getInstance(LocalContext.current)
+    val uiState by watchManager.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var finding by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Find Your Watch")
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Make your watch vibrate and light up to locate it nearby.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier.size(96.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AnimatedVisibility(visible = finding) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(96.dp),
+                                strokeWidth = 4.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Icon(
+                            Icons.Outlined.Watch,
+                            contentDescription = null,
+                            tint = if (finding) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(42.dp)
+                        )
+                    }
+                }
+                FilledTonalButton(
+                    onClick = {
+                        if (!uiState.isConnected) return
+                        finding = true
+                        scope.launch {
+                            watchManager.findWatch()
+                            delay(5500)
+                            finding = false
+                        }
+                    },
+                    enabled = uiState.isConnected && !finding,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(if (finding) "Finding…" else "Ping Watch", fontWeight = FontWeight.Medium)
+                }
+                if (!uiState.isConnected) {
+                    Text(
+                        "Connect your watch first",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QrCodeSettingsContent(onBack: () -> Unit) {
+    val watchManager = BleWatchManager.getInstance(LocalContext.current)
+    val uiState by watchManager.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var qrText by remember { mutableStateOf("") }
+    var qrType by remember { mutableStateOf(0) }
+    var sending by remember { mutableStateOf(false) }
+    var lastSent by remember { mutableStateOf<String?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeading("Send QR Code")
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Send a QR code to your watch display. Useful for Wi-Fi, contacts, payments, etc.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = qrText,
+                        onValueChange = { qrText = it },
+                        label = { Text("QR Content (URL, text, etc.)") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Uri)
+                    )
+                    DropdownMenuButton(
+                        text = when (qrType) { 0 -> "General"; 1 -> "Wi-Fi"; 2 -> "Contact"; else -> "Type $qrType" },
+                        modifier = Modifier.width(110.dp)
+                    ) {
+                        DropdownMenuItem(text = "General", onClick = { qrType = 0 })
+                        DropdownMenuItem(text = "Wi-Fi", onClick = { qrType = 1 })
+                        DropdownMenuItem(text = "Contact", onClick = { qrType = 2 })
+                    }
+                }
+
+                OutlinedTextField(
+                    value = qrText,
+                    onValueChange = { qrText = it },
+                    label = { Text("QR Content") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Uri)
+                )
+
+                FilledButton(
+                    onClick = {
+                        if (qrText.isBlank() || !uiState.isConnected || sending) return
+                        sending = true
+                        scope.launch {
+                            watchManager.setQrCode(qrText, qrType)
+                            lastSent = qrText
+                            delay(1000)
+                            sending = false
+                        }
+                    },
+                    enabled = qrText.isNotBlank() && uiState.isConnected && !sending,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    if (sending) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    else Text("Send to Watch", fontWeight = FontWeight.Medium)
+                }
+
+                if (!uiState.isConnected) {
+                    Text(
+                        "Connect your watch first",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                lastSent?.let {
+                    Text(
+                        "Last sent: ${if (it.length > 40) it.substring(0, 40) + "…" else it}",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 11.sp,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
+}
+
+data class AlarmConfig(
+    val id: Int = 0,
+    var enabled: Boolean = false,
+    var hour: Int = 8,
+    var minute: Int = 0,
+    var repeatMask: Int = 0,
+    var vibrate: Boolean = true,
+    var sound: Boolean = true
+)
+
+@Composable
+private fun AlarmRow(
+    alarm: MutableState<AlarmConfig>,
+    onEdit: () -> Unit,
+    onSend: (AlarmConfig) -> Unit,
+    onDelete: (AlarmConfig) -> Unit
+) {
+    val config = alarm.value
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Switch(
+                    checked = config.enabled,
+                    onCheckedChange = { alarm.value = config.copy(enabled = it) },
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        "Alarm ${config.id + 1}",
+                        color = if (config.enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        "${"%02d".format(config.hour)}:${"%02d".format(config.minute)}  •  ${repeatSummary(config.repeatMask)}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { onEdit() }) { Text("Edit") }
+                TextButton(
+                    onClick = { onSend(config) },
+                    enabled = config.enabled
+                ) { Text("Send", color = MaterialTheme.colorScheme.primary) }
+                IconButton(onClick = { onDelete(config) }) {
+                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 56.dp, top = 8.dp, bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = config.hour.toString(),
+                        onValueChange = { v -> alarm.value = config.copy(hour = v.toIntOrNull() ?: config.hour) },
+                        label = { Text("Hour") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = config.minute.toString(),
+                        onValueChange = { v -> alarm.value = config.copy(minute = v.toIntOrNull() ?: config.minute) },
+                        label = { Text("Minute") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Checkbox(checked = config.vibrate, onCheckedChange = { alarm.value = config.copy(vibrate = it) })
+                        Text("Vibrate")
+                        Spacer(Modifier.width(16.dp))
+                        Checkbox(checked = config.sound, onCheckedChange = { alarm.value = config.copy(sound = it) })
+                        Text("Sound")
+                    }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Repeat:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterVertically))
+                    RepeatMaskSelector(
+                        currentMask = config.repeatMask,
+                        onChange = { alarm.value = config.copy(repeatMask = it) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RepeatMaskSelector(currentMask: Int, onChange: (Int) -> Unit) {
+    val days = listOf(
+        1 to "Mon", 2 to "Tue", 4 to "Wed", 8 to "Thu",
+        16 to "Fri", 32 to "Sat", 64 to "Sun", 128 to "Once"
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        days.forEach { (bit, label) ->
+            val checked = (currentMask and bit) != 0
+            FilterChip(
+                selected = checked,
+                onClick = { onChange(if (checked) currentMask and bit.inv() else currentMask or bit) },
+                label = { Text(label, fontSize = 11.sp) },
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
+    }
+}
+
+fun repeatSummary(mask: Int): String {
+    if (mask == 0) return "Once"
+    val days = listOf(1 to "Mon", 2 to "Tue", 4 to "Wed", 8 to "Thu", 16 to "Fri", 32 to "Sat", 64 to "Sun")
+    val selected = days.filter { (mask and it.first) != 0 }.map { it.second }
+    if (selected.size == 7) return "Daily"
+    if (selected.size >= 5 && days.take(5).all { (mask and it.first) != 0 } && selected.size == 5) return "Weekdays"
+    if (selected.size == 2 && days.takeLast(2).all { (mask and it.first) != 0 }) return "Weekends"
+    return selected.joinToString(", ")
 }
 
 @Composable

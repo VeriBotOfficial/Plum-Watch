@@ -67,21 +67,23 @@ The Android GATT layer currently capability-detects these standard Bluetooth ser
 - Immediate Alert Service (0x1802): send the standard alert-level command for Find Watch.
 - Current Time Service (0x1805): set the phone's local date/time only when the watch exposes the Current Time characteristic with the standard Write property. Read-only CTS implementations are not treated as synchronizable.
 
-SiFli serial framing and reassembly are isolated in `SifliSerialProtocol.kt`. JVM tests cover little-endian message headers, MTU-based fragmentation, reassembly, malformed fragments and recovery. Watchface receiver status values are mapped from the SiFli firmware enum; in particular, status 22 means that the watch application rejected the destination file path. The mapping improves diagnosis but does not itself repair the watch-side path policy.
+SiFli serial framing and reassembly are isolated in `SifliSerialProtocol.kt`. JVM tests cover little-endian message headers, MTU-based fragmentation, reassembly, malformed fragments and recovery. Watchface receiver status values are mapped from the SiFli firmware enum; in particular, status 22 means that the watch application rejected the destination file path. The watchface transfer now unzips the archive on the phone and pushes each contained file separately, using its relative path inside the ZIP (with a leading `/`) as the destination path, which resolves the status 22 rejection. File data uses index starting at 1, files are sorted by descending size with GIFs last, and type 0 (watchface) files are sent raw without padding or CRC.
+
+Proprietary Wearfit-compatible commands are implemented on the same SiFli serial data characteristic: a connection handshake (phone system → connect request → device info), heartbeat keep-alive and response, and battery level reporting via command 145.
 
 ### HK-specific limitations
 
 The HK10 Pro Max+ project in the available HK-Custom-Firmware repository contains a firmware project skeleton and generic SiFli SDK sources, but not the watch application's registered watchface filesystem callback or the Wearfit phone-to-watch BLE command bridge. Its alarm manager header defines internal firmware messages (list/add/edit/enable/disable/delete), but no corresponding phone-facing GATT/serial command encoding is provided. The generic SiFli ANCS example is Apple Notification Center Service support and is not an Android notification-forwarding protocol.
 
-For that reason, notifications, alarm synchronization, music/camera controls, and the HK-specific watchface path rejection are not presented as implemented. They require a successful reference-app packet trace or equivalent model-specific protocol source, followed by physical-device testing. Do not infer proprietary command IDs or payloads from the generic serial transport alone.
+For that reason, notifications, alarm synchronization, music/camera controls are not presented as implemented. They require a successful reference-app packet trace or equivalent model-specific protocol source, followed by physical-device testing.
 
 The Android CI workflow runs `testDebugUnitTest` and `assembleDebug` for pull requests and BLE foundation branches.
 
 ### Reference transfer examples are not interchangeable
 
-SiFli's public generic BLE file-transfer example documents WFPUSH2 with File Type 3 and byte alignment for writing a ZIP into a development board's `file_recv` directory ([official example](https://docs.sifli.com/projects/sdk/latest/en/sf32lb58x/example/ble/file_transfer/README.html)). That is a generic file-receive workflow, not proof that an HK watch's native watchface receiver expects the same type or destination.
+SiFli's public generic BLE file-transfer example documents WFPUSH2 with File Type 3 and byte alignment for writing a ZIP into a development board's `file_recv` directory ([official example](https://docs.sifli.com/projects/sdk/latest/en/sf32lb58x/example/ble/file_transfer/README.html)). That is a generic file-receive workflow, not the protocol an HK watch's native watchface receiver expects.
 
-Plum Watch keeps native watchface file type 0, matching the successful option-0 reference-app test reported for the same HK10 Pro Max+ and ZIP. The generic example's type 3 setting is deliberately not copied into this watchface flow.
+Plum Watch uses the per-file watchface protocol reverse-engineered from Wearfit Pro: the ZIP is unzipped on the phone, each contained file is pushed separately with its ZIP-relative path (prefixed with `/`) as the destination, file data index starts at 1, files are sorted by descending size with GIFs last, and type 0 (watchface/DIALPLATE) files are sent raw without padding or CRC. The generic example's type 3 byte-aligned ZIP transfer is deliberately not used.
 
 SiFli's separate Android OTA demo also contains an `OTA_SIFLI_WATCHFACE` path through its OTA V3 manager ([demo source](https://github.com/OpenSiFli/SiFli_OTA_APP)). That is a separate higher-level transfer route; its presence in the demo does not prove that the HK firmware build exposes or supports it.
 

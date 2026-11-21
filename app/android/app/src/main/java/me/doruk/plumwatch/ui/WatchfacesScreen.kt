@@ -284,11 +284,7 @@ private fun WatchfaceDetailScreen(
                 transferProgress = 0f
 
                 watchManager.pushWatchface(
-                    archiveFile = archiveFile,
-                    // Match the exact basename selected by the SiFli BLE app, including spaces and punctuation.
-                    targetFileName = Uri.parse(watchface.archiveUrl).lastPathSegment
-                        ?.takeIf { it.endsWith(".zip", ignoreCase = true) }
-                        ?: (watchface.id + ".zip")
+                    archiveFile = archiveFile
                 ) { progress ->
                     transferProgress = progress.coerceIn(0f, 1f)
                 }
