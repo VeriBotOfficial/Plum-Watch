@@ -19,6 +19,7 @@ internal object SifliSerialProtocol {
     private const val SERIAL_HEADER_SIZE = 4
     private const val CONTINUATION_HEADER_SIZE = 2
     private const val MAX_MESSAGE_LENGTH = 65_535
+    private const val MAX_ATT_ATTRIBUTE_VALUE_LENGTH = 512
 
     fun encodeMessage(messageId: Int, payload: ByteArray): ByteArray {
         require(messageId in 0..0xFFFF) { "SiFli message ID is out of range." }
@@ -46,7 +47,10 @@ internal object SifliSerialProtocol {
     ): List<ByteArray> {
         require(category in 0..0xFF) { "SiFli category is out of range." }
         val message = encodeMessage(messageId, payload)
-        val fragmentCapacity = mtu - 7
+        // Android's characteristic value buffer is capped at 512 bytes even when
+        // the negotiated ATT MTU is 517. The first SiFli serial header is 4 bytes,
+        // so cap its payload to 508 bytes to keep every frame within that limit.
+        val fragmentCapacity = minOf(mtu - 7, MAX_ATT_ATTRIBUTE_VALUE_LENGTH - SERIAL_HEADER_SIZE)
         require(fragmentCapacity > 0) { "The negotiated BLE MTU is too small for SiFli transport." }
 
         if (message.size <= fragmentCapacity) {
