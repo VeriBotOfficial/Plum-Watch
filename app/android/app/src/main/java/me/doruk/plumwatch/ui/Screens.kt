@@ -1910,15 +1910,15 @@ fun AlarmsScreen(onBack: () -> Unit) {
     val alarms = remember {
         mutableStateListOf<AlarmConfig>().apply {
             (0..7).forEach { id ->
-                if (preferences.getBoolean("alarm_$id_exists", false)) {
+                if (preferences.getBoolean("alarm_${id}_exists", false)) {
                     add(
                         AlarmConfig(
                             id = id,
-                            enabled = preferences.getBoolean("alarm_$id_enabled", false),
-                            hour = preferences.getInt("alarm_$id_hour", 8),
-                            minute = preferences.getInt("alarm_$id_minute", 0),
-                            repeatMask = preferences.getInt("alarm_$id_repeat", 0),
-                            vibrate = preferences.getBoolean("alarm_$id_vibrate", true),
+                            enabled = preferences.getBoolean("alarm_${id}_enabled", false),
+                            hour = preferences.getInt("alarm_${id}_hour", 8),
+                            minute = preferences.getInt("alarm_${id}_minute", 0),
+                            repeatMask = preferences.getInt("alarm_${id}_repeat", 0),
+                            vibrate = preferences.getBoolean("alarm_${id}_vibrate", true),
                         )
                     )
                 }
