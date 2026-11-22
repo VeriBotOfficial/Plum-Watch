@@ -136,7 +136,10 @@ def _digit_set(assets: dict[str, Image.Image], prefix: str) -> dict[int, Image.I
         match = re.search(re.escape(prefix) + r"(\d+)$", name)
         if match:
             number = int(match.group(1))
-            if 0 <= number <= 9:
+            # time_num_01..10 is a one-based SiFli glyph bank (01=0, 10=9).
+            if prefix == "time_num_" and 1 <= number <= 10:
+                result[number - 1] = image
+            elif 0 <= number <= 9:
                 result[number] = image
     return result
 
@@ -174,10 +177,23 @@ def _render_split_digital(background: Image.Image, assets: dict[str, Image.Image
     # conservative generic layout; do not borrow another module's coordinates.
     digits = _digit_set(assets, "time")
     if len(digits) == 10:
-        glyph_h = max(image.height for image in digits.values())
-        y = max(12, int(canvas.height * 0.105))
-        ok = _draw_digit_row(canvas, digits, f"{SAMPLE_TIME[0]:02d}{SAMPLE_TIME[1]:02d}", y, gap=max(0, int(glyph_h * 0.035)))
-        return canvas, ok
+        glyphs = [digits[int(char)] for char in f"{SAMPLE_TIME[0]:02d}{SAMPLE_TIME[1]:02d}"]
+        colon = next((image for name, image in assets.items() if name.endswith("_timech")), None)
+        gap = max(2, int(max(image.height for image in glyphs) * 0.035))
+        parts = [glyphs[0], glyphs[1]]
+        if colon is not None:
+            parts.append(colon)
+        parts.extend(glyphs[2:])
+        total_width = sum(image.width for image in parts) + gap * (len(parts) - 1)
+        total_height = max(image.height for image in parts)
+        x = (canvas.width - total_width) // 2
+        y = max(8, int(canvas.height * 0.075))
+        if x >= 0 and y + total_height <= canvas.height:
+            for image in parts:
+                canvas.alpha_composite(image, (x, y + (total_height - image.height) // 2))
+                x += image.width + gap
+            return canvas, True
+        return canvas, False
     return canvas, False
 
 
@@ -197,9 +213,11 @@ def _render_analog(background: Image.Image, assets: dict[str, Image.Image]) -> t
         rotated = hand.rotate(-angle, resample=Image.Resampling.BICUBIC, expand=True)
         # Native hand artwork is pivoted at its lower center.
         pivot_x, pivot_y = hand.width / 2, hand.height * 0.88
+        pivot_offset = pivot_y - hand.height / 2
+        radians = __import__("math").radians(angle)
         rotated_pivot = (
-            rotated.width / 2 + (pivot_x - hand.width / 2),
-            rotated.height / 2 + (pivot_y - hand.height / 2),
+            rotated.width / 2 + pivot_offset * __import__("math").sin(radians),
+            rotated.height / 2 + pivot_offset * __import__("math").cos(radians),
         )
         canvas.alpha_composite(rotated, (round(cx - rotated_pivot[0]), round(cy - rotated_pivot[1])))
     return canvas, True
