@@ -38,6 +38,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,6 +69,7 @@ fun CameraScreen(
     var lensFacing by remember { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var watchCameraEnabled by remember { mutableStateOf(false) }
+    val cameraSessionStarted by rememberUpdatedState(watchCameraEnabled)
     var handledShutterSequence by remember { mutableStateOf(0) }
     var handledSwitchSequence by remember { mutableStateOf(0) }
     var photoIndex by remember { mutableStateOf(0) }
@@ -180,10 +182,10 @@ fun CameraScreen(
         }
     }
 
-    DisposableEffect(watchCameraEnabled) {
+    DisposableEffect(Unit) {
         onDispose {
             runCatching { cameraProviderFuture.get().unbindAll() }
-            if (watchCameraEnabled) watchManager.stopCamera()
+            if (cameraSessionStarted) watchManager.stopCamera()
         }
     }
 
