@@ -73,6 +73,21 @@ class WearfitProtocolTest {
     }
 
     @Test
+    fun fragmentsTruncatedNotificationContentWithoutLosingBytes() {
+        val message = WearfitProtocol.notificationContent("é".repeat(400))
+        val fragments = WearfitProtocol.splitLongMessage(message)
+        val reconstructed = java.io.ByteArrayOutputStream()
+
+        assertEquals(true, fragments.all { it.size <= 20 })
+        reconstructed.write(fragments.first())
+        fragments.drop(1).forEach { fragment ->
+            assertEquals(true, fragment.size in 2..20)
+            reconstructed.write(fragment, 1, fragment.size - 1)
+        }
+        assertArrayEquals(message, reconstructed.toByteArray())
+    }
+
+    @Test
     fun doesNotSplitWearfitMessagesThatFitOneDefaultAttWrite() {
         val message = ByteArray(20) { it.toByte() }
         val fragments = WearfitProtocol.splitLongMessage(message)
