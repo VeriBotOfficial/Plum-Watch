@@ -36,7 +36,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.material3.Icon
@@ -477,6 +482,11 @@ private fun IconsForPage(page: AppPage): ImageVector = when (page) {
     AppPage.WATCHFACES -> Icons.Outlined.GridView
     AppPage.SETTINGS -> Icons.Outlined.Settings
     AppPage.WATCH_SETTINGS -> Icons.Outlined.Settings
+    AppPage.ALARMS -> Icons.Outlined.Alarm
+    AppPage.HEALTH -> Icons.Outlined.FavoriteBorder
+    AppPage.NOTIFICATIONS -> Icons.Outlined.Notifications
+    AppPage.CAMERA -> Icons.Outlined.CameraAlt
+    AppPage.MUSIC -> Icons.Outlined.MusicNote
 }
 
 private fun missingBluetoothPermissions(context: android.content.Context): Array<String> {
