@@ -52,8 +52,8 @@ class WearfitProtocolTest {
     fun notificationContentTruncationDoesNotSplitUtf8Characters() {
         val packet = WearfitProtocol.notificationContent("é".repeat(400))
         val body = packet.copyOfRange(8, packet.size)
-        assertEquals(320, body.size)
-        assertEquals(0, body.size % 2)
+        assertEquals(321, body.size)
+        assertArrayEquals(byteArrayOf(0x2E, 0x2E, 0x2E), body.copyOfRange(318, 321))
     }
 
     @Test
