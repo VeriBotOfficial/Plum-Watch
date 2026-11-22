@@ -18,6 +18,7 @@ import android.os.Looper
 import android.content.pm.PackageManager
 import android.provider.Settings
 import android.widget.Toast
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -86,7 +87,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Thread({ cleanupPlumWatchStorage(applicationContext) }, "plum-storage-cleanup").start()
+        Thread({
+            cleanupPlumWatchStorage(applicationContext)
+            cleanupSuccessfullyInstalledUpdate()
+        }, "plum-storage-cleanup").start()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (intent.getBooleanExtra(EXTRA_OPEN_SETTINGS, false)) {
             settingsOpenRequest.intValue = 1
@@ -295,6 +299,7 @@ class MainActivity : ComponentActivity() {
                 .putLong(KEY_DOWNLOAD_ID, activeDownloadId)
                 .putString(KEY_EXPECTED_SHA256, expectedApkSha256)
                 .putLong(KEY_EXPECTED_SIZE_BYTES, expectedApkSizeBytes ?: -1L)
+                .putInt(KEY_TARGET_VERSION_CODE, update.versionCode)
                 .commit()
 
             updateDownloadState.value = AppUpdateDownloadState(isDownloading = true)
@@ -437,6 +442,13 @@ class MainActivity : ComponentActivity() {
                     return
                 }
 
+                updatePreferences.edit()
+                    .putLong(KEY_PENDING_INSTALL_DOWNLOAD_ID, downloadId)
+                    .putInt(
+                        KEY_PENDING_INSTALL_VERSION,
+                        updatePreferences.getInt(KEY_TARGET_VERSION_CODE, -1)
+                    )
+                    .apply()
                 updateDownloadState.value = AppUpdateDownloadState(
                     progress = 1f,
                     isOpeningInstaller = true,
@@ -509,6 +521,41 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun cleanupSuccessfullyInstalledUpdate() {
+        val targetVersion = updatePreferences.getInt(KEY_PENDING_INSTALL_VERSION, -1)
+        if (targetVersion < 1) return
+
+        val installedVersion = runCatching {
+            val packageInfo = packageManager.getPackageInfo(packageName, 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                packageInfo.longVersionCode.toInt()
+            } else {
+                @Suppress("DEPRECATION")
+                packageInfo.versionCode
+            }
+        }.getOrDefault(0)
+
+        if (installedVersion < targetVersion) return
+
+        val downloadId = updatePreferences.getLong(KEY_PENDING_INSTALL_DOWNLOAD_ID, -1L)
+        if (downloadId != -1L) {
+            runCatching {
+                (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).remove(downloadId)
+            }
+        }
+        runCatching {
+            File(
+                getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                "plum-watch-update.apk"
+            ).delete()
+        }
+        updatePreferences.edit()
+            .remove(KEY_PENDING_INSTALL_DOWNLOAD_ID)
+            .remove(KEY_PENDING_INSTALL_VERSION)
+            .remove(KEY_TARGET_VERSION_CODE)
+            .apply()
+    }
+
     private fun clearActiveDownload() {
         progressHandler.removeCallbacks(progressPoller)
         activeDownloadId = -1L
@@ -550,6 +597,9 @@ class MainActivity : ComponentActivity() {
         const val KEY_DOWNLOAD_ID = "active-update-download-id"
         const val KEY_EXPECTED_SHA256 = "active-update-sha256"
         const val KEY_EXPECTED_SIZE_BYTES = "active-update-size-bytes"
+        const val KEY_TARGET_VERSION_CODE = "active-update-target-version-code"
+        const val KEY_PENDING_INSTALL_DOWNLOAD_ID = "pending-install-download-id"
+        const val KEY_PENDING_INSTALL_VERSION = "pending-install-version-code"
         const val KEY_NOTIFIED_UPDATE_VERSION = "last-notified-update-version"
         const val KEY_NOTIFICATION_PERMISSION_REQUESTED = "notification-permission-requested"
         const val UPDATE_CHANNEL_ID = "plum-watch-app-updates"
