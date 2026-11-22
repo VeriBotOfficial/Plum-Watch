@@ -104,6 +104,14 @@ def make_ezip_animation(zf: zipfile.ZipFile, item: dict, output_dir: Path) -> bo
     duration = int(item.get("previewFrameDurationMs", 120))
     duration = max(40, min(duration, 2000))
     rgba_frames = [frame.convert("RGBA") for frame in frames]
+    stats = []
+    for frame in rgba_frames:
+        extrema = frame.getextrema()
+        stats.append({
+            "size": list(frame.size),
+            "bbox": list(frame.getbbox()) if frame.getbbox() else None,
+            "extrema": [list(channel) for channel in extrema],
+        })
     rgba_frames[0].save(
         output_dir / output_name,
         save_all=True,
@@ -117,6 +125,8 @@ def make_ezip_animation(zf: zipfile.ZipFile, item: dict, output_dir: Path) -> bo
     item["previewStatus"] = "generated_ezip_animation"
     item["previewFrameCount"] = len(rgba_frames)
     item["previewFrameDurationMs"] = duration
+    item["previewFrameStats"] = stats
+    print(f"EZIP preview {item['id']}: {len(rgba_frames)} frames; first frame stats={stats[0]}")
     return True
 
 def make_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
