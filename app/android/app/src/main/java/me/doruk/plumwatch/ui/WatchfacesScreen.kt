@@ -455,6 +455,18 @@ private fun WatchfaceDetailScreen(
             )
         }
 
+        Text(
+            watchface.name,
+            modifier = Modifier.fillMaxWidth().padding(top = 3.dp, bottom = 1.dp),
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 27.sp,
+            lineHeight = 32.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+
         Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             WatchfaceArtwork(
                 (watchface.animatedPreviewUrl ?: watchface.previewUrl),
@@ -469,16 +481,6 @@ private fun WatchfaceDetailScreen(
                     .padding(8.dp)
             )
         }
-
-        Text(
-            watchface.name,
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 26.sp,
-            lineHeight = 31.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
 
         val buttonLabel = when {
             !watchState.isConnected -> "Connect your watch"
