@@ -306,8 +306,21 @@ def decode_ezip_bytes(data: bytes) -> Image.Image:
     # Analog hand sprites in several SiFli modules use a compact raw format-5
     # payload: an 8-byte prefix followed by RGB565 + alpha triplets. They are
     # not DEFLATE streams and must be decoded before trying either EZIP path.
-    if resource_format == 5 and len(data) == 8 + width * height * 3:
-        return _pixels_to_image(data[8:], width, height, resource_format)
+    if resource_format == 5:
+        pixel_count = width * height
+        # Raw format-5 resources occur with either an 8-byte compact prefix or
+        # the full 20-byte EZIP header. Accept only exact pixel-buffer lengths.
+        for prefix_size in (8, 20):
+            payload = data[prefix_size:]
+            if len(payload) % pixel_count:
+                continue
+            bpp = len(payload) // pixel_count
+            if bpp == 3:
+                return _pixels_to_image(payload, width, height, resource_format)
+            if bpp == 2:
+                return Image.frombytes("RGB", (width, height), payload, "raw", "BGR;16")
+            if bpp == 4:
+                return Image.frombytes("RGBA", (width, height), payload, "raw", "BGRA")
     try:
         decoded, block_rows, has_filters, strict = _standard_stream(data[4:], width, height)
     except Exception as standard_error:
