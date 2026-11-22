@@ -442,7 +442,7 @@ private fun WatchfaceDetailScreen(
 
         Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             WatchfaceArtwork(
-                watchface.previewUrl,
+                (watchface.animatedPreviewUrl ?: watchface.previewUrl),
                 Modifier.fillMaxWidth(0.84f).widthIn(max = 330.dp)
                     .border(
                         5.dp,
@@ -462,6 +462,26 @@ private fun WatchfaceDetailScreen(
             lineHeight = 31.sp,
             fontWeight = FontWeight.SemiBold
         )
+
+        val metadataLine = listOfNotNull(
+            watchface.author?.takeIf { it.isNotBlank() }?.let { "By $it" },
+            watchface.version?.takeIf { it.isNotBlank() }?.let { "v$it" }
+        ).joinToString(" · ")
+        if (metadataLine.isNotBlank()) {
+            Text(
+                metadataLine,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+        }
+        watchface.description?.takeIf { it.isNotBlank() }?.let { description ->
+            Text(
+                description,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
+                lineHeight = 19.sp
+            )
+        }
 
         val buttonLabel = when {
             !watchState.isConnected -> "Connect your watch"
