@@ -342,3 +342,27 @@ These are sufficient reasons to treat the earlier `WearfitProtocol.kt` assumptio
 - Static APK evidence establishes what this Wearfit build can construct and process, not what the target firmware accepts.
 
 **Do not promote a row marked Partially decoded / Capability only to "working" until a physical target-watch trace confirms it.**
+
+
+---
+
+## 9. JADX source cross-check — 2026-11-22
+
+The supplied JADX export adds packet-level evidence not previously visible in the high-level API inventory:
+
+### 9.1 File transfer
+`FileTransferOrder.genFileHead` emits an A0 file header containing filename, type string, 32-bit file size and whole-file CRC. It wraps `headData` with a big-endian length and CRC. `genFileBlock` emits A1 block/package indices and includes a big-endian block length + block CRC on package 0. Exact block/package sizes and ACK logic are still in the omitted transfer service implementation.
+
+### 9.2 CRC
+`BleUtil.crcTable` and `crcFile` use CRC-16/Modbus reflected table behavior, initial `0xFFFF`, and big-endian CRC bytes in the packet builders.
+
+### 9.3 Health history
+`DataSyncMgr.startSyncData` reads a per-device last-sync timestamp, then queues `setSyncDataHr`, `syncSleepApnea` and GPS sync. A successful `SYNC_DATA_ORDER2` write queues `syncSleepData(yesterday)`. `HealthDataAnalyzer` distinguishes current `0x31` reads from historical `0x51` records. HR/SpO₂ history records are subtype 17/18 respectively.
+
+### 9.4 Camera
+`CameraControlAnalyzer` confirms `EA ... 15 02` is a direct lens switch, while `EA ... 15 01 <state>` uses state 1 for shutter and 2 for lens switch. Optional width/height are two-byte big-endian values at bytes 7–10 when present.
+
+### 9.5 Picture transfer
+`TransferOrder` contains separate A0/AE-family picture transfer helpers. Their presence does not prove live preview streaming; `PictureTransferAnalyzer` and the concrete camera transfer service are missing from the export.
+
+For the full field breakdown and source paths, read [wearfit_jadx_source_audit.md](wearfit_jadx_source_audit.md).
