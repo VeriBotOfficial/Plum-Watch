@@ -327,13 +327,13 @@ private fun WatchfaceGalleryList(
                             ) {
                                 Box(
                                     Modifier.padding(4.dp)
+                                        .clip(RoundedCornerShape(22.dp))
+                                        .background(Color(0xFF050607))
                                         .border(
-                                            2.dp,
+                                            1.dp,
                                             MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
                                             RoundedCornerShape(22.dp)
                                         )
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(Color(0xFF050607))
                                 ) {
                                     WatchfaceArtwork(face.previewUrl, Modifier.fillMaxWidth())
                                 }
@@ -471,14 +471,13 @@ private fun WatchfaceDetailScreen(
             WatchfaceArtwork(
                 (watchface.animatedPreviewUrl ?: watchface.previewUrl),
                 Modifier.fillMaxWidth(0.84f).widthIn(max = 330.dp)
-                    .border(
-                        5.dp,
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.62f),
-                        RoundedCornerShape(43.dp)
-                    )
-                    .clip(RoundedCornerShape(38.dp))
+                    .clip(RoundedCornerShape(34.dp))
                     .background(Color(0xFF050607))
-                    .padding(8.dp)
+                    .border(
+                        1.5.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.55f),
+                        RoundedCornerShape(34.dp)
+                    )
             )
         }
 
