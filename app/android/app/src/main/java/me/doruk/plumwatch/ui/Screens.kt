@@ -306,7 +306,8 @@ fun MyWatchScreen(
     onOpenAlarms: () -> Unit,
     onOpenHealth: () -> Unit,
     onOpenNotifications: () -> Unit,
-    onOpenCamera: () -> Unit
+    onOpenCamera: () -> Unit,
+    onOpenMusic: () -> Unit
 ) {
     var showRemoveDialog by remember { mutableStateOf(false) }
 
@@ -414,9 +415,14 @@ fun MyWatchScreen(
                     onClick = onOpenNotifications
                 ),
                 QuickFeature("Camera", Icons.Outlined.CameraAlt,
-                    subtitle = "Use your phone camera",
+                    subtitle = "Open phone camera",
                     enabled = state.isConnected && state.supportsProprietaryCommands,
                     onClick = onOpenCamera
+                ),
+                QuickFeature("Music", Icons.Outlined.MusicNote,
+                    subtitle = "Control phone playback",
+                    enabled = true,
+                    onClick = onOpenMusic
                 ),
                 QuickFeature("Watchfaces", Icons.Outlined.Watch,
                     subtitle = "Browse and install",
@@ -1530,6 +1536,74 @@ private fun AboutSettingsContent(appVersion: String) {
                 DeveloperRow("Troy Mitchell", "TroyMitchell911")
             }
         }
+    }
+}
+
+@Composable
+fun MusicScreen(
+    onBack: () -> Unit,
+    onControl: (Int) -> Boolean
+) {
+    BackHandler(onBack = onBack)
+    var feedback by remember { mutableStateOf("Control media currently playing on your phone.") }
+
+    fun send(label: String, command: Int) {
+        feedback = if (onControl(command)) "$label command sent." else "No active media session accepted the command."
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp)
+            .padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("My Watch")
+        }
+        PageTitle("Music")
+        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    "Phone playback",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(onClick = { send("Previous", 4) }, modifier = Modifier.weight(1f)) {
+                        Text("Previous")
+                    }
+                    FilledTonalButton(onClick = { send("Play", 1) }, modifier = Modifier.weight(1f)) {
+                        Text("Play")
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(onClick = { send("Pause", 2) }, modifier = Modifier.weight(1f)) {
+                        Text("Pause")
+                    }
+                    FilledTonalButton(onClick = { send("Next", 3) }, modifier = Modifier.weight(1f)) {
+                        Text("Next")
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { send("Volume down", 6) }, modifier = Modifier.weight(1f)) {
+                        Text("Volume −")
+                    }
+                    TextButton(onClick = { send("Volume up", 5) }, modifier = Modifier.weight(1f)) {
+                        Text("Volume +")
+                    }
+                }
+            }
+        }
+        Text(feedback, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
     }
 }
 
