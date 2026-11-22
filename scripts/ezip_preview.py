@@ -284,7 +284,9 @@ def _pixels_to_image(raw: bytes, width: int, height: int, resource_format: int):
         return Image.frombytes("RGB", (width, height), raw, "raw", "BGR")
     if resource_format == 2 and bpp == 4:
         return Image.frombytes("RGBA", (width, height), raw, "raw", "BGRA")
-    if resource_format == 2 and bpp == 3:
+    if resource_format in (2, 5) and bpp == 3:
+        # SiFli format 5 is the three-byte RGB565 + alpha layout used by
+        # native analog hand sprites; format 2 uses the same packed pixel order.
         rgba = bytearray(pixel_count * 4)
         target = 0
         for offset in range(0, len(raw), 3):
