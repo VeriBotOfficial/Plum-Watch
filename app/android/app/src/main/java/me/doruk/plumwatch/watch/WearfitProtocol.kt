@@ -6,6 +6,12 @@ internal data class HealthMeasurement(
     val bloodOxygenPercent: Int?
 )
 
+internal data class CameraControlEvent(
+    val requestsCamera: Boolean = false,
+    val takePhoto: Boolean = false,
+    val switchCamera: Boolean = false
+)
+
 internal object WearfitProtocol {
     fun packet(
         commandId: Int,
@@ -55,6 +61,31 @@ internal object WearfitProtocol {
         )
         return result.takeIf {
             it.heartRateBpm != null || it.bloodOxygenPercent != null
+        }
+    }
+
+    /**
+     * Parses CameraControlAnalyzer's incoming events. This is intentionally
+     * separate from the outgoing camera-mode packet builder below.
+     */
+    fun parseCameraControlEvent(frame: ByteArray): CameraControlEvent? {
+        if (frame.size < 6 ||
+            (frame[0].toInt() and 0xFF) != 0xEA ||
+            (frame[3].toInt() and 0xFF) != 0x00 ||
+            (frame[4].toInt() and 0xFF) != 0x15
+        ) return null
+
+        return when (frame[5].toInt() and 0xFF) {
+            2 -> CameraControlEvent(switchCamera = true)
+            1 -> {
+                if (frame.size < 7) return null
+                when (frame[6].toInt() and 0xFF) {
+                    1 -> CameraControlEvent(requestsCamera = true, takePhoto = true)
+                    2 -> CameraControlEvent(requestsCamera = true, switchCamera = true)
+                    else -> CameraControlEvent(requestsCamera = true)
+                }
+            }
+            else -> null
         }
     }
 
