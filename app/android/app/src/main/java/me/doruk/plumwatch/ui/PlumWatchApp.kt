@@ -85,7 +85,8 @@ private enum class AppPage(val label: String) {
     ALARMS("Alarms"),
     HEALTH("Health"),
     NOTIFICATIONS("Notifications"),
-    CAMERA("Camera")
+    CAMERA("Camera"),
+    MUSIC("Music")
 }
 
 @Composable
@@ -194,6 +195,13 @@ fun PlumWatchApp(
 
         val watchState by watchManager.state.collectAsState()
         var page by remember { mutableStateOf(AppPage.WATCH) }
+        var handledCameraRequest by remember { mutableStateOf(watchState.cameraRequestSequence) }
+        LaunchedEffect(watchState.cameraRequestSequence) {
+            if (watchState.cameraRequestSequence > handledCameraRequest) {
+                handledCameraRequest = watchState.cameraRequestSequence
+                if (watchState.isConnected) page = AppPage.CAMERA
+            }
+        }
         LaunchedEffect(settingsOpenRequest) {
             if (settingsOpenRequest > 0) page = AppPage.SETTINGS
         }
@@ -280,7 +288,8 @@ fun PlumWatchApp(
                                 onOpenAlarms = { page = AppPage.ALARMS },
                                 onOpenHealth = { page = AppPage.HEALTH },
                                 onOpenNotifications = { page = AppPage.NOTIFICATIONS },
-                                onOpenCamera = { page = AppPage.CAMERA }
+                                onOpenCamera = { page = AppPage.CAMERA },
+                                onOpenMusic = { page = AppPage.MUSIC }
                             )
                             AppPage.WATCHFACES -> WatchfacesScreen(watchManager = watchManager, watchState = watchState)
                             AppPage.SETTINGS -> SettingsScreen(
@@ -307,6 +316,10 @@ fun PlumWatchApp(
                             AppPage.CAMERA -> CameraScreen(
                                 watchManager = watchManager,
                                 onBack = { page = AppPage.WATCH }
+                            )
+                            AppPage.MUSIC -> MusicScreen(
+                                onBack = { page = AppPage.WATCH },
+                                onControl = watchManager::controlPhoneMedia
                             )
                         }
                     }
