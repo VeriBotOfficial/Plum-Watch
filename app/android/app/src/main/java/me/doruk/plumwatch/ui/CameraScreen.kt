@@ -1,7 +1,10 @@
 package me.doruk.plumwatch.ui
 
 import android.Manifest
+import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Environment
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -72,7 +75,6 @@ fun CameraScreen(
     val cameraSessionStarted by rememberUpdatedState(watchCameraEnabled)
     var handledShutterSequence by remember { mutableStateOf(0) }
     var handledSwitchSequence by remember { mutableStateOf(0) }
-    var photoIndex by remember { mutableStateOf(0) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
     val previewView = remember(context) {
         PreviewView(context).apply {
@@ -96,15 +98,40 @@ fun CameraScreen(
             statusMessage = "Camera is still starting."
             return
         }
-        val output = File(context.cacheDir, "plum-camera-${System.currentTimeMillis()}.jpg")
-        val options = ImageCapture.OutputFileOptions.Builder(output).build()
+        val fileName = "Plum-Watch-${System.currentTimeMillis()}.jpg"
+        val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(
+                    android.provider.MediaStore.Images.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_PICTURES + "/Plum Watch"
+                )
+            }
+            ImageCapture.OutputFileOptions.Builder(
+                context.contentResolver,
+                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                values
+            ).build()
+        } else {
+            val picturesRoot = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+                ?: run {
+                    statusMessage = "Phone storage is unavailable."
+                    return
+                }
+            val pictures = File(picturesRoot, "Plum Watch").apply { mkdirs() }
+            ImageCapture.OutputFileOptions.Builder(File(pictures, fileName)).build()
+        }
         capture.takePicture(
             options,
             ContextCompat.getMainExecutor(context),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(result: ImageCapture.OutputFileResults) {
-                    photoIndex = (photoIndex + 1) and 0xFF
-                    statusMessage = "Photo captured on the phone."
+                    statusMessage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        "Photo saved to Pictures / Plum Watch."
+                    } else {
+                        "Photo saved in Plum Watch app storage."
+                    }
                 }
 
                 override fun onError(exception: ImageCaptureException) {
