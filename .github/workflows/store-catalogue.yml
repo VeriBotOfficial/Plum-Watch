@@ -31,7 +31,10 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install preview tooling
-        run: python -m pip install --upgrade Pillow
+        run: |
+          python -m pip install --upgrade Pillow
+          sudo apt-get update
+          sudo apt-get install -y binutils-arm-none-eabi
       - name: Inspect SiFli watchface layout metadata
         run: python scripts/inspect_sifli_watchface.py
       - name: Validate ZIPs and generate catalogue/previews
