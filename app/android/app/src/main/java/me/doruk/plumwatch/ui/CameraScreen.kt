@@ -34,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +58,7 @@ fun CameraScreen(
     BackHandler(onBack = onBack)
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val watchState by watchManager.state.collectAsState()
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -66,6 +68,9 @@ fun CameraScreen(
     var lensFacing by remember { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var watchCameraEnabled by remember { mutableStateOf(false) }
+    var handledShutterSequence by remember { mutableStateOf(0) }
+    var handledSwitchSequence by remember { mutableStateOf(0) }
+    var photoIndex by remember { mutableStateOf(0) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
     val previewView = remember(context) {
         PreviewView(context).apply {
@@ -83,6 +88,30 @@ fun CameraScreen(
         if (!granted) statusMessage = "Camera permission is required for preview."
     }
 
+    fun capturePhoto() {
+        val capture = imageCapture
+        if (capture == null) {
+            statusMessage = "Camera is still starting."
+            return
+        }
+        val output = File(context.cacheDir, "plum-camera-${System.currentTimeMillis()}.jpg")
+        val options = ImageCapture.OutputFileOptions.Builder(output).build()
+        capture.takePicture(
+            options,
+            ContextCompat.getMainExecutor(context),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(result: ImageCapture.OutputFileResults) {
+                    photoIndex = (photoIndex + 1) and 0xFF
+                    statusMessage = "Photo captured on the phone."
+                }
+
+                override fun onError(exception: ImageCaptureException) {
+                    statusMessage = "The camera could not capture the photo."
+                }
+            }
+        )
+    }
+
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
@@ -91,9 +120,9 @@ fun CameraScreen(
         if (hasCameraPermission) {
             watchCameraEnabled = watchManager.startCamera()
             statusMessage = if (watchCameraEnabled) {
-                "Camera preview mode enabled on the watch."
+                "Camera connected to the watch. Shake the watch to take a photo."
             } else {
-                "Phone camera is ready; the watch command could not be queued."
+                "Phone camera is ready, but the watch command could not be queued."
             }
         }
     }
@@ -123,6 +152,32 @@ fun CameraScreen(
                 statusMessage = "The selected camera could not be started."
             }
         }, ContextCompat.getMainExecutor(context))
+    }
+
+    LaunchedEffect(watchState.cameraShutterSequence, hasCameraPermission, imageCapture) {
+        if (
+            hasCameraPermission &&
+            imageCapture != null &&
+            watchState.cameraShutterSequence > handledShutterSequence
+        ) {
+            val count = (watchState.cameraShutterSequence - handledShutterSequence).coerceAtMost(3)
+            handledShutterSequence = watchState.cameraShutterSequence
+            repeat(count) { capturePhoto() }
+        }
+    }
+
+    LaunchedEffect(watchState.cameraSwitchSequence) {
+        if (watchState.cameraSwitchSequence > handledSwitchSequence) {
+            val count = (watchState.cameraSwitchSequence - handledSwitchSequence).coerceAtMost(3)
+            handledSwitchSequence = watchState.cameraSwitchSequence
+            repeat(count) {
+                lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) {
+                    CameraSelector.LENS_FACING_FRONT
+                } else {
+                    CameraSelector.LENS_FACING_BACK
+                }
+            }
+        }
     }
 
     DisposableEffect(watchCameraEnabled) {
@@ -165,7 +220,12 @@ fun CameraScreen(
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Outlined.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(34.dp))
+                        Icon(
+                            Icons.Outlined.CameraAlt,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(34.dp)
+                        )
                         Text("Camera permission is needed", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -194,28 +254,7 @@ fun CameraScreen(
                 Text("Flip")
             }
             FilledTonalButton(
-                onClick = {
-                    val capture = imageCapture
-                    if (capture == null) {
-                        statusMessage = "Camera is still starting."
-                    } else {
-                        val output = File(context.cacheDir, "plum-camera-${System.currentTimeMillis()}.jpg")
-                        val options = ImageCapture.OutputFileOptions.Builder(output).build()
-                        capture.takePicture(
-                            options,
-                            ContextCompat.getMainExecutor(context),
-                            object : ImageCapture.OnImageSavedCallback {
-                                override fun onImageSaved(result: ImageCapture.OutputFileResults) {
-                                    statusMessage = "Photo captured on this phone."
-                                }
-
-                                override fun onError(exception: ImageCaptureException) {
-                                    statusMessage = "The photo could not be captured."
-                                }
-                            }
-                        )
-                    }
-                },
+                onClick = ::capturePhoto,
                 enabled = hasCameraPermission,
                 modifier = Modifier.weight(1f).height(52.dp),
                 shape = RoundedCornerShape(16.dp)
