@@ -49,5 +49,15 @@ jobs:
           fi
           if ! git diff --cached --quiet; then
             git commit -m "chore(store): publish catalogue and previews [skip ci]"
-            git push
+            # Another catalogue run may publish concurrently. Rebase and retry.
+            for attempt in 1 2 3; do
+              if git push; then
+                break
+              fi
+              git pull --rebase origin main
+              if [ "$attempt" -eq 3 ]; then
+                echo "Could not publish after three push attempts" >&2
+                exit 1
+              fi
+            done
           fi
