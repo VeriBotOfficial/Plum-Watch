@@ -1617,7 +1617,7 @@ class BleWatchManager(context: Context) {
         val gatt = bluetoothGatt ?: return false
         val characteristic = wearfitWriteCharacteristic ?: return false
         val packet = WearfitProtocol.notificationContent(content)
-        val queued = sendSplitProprietaryCommand(gatt, characteristic, packet, blockSize = 19)
+        val queued = sendSplitProprietaryCommand(gatt, characteristic, packet)
         mutableState.update {
             it.copy(errorMessage = if (queued) null else "Android could not queue the watch notification.")
         }
