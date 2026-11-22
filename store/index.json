@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T18:19:27.451904+00:00",
+  "generatedAt": "2026-11-22T18:28:59.011859+00:00",
   "watchfaces": [
     {
-      "id": "red-john",
-      "name": "Red John",
-      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/Red%20John.zip",
+      "id": "black-liquid",
+      "name": "Black Liquid",
+      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/Black%20Liquid.zip",
       "archiveSizeBytes": 967370,
-      "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/red-john.png",
-      "animatedPreviewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/red-john.gif",
+      "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/black-liquid.png",
+      "animatedPreviewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/black-liquid.gif",
       "previewFrameCount": 15
     }
   ],
