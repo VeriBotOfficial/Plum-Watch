@@ -462,7 +462,7 @@ private fun WatchfaceDetailScreen(
             fontSize = 27.sp,
             lineHeight = 32.sp,
             fontWeight = FontWeight.SemiBold,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )

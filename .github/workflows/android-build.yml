@@ -3,17 +3,6 @@ name: Android build
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - fix/android-build-and-wearfit-ui
-      - fix/plum-watch-controls-camera-notifications
-      - fix/plum-watch-polish
-      - fix/wearfit-jadx-camera-health
-      - feat/unlock-wearfit-controls
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
