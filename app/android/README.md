@@ -106,18 +106,17 @@ Plum Watch unzips a watchface archive on the phone, then pushes each file separa
 
 The generic SiFli WFPUSH2 sample uses a different transfer type and is not interchangeable with the HK watch's native receiver. SiFli's separate Android OTA demo also contains an `OTA_SIFLI_WATCHFACE` route; its presence does not prove that the HK firmware build exposes it.
 
-## Watchface folder format
+## Watchface Store packages
 
-Create one folder per watchface:
+Place each watchface ZIP directly in the repository's `store/watchfaces/` directory:
 
 ```
-watchfaces/
-  simplewatchface/
-    simplewatchface.zip
-    preview.png
+store/watchfaces/
+  Red John.zip
+  Simple Watchface.zip
 ```
 
-Accepted preview formats are PNG, JPG, JPEG and WebP. Each folder must contain both an archive and an image to appear in the app. The app chooses a preview named `preview.*`, `cover.*` or `thumbnail.*` first when present.
+The ZIP filename is the display name. No per-watchface folders, metadata files or separate preview files are required. A push that adds, replaces, renames or removes a ZIP automatically runs the Store catalogue workflow, which validates the archive and generates a preview when the ZIP contains supported image/GIF assets or decodable SiFli EZIP frames.
 
 ## Package
 
