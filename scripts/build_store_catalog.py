@@ -143,8 +143,10 @@ def make_ezip_animation(zf: zipfile.ZipFile, item: dict, output_dir: Path) -> bo
     # SiFli dynamic modules store the clock as separate numbered image assets.
     # Render a stable sample time into every animated frame using those assets.
     clock_digits = _clock_digit_assets(zf)
+    layout_profile = _clock_layout_profile(zf)
     rgba_frames = [
-        _render_clock_preview(frame, clock_digits, item["id"]) if clock_digits else frame.convert("RGBA")
+        _render_clock_preview(frame, clock_digits, layout_profile)
+        if clock_digits and layout_profile else frame.convert("RGBA")
         for frame in frames
     ]
 
