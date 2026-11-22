@@ -368,6 +368,8 @@ class BleWatchManager(context: Context) {
                             discoveredServiceCount = 0,
                             batteryPercent = null,
                             heartRateBpm = null,
+                             bloodOxygenPercent = null,
+                             supportsBloodOxygen = false,
                             supportsBattery = false,
                             supportsHeartRate = false,
                             canFindWatch = false,
@@ -696,6 +698,19 @@ class BleWatchManager(context: Context) {
             val separator = cmd[3].toInt() and 0xFF
             if ((marker != 0xAB && marker != 0xEA) || (separator != 0xFF && separator != 0x00)) return
             val commandId = cmd[4].toInt() and 0xFF
+
+            WearfitProtocol.parseHealthMeasurement(cmd)?.let { measurement ->
+                mutableState.update { current ->
+                    current.copy(
+                        heartRateBpm = measurement.heartRateBpm ?: current.heartRateBpm,
+                        bloodOxygenPercent = measurement.bloodOxygenPercent ?: current.bloodOxygenPercent,
+                        supportsHeartRate = current.supportsHeartRate || measurement.heartRateBpm != null,
+                        supportsBloodOxygen = current.supportsBloodOxygen ||
+                            measurement.bloodOxygenPercent != null
+                    )
+                }
+                return
+            }
 
             // Heartbeat request from watch: marker 171/234, cmd 11, arg 1
             if (commandId == PROPRIETARY_CMD_HEARTBEAT_REQ && cmd.size >= 6 && cmd[5].toInt() and 0xFF == 1) {
@@ -1321,10 +1336,17 @@ class BleWatchManager(context: Context) {
     @SuppressLint("MissingPermission")
     fun refreshHealth() {
         val gatt = bluetoothGatt ?: return
-        val characteristic = heartRateCharacteristic ?: return
-        if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
+        val characteristic = heartRateCharacteristic
+        if (characteristic != null &&
+            characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0
+        ) {
             gatt.readCharacteristic(characteristic)
         }
+
+        // Wearfit measurement requests are independent of the standard BLE HR service.
+        // The readings arrive asynchronously in a Wearfit health-sync frame.
+        requestHeartRateMeasurement()
+        requestBloodOxygenMeasurement()
     }
 
     /** Refreshes battery state for the device card, independently of health metrics. */
