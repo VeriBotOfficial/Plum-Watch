@@ -9,6 +9,8 @@ import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -1459,8 +1461,10 @@ private fun AboutSettingsContent(appVersion: String) {
 }
 
 @Composable
-fun MusicScreen(onBack: () -> Unit, onPickMusic: () -> Unit) {
+fun MusicScreen(onBack: () -> Unit) {
     BackHandler(onBack = onBack)
+    val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { }
+
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         TextButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("My Watch") }
         PageTitle("Music")
@@ -1469,7 +1473,7 @@ fun MusicScreen(onBack: () -> Unit, onPickMusic: () -> Unit) {
                 Icon(Icons.Outlined.MusicNote, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
                 Text("Send music to your watch", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Text("Choose MP3 or M4A files stored on this phone.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                FilledTonalButton(onClick = onPickMusic, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                FilledTonalButton(onClick = { musicPicker.launch(arrayOf("audio/mpeg", "audio/mp4", "audio/*")) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
                     Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Choose music files")
                 }
                 Text("Transfer is not enabled yet: Wearfit exposes a separate music file-transfer service, but its framing and compatibility with this watch are not verified.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
@@ -1489,101 +1493,43 @@ fun HealthScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val manager = remember(context) { BleWatchManager.getInstance(context) }
     val state by manager.state.collectAsStateWithLifecycle()
+    val prefs = remember(context) { context.getSharedPreferences("plum_watch_health_history", Context.MODE_PRIVATE) }
+    val hr = remember { mutableStateListOf<Int>().apply { addAll(prefs.getString("hr", "").orEmpty().split(",").mapNotNull { it.toIntOrNull() }.takeLast(48)) } }
+    val spo = remember { mutableStateListOf<Int>().apply { addAll(prefs.getString("spo", "").orEmpty().split(",").mapNotNull { it.toIntOrNull() }.takeLast(48)) } }
     var feedback by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) {
-        manager.refreshHealth()
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 22.dp)
-            .padding(top = 17.dp, bottom = 126.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
-        TextButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("My Watch")
-        }
+    LaunchedEffect(Unit) { manager.refreshHealth() }
+    LaunchedEffect(state.heartRateBpm) { val v = state.heartRateBpm; if (v != null && hr.lastOrNull() != v) { hr.add(v); while (hr.size > 48) hr.removeAt(0); prefs.edit().putString("hr", hr.joinToString(",")).apply() } }
+    LaunchedEffect(state.bloodOxygenPercent) { val v = state.bloodOxygenPercent; if (v != null && spo.lastOrNull() != v) { spo.add(v); while (spo.size > 48) spo.removeAt(0); prefs.edit().putString("spo", spo.joinToString(",")).apply() } }
+    Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        TextButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("My Watch") }
         PageTitle("Health")
-
-        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Heart rate", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                        Text(
-                            state.heartRateBpm?.let { "$it bpm" } ?: "No reading yet",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 27.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Icon(Icons.Outlined.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-                }
-                FilledTonalButton(
-                    enabled = state.isConnected && state.supportsProprietaryCommands,
-                    onClick = {
-                        feedback = if (manager.requestHeartRateMeasurement()) {
-                            "Heart-rate measurement requested."
-                        } else {
-                            "Could not send the measurement request. Check the watch connection."
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text("Measure heart rate")
-                }
-            }
-        }
-
-        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("Blood oxygen", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                Text(
-                    state.bloodOxygenPercent?.let { "$it%" } ?: "No reading yet",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 27.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                FilledTonalButton(
-                    enabled = state.isConnected && state.supportsProprietaryCommands,
-                    onClick = {
-                        feedback = if (manager.requestBloodOxygenMeasurement()) {
-                            "Blood-oxygen measurement requested."
-                        } else {
-                            "Could not send the measurement request. Check the watch connection."
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text("Measure blood oxygen")
-                }
-            }
-        }
-
-        if (feedback != null) {
-            Text(feedback!!, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-        }
-        if (!state.isConnected) {
-            Text("Connect your watch to take measurements.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-        }
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) { Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Heart rate", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Text(state.heartRateBpm?.let { "$it bpm" } ?: "No reading yet", color = MaterialTheme.colorScheme.onSurface, fontSize = 27.sp, fontWeight = FontWeight.SemiBold)
+            HealthHistoryChart(hr.toList(), MaterialTheme.colorScheme.primary)
+            Text("${hr.size} saved readings", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+            FilledTonalButton(enabled = state.isConnected && state.supportsProprietaryCommands, onClick = { feedback = if (manager.requestHeartRateMeasurement()) "Heart-rate measurement requested." else "Could not request measurement." }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("Measure heart rate") }
+        } }
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) { Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Blood oxygen", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Text(state.bloodOxygenPercent?.let { "$it%" } ?: "No reading yet", color = MaterialTheme.colorScheme.onSurface, fontSize = 27.sp, fontWeight = FontWeight.SemiBold)
+            HealthHistoryChart(spo.toList(), Color(0xFF36A6A0))
+            Text("${spo.size} saved readings", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+            FilledTonalButton(enabled = state.isConnected && state.supportsProprietaryCommands, onClick = { feedback = if (manager.requestBloodOxygenMeasurement()) "Blood-oxygen measurement requested." else "Could not request measurement." }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("Measure blood oxygen") }
+        } }
+        if (feedback != null) Text(feedback!!, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        if (!state.isConnected) Text("Connect your watch to take measurements.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+    }
+}
+@Composable
+private fun HealthHistoryChart(values: List<Int>, color: Color) {
+    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(92.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .32f), RoundedCornerShape(14.dp)).padding(9.dp)) {
+        if (values.size < 2) return@Canvas
+        val low = (values.minOrNull()!! - 5).toFloat()
+        val span = ((values.maxOrNull()!! + 5).toFloat() - low).coerceAtLeast(1f)
+        val path = androidx.compose.ui.graphics.Path()
+        values.forEachIndexed { i, v -> val x = size.width * i / (values.size - 1).toFloat(); val y = size.height - ((v - low) / span) * size.height; if (i == 0) path.moveTo(x, y) else path.lineTo(x, y) }
+        drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
     }
 }
 
