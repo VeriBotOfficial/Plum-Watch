@@ -39,7 +39,7 @@ app/build/outputs/apk/debug/app-debug.apk
 ## App structure
 
 - **My Watch** — BLE discovery, connection state, battery status, Find Watch, alarms, Health (heart rate) and watchface transfer.
-- **Watchfaces** — loads `/watchfaces/index.json`, previews available faces, and transfers the selected ZIP to the watch using the per-file SiFli protocol.
+- **Store** — loads `/store/index.json`; Watchface Store previews and transfers supported SiFli ZIP packages. App Store is present, but app/game installation is not enabled until the WearFit app-install transfer path is reconstructed and verified.
 - **Settings → Watch controls** — documented Wearfit settings including language, time format, wrist wake, automatic health measurements, body-temperature mode, sleep mode, sedentary and water reminders, notification display preferences, physical-training options and heart-rate zones.
 - **Settings → Alarms / Find Watch** — dedicated device controls.
 

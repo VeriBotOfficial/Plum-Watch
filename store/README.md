@@ -27,7 +27,7 @@ Example optional `metadata.json`:
 }
 ```
 
-If `previewFile` is omitted, the publisher looks for a file named `preview`, `cover`, or `thumbnail` inside the ZIP, then a single unambiguous image. Animated GIF previews are preserved and animated in the Android Store.
+If `previewFile` is omitted, the publisher looks for a file named `preview`, `cover`, or `thumbnail` inside the ZIP, then a single unambiguous image. Animated GIF previews are preserved for detail pages; the publisher also selects a representative frame as a static PNG thumbnail for the Store grid. The Android detail preview animates GIFs locally.
 
 ## Preview support
 

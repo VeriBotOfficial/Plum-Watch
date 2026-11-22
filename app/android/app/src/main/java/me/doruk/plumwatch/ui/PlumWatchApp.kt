@@ -287,7 +287,7 @@ fun PlumWatchApp(
                                 onConnect = watchManager::connect,
                                 onReconnect = watchManager::reconnectSavedDevice,
                                 onRemoveWatch = onRemoveWatch,
-                                onOpenWatchfaces = { page = AppPage.STORE },
+                                onOpenStore = { page = AppPage.STORE },
                                 onOpenOtherSettings = { page = AppPage.WATCH_SETTINGS },
                                 onFindWatch = watchManager::findWatch,
                                 onOpenAlarms = { page = AppPage.ALARMS },

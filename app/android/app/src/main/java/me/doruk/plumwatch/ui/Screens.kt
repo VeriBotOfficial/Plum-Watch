@@ -80,6 +80,7 @@ import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Watch
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -305,7 +306,7 @@ fun MyWatchScreen(
     onConnect: (WatchDevice) -> Unit,
     onReconnect: () -> Unit,
     onRemoveWatch: () -> Unit,
-    onOpenWatchfaces: () -> Unit,
+    onOpenStore: () -> Unit,
     onOpenOtherSettings: () -> Unit,
     onFindWatch: () -> Unit,
     onOpenAlarms: () -> Unit,
@@ -429,10 +430,10 @@ fun MyWatchScreen(
                     enabled = true,
                     onClick = onOpenMusic
                 ),
-                QuickFeature("Watchfaces", Icons.Outlined.Watch,
-                    subtitle = "Browse and install",
+                QuickFeature("Store", Icons.Outlined.GridView,
+                    subtitle = "Browse watchfaces and apps",
                     enabled = state.isConnected && state.supportsSifliWatchface,
-                    onClick = { if (state.isConnected && state.supportsSifliWatchface) onOpenWatchfaces() }
+                    onClick = { if (state.isConnected && state.supportsSifliWatchface) onOpenStore() }
                 )
             )
 

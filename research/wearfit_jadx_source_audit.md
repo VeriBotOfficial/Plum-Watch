@@ -63,6 +63,16 @@ The SiFli service/data UUID remains a separate transport. The existence of the S
 
 ## 3. Music and generic file transfer
 
+### 3.0 App/game installation API discovered
+
+The exported WearFit interface `com.wakeup.commponent.module.device.DeviceTransferService` declares `startPushApp(path, callback)`, alongside dial-specific entry points such as `startPushDial`, `startPushAigcDial`, `startPushCustomDial` and `startPushCustomVideoDial`.
+
+This confirms that WearFit has an app-install API surface. It does **not** reveal the package format, concrete transfer implementation, packet/ACK state machine, installation completion signal or HK 10 Pro Max+ capability gate. The concrete `DeviceTransferService` implementation is absent from this JADX export (see the omissions in section 1). Do not route app packages through the SiFli watchface protocol based on this interface alone.
+
+### 3.0.1 Separate legacy dial preview parser
+
+The export also contains `com.wakeup.feature.device.dial.preview.WatchFaceBinParser`. It parses a separate binary dial format into positioned elements (static images, hour/minute/date/month and other data-driven elements), including palette-indexed bitmap resources. This could support a future renderer for that legacy `.bin` format, but it is not a parser for Red John's dynamic SiFli ZIP package (`.dsc`, compiled `.so` and EZIP resources).
+
 ### 3.1 APIs found
 
 `com.wakeup.commponent.module.device.DeviceTransferService` exposes:
