@@ -1394,8 +1394,8 @@ class BleWatchManager(context: Context) {
     }
 
     /**
-     * Wearfit's setSmartWarnCarryContent is a separate SplitWriter path:
-     * it splits only notification content into 19-byte raw write blocks.
+     * Wearfit's setSmartWarnCarryContent is a separate SplitWriter path.
+     * It uses one 20-byte initial write, then indexed 19-byte continuations.
      * Ordinary settings and camera commands stay as one complete packet.
      */
     @SuppressLint("MissingPermission")
