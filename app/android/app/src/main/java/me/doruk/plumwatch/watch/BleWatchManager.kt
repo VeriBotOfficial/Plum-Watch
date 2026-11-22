@@ -1350,10 +1350,33 @@ class BleWatchManager(context: Context) {
             (characteristic.uuid == SIFLI_SERIAL_DATA_UUID && sifliPushMutex.isLocked)
         ) return false
 
-        // Wearfit splits proprietary command frames into 19-byte BLE writes.
-        // Keep the same FIFO so fragments from one frame cannot interleave.
-        payload.asList().chunked(19).forEach { fragment ->
-            pendingWearfitWrites.addLast(fragment.toByteArray())
+        pendingWearfitWrites.addLast(payload.copyOf())
+        if (activeWearfitWrite == null) startNextWearfitWrite(gatt)
+        return activeWearfitWrite != null || pendingWearfitWrites.isNotEmpty()
+    }
+
+    /**
+     * Wearfit's setSmartWarnCarryContent is a separate SplitWriter path:
+     * it splits only notification content into 19-byte raw write blocks.
+     * Ordinary settings and camera commands stay as one complete packet.
+     */
+    @SuppressLint("MissingPermission")
+    private fun sendSplitProprietaryCommand(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+        payload: ByteArray,
+        blockSize: Int = 19
+    ): Boolean {
+        if (bluetoothGatt !== gatt ||
+            !wearfitNotificationsReady ||
+            characteristic.uuid != wearfitWriteCharacteristic?.uuid ||
+            (characteristic.uuid == SIFLI_SERIAL_DATA_UUID && sifliPushMutex.isLocked) ||
+            blockSize !in 1..512 ||
+            payload.isEmpty()
+        ) return false
+
+        payload.asList().chunked(blockSize).forEach { block ->
+            pendingWearfitWrites.addLast(block.toByteArray())
         }
         if (activeWearfitWrite == null) startNextWearfitWrite(gatt)
         return activeWearfitWrite != null || pendingWearfitWrites.isNotEmpty()
@@ -1555,7 +1578,14 @@ class BleWatchManager(context: Context) {
             .filter { it.isNotEmpty() }
             .joinToString(": ")
         if (content.isBlank()) return false
-        return sendWearfitPacket(WearfitProtocol.notificationContent(content))
+        val gatt = bluetoothGatt ?: return false
+        val characteristic = wearfitWriteCharacteristic ?: return false
+        val packet = WearfitProtocol.notificationContent(content)
+        val queued = sendSplitProprietaryCommand(gatt, characteristic, packet, blockSize = 19)
+        mutableState.update {
+            it.copy(errorMessage = if (queued) null else "Android could not queue the watch notification.")
+        }
+        return queued
     }
 
     fun setBodyTemperatureMeasurement(enabled: Boolean): Boolean =
