@@ -1466,22 +1466,27 @@ private fun AboutSettingsContent(appVersion: String) {
 @Composable
 fun MusicScreen(onBack: () -> Unit) {
     BackHandler(onBack = onBack)
-    var selectedMusic by remember { mutableStateOf<List<String>>(emptyList()) }
-    val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> selectedMusic = uris.map { it.lastPathSegment ?: "Audio file" } }
-
-    Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        TextButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("My Watch") }
+    Column(
+        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("My Watch")
+        }
         PageTitle("Music")
         AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Icon(Icons.Outlined.MusicNote, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
-                Text("Send music to your watch", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                Text("Choose MP3 or M4A files stored on this phone.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                FilledTonalButton(onClick = { musicPicker.launch(arrayOf("audio/mpeg", "audio/mp4", "audio/*")) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                    Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Choose music files")
-                }
-                if (selectedMusic.isNotEmpty()) Text(selectedMusic.joinToString("\n"), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                Text("Transfer is not enabled yet: Wearfit exposes a separate music file-transfer service, but its framing and compatibility with this watch are not verified.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                Text("Music transfer unavailable", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "This watch uses WearFit's separate FTP file-transfer channel. The readable app export does not include its MP3 upload handshake or acknowledgement/retry sequence, so Plum cannot safely transfer a track yet.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
             }
         }
     }
@@ -1528,13 +1533,7 @@ fun HealthScreen(onBack: () -> Unit) {
             addAll(decodeHealthSamples(prefs.getString("spo_samples", null)))
         }
     }
-    var feedback by remember { mutableStateOf<String?>(null) }
-
-    // Read standard HR as soon as the link is up, then retry Wearfit one-shot
-    // requests once its proprietary command/notification handshake is ready.
-    LaunchedEffect(state.isConnected, state.supportsProprietaryCommands) {
-        if (state.isConnected) manager.refreshHealth()
-    }
+    // Current readings are requested by the background BLE sync service.
     LaunchedEffect(state.heartRateUpdatedAt) {
         if (state.heartRateUpdatedAt != null) {
             // The BLE manager persists samples even while this screen is closed.
@@ -1575,16 +1574,6 @@ fun HealthScreen(onBack: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
-                FilledTonalButton(
-                    enabled = state.isConnected && state.supportsProprietaryCommands,
-                    onClick = {
-                        feedback = if (manager.requestHeartRateMeasurement()) {
-                            "Heart-rate measurement requested."
-                        } else "Could not request measurement."
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) { Text("Measure heart rate") }
             }
         }
         AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
@@ -1602,23 +1591,10 @@ fun HealthScreen(onBack: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
-                FilledTonalButton(
-                    enabled = state.isConnected && state.supportsProprietaryCommands,
-                    onClick = {
-                        feedback = if (manager.requestBloodOxygenMeasurement()) {
-                            "Blood-oxygen measurement requested."
-                        } else "Could not request measurement."
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) { Text("Measure blood oxygen") }
             }
         }
-        if (feedback != null) {
-            Text(feedback!!, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-        }
         if (!state.isConnected) {
-            Text("Connect your watch to take measurements.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Text("Connect your watch. Current readings sync automatically while it is connected.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
         Text(
             "Charts show timestamped readings received by Plum. Historical records already stored on the watch still require the separate Wearfit history-sync response format.",
