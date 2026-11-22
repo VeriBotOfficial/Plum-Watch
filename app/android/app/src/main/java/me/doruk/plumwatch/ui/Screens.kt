@@ -303,7 +303,6 @@ fun MyWatchScreen(
     onOpenWatchfaces: () -> Unit,
     onOpenOtherSettings: () -> Unit,
     onFindWatch: () -> Unit,
-    onSyncTime: () -> Unit,
     onOpenAlarms: () -> Unit,
     onOpenHealth: () -> Unit,
     onOpenNotifications: () -> Unit,
@@ -400,11 +399,6 @@ fun MyWatchScreen(
                     enabled = state.isConnected && (state.canFindWatch || state.supportsProprietaryCommands),
                     onClick = { if (state.isConnected) onFindWatch() }
                 ),
-                QuickFeature("Sync Time", Icons.Outlined.Refresh,
-                    subtitle = "Update watch time",
-                    enabled = state.isConnected && state.supportsTimeSync,
-                    onClick = onSyncTime
-                ),
                 QuickFeature("Alarms", Icons.Outlined.Alarm,
                     subtitle = "Create and manage alarms",
                     enabled = state.isConnected && state.supportsProprietaryCommands,
@@ -426,7 +420,7 @@ fun MyWatchScreen(
                     onClick = onOpenCamera
                 ),
                 QuickFeature("Music", Icons.Outlined.MusicNote,
-                    subtitle = "Control phone playback",
+                    subtitle = "Send audio files to your watch",
                     enabled = true,
                     onClick = onOpenMusic
                 ),
@@ -672,140 +666,28 @@ private fun ConnectedWatchCard(
     supportsTimeSync: Boolean,
     lastTimeSyncAt: Long?
 ) {
-    val normalizedBattery = batteryPercent?.coerceIn(0, 100)
-    val animatedBattery by animateFloatAsState(
-        targetValue = (normalizedBattery ?: 0) / 100f,
-        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
-        label = "battery-level"
-    )
-    val batteryColor = when {
-        normalizedBattery == null -> MaterialTheme.colorScheme.primary
-        normalizedBattery <= 20 -> MaterialTheme.colorScheme.error
-        normalizedBattery <= 50 -> MaterialTheme.colorScheme.tertiary
-        else -> MaterialTheme.colorScheme.primary
-    }
-
-    AppSurface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(29.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
-                            RoundedCornerShape(17.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Outlined.Watch,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Text(
-                        device.name,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(7.dp)
-                                .background(Color(0xFF69C58E), CircleShape)
-                        )
-                        Spacer(Modifier.width(7.dp))
-                        Text(
-                            "Connected",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp
-                        )
-                        if (supportsTimeSync) {
-                            Text(
-                                "  ·  " + if (lastTimeSyncAt != null) "Time synced" else "Time sync available",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
+    val level = batteryPercent?.coerceIn(0, 100)
+    val tint = if (level != null && level <= 20) Color(0xFFE05252) else Color(0xFF36B66A)
+    AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(29.dp)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(52.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .72f), RoundedCornerShape(17.dp)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Watch, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(device.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(7.dp).background(Color(0xFF69C58E), CircleShape))
+                    Spacer(Modifier.width(7.dp))
+                    Text("Connected", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
             }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                        RoundedCornerShape(17.dp)
-                    )
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Battery",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            batteryPercent?.let { "$it%" } ?: "—",
-                            color = batteryColor,
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    if (normalizedBattery == null) {
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth().height(4.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    } else {
-                        LinearProgressIndicator(
-                            progress = animatedBattery,
-                            modifier = Modifier.fillMaxWidth().height(4.dp),
-                            color = batteryColor,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    }
-                    Text(
-                        when {
-                            normalizedBattery == null && supportsBattery -> "Waiting for battery level"
-                            normalizedBattery == null -> "Battery level unavailable"
-                            normalizedBattery <= 15 -> "Low battery"
-                            normalizedBattery <= 30 -> "Battery running down"
-                            else -> "Battery level"
-                        },
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
-                    )
+            Row(Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f), RoundedCornerShape(10.dp)).padding(horizontal = 8.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Box(Modifier.width(22.dp).height(12.dp).border(1.dp, MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(3.dp)).padding(2.dp)) {
+                    Box(Modifier.fillMaxWidth((level ?: 0) / 100f).fillMaxSize().background(if (level == null) MaterialTheme.colorScheme.onSurfaceVariant else tint, RoundedCornerShape(1.dp)))
                 }
+                Box(Modifier.width(2.dp).height(5.dp).background(MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(1.dp)))
+                Text(level?.toString() ?: "—", color = if (level == null) MaterialTheme.colorScheme.onSurfaceVariant else tint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -1577,70 +1459,22 @@ private fun AboutSettingsContent(appVersion: String) {
 }
 
 @Composable
-fun MusicScreen(
-    onBack: () -> Unit,
-    onControl: (Int) -> Boolean
-) {
+fun MusicScreen(onBack: () -> Unit, onPickMusic: () -> Unit) {
     BackHandler(onBack = onBack)
-    var feedback by remember { mutableStateOf("Control media currently playing on your phone.") }
-
-    fun send(label: String, command: Int) {
-        feedback = if (onControl(command)) "$label command sent." else "No active media session accepted the command."
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 22.dp)
-            .padding(top = 17.dp, bottom = 126.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
-        TextButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("My Watch")
-        }
+    Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        TextButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("My Watch") }
         PageTitle("Music")
-        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Text(
-                    "Phone playback",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(onClick = { send("Previous", 4) }, modifier = Modifier.weight(1f)) {
-                        Text("Previous")
-                    }
-                    FilledTonalButton(onClick = { send("Play", 1) }, modifier = Modifier.weight(1f)) {
-                        Text("Play")
-                    }
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(Icons.Outlined.MusicNote, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
+                Text("Send music to your watch", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text("Choose MP3 or M4A files stored on this phone.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                FilledTonalButton(onClick = onPickMusic, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                    Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Choose music files")
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(onClick = { send("Pause", 2) }, modifier = Modifier.weight(1f)) {
-                        Text("Pause")
-                    }
-                    FilledTonalButton(onClick = { send("Next", 3) }, modifier = Modifier.weight(1f)) {
-                        Text("Next")
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { send("Volume down", 6) }, modifier = Modifier.weight(1f)) {
-                        Text("Volume −")
-                    }
-                    TextButton(onClick = { send("Volume up", 5) }, modifier = Modifier.weight(1f)) {
-                        Text("Volume +")
-                    }
-                }
+                Text("Transfer is not enabled yet: Wearfit exposes a separate music file-transfer service, but its framing and compatibility with this watch are not verified.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
         }
-        Text(feedback, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
     }
 }
 
