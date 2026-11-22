@@ -35,6 +35,9 @@ Plum does not yet discover/use this FTP route. The old audit's statement that th
 - `WatchControlsSettingsContent` exposes that preference separately.
 - Unit tests cover the decoded event cases and malformed frames.
 
+### Additional controls exposed
+The Camera, Display and Health panels now expose Shake to Capture as an independent preference. Sleep Mode and Physical Training helpers are wired into the settings page using their existing Wearfit packet builders.
+
 ### Remaining
 CameraX preview/capture still occurs on the phone. Live image/video transfer to the watch is not implemented. The source export exposes separate camera and picture-transfer APIs, but their concrete service/analyzer implementations are unavailable.
 
