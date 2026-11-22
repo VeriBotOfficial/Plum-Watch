@@ -368,46 +368,6 @@ private fun TrainingSetting(
 }
 
 @Composable
-private fun HeartRateZonesSetting(
-    enabled: Boolean,
-    onSend: (List<Int>) -> Unit
-) {
-    val context = LocalContext.current
-    var values by remember { mutableStateOf("") }
-    SettingPanel(
-        "Heart-rate warning",
-        "Set the eight thresholds used for heart-rate alerts."
-    ) {
-        OutlinedTextField(
-            value = values,
-            onValueChange = { values = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Eight values, comma-separated") },
-            placeholder = { Text("e.g. 100,120,130,140,150,160,170,180") },
-            enabled = enabled,
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-        )
-        Button(
-            onClick = {
-                val parsed = values.split(',').mapNotNull { it.trim().toIntOrNull() }
-                if (parsed.size != 8 || parsed.any { it !in 0..255 }) {
-                    Toast.makeText(
-                        context,
-                        "Enter exactly eight whole-number values from 0 to 255.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                } else {
-                    onSend(parsed)
-                }
-            },
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Send heart-rate zones") }
-    }
-}
-
-@Composable
 private fun SettingPanel(
     title: String,
     description: String? = null,
