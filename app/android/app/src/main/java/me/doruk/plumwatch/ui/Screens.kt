@@ -30,6 +30,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.clip
@@ -1463,7 +1464,8 @@ private fun AboutSettingsContent(appVersion: String) {
 @Composable
 fun MusicScreen(onBack: () -> Unit) {
     BackHandler(onBack = onBack)
-    val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { }
+    var selectedMusic by remember { mutableStateOf<List<String>>(emptyList()) }
+    val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> selectedMusic = uris.map { it.lastPathSegment ?: "Audio file" } }
 
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         TextButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("My Watch") }
