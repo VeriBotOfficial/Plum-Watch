@@ -96,6 +96,20 @@ fun WatchControlsSettingsContent() {
             }
         }
 
+        SleepModeSetting(enabled = canSend) { active, mode, tracking, chargeReminder ->
+            report(
+                "Sleep mode",
+                manager.setSleepMode(active, mode, tracking, chargeReminder)
+            )
+        }
+
+        TrainingSetting(enabled = canSend) { autoPause, startPrompt, stopPrompt, keyPause ->
+            report(
+                "Physical training",
+                manager.setPhysicalTraining(autoPause, startPrompt, stopPrompt, keyPause)
+            )
+        }
+
         SettingPanel("Display and health") {
             var raiseToWake by remember { mutableStateOf(true) }
             var autoHealth by remember { mutableStateOf(false) }
