@@ -41,7 +41,7 @@ class WearfitProtocolTest {
     fun buildsSplitNotificationContentPacket() {
         assertArrayEquals(
             byteArrayOf(
-                0xAB.toByte(), 0, 11, 0xFF.toByte(), 0x72, 0x80.toByte(),
+                0xAB.toByte(), 0, 13, 0xFF.toByte(), 0x72, 0x80.toByte(),
                 34, 2, 0x48, 0x69, 0x20, 0x77, 0x61, 0x74, 0x63, 0x68
             ),
             WearfitProtocol.notificationContent("Hi watch")
