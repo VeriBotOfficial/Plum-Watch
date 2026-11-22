@@ -71,6 +71,24 @@ def _clock_digit_assets(zf: zipfile.ZipFile) -> dict[int, Image.Image]:
     return digits
 
 
+def _clock_layout_profile(zf: zipfile.ZipFile) -> str | None:
+    """Resolve a verified layout from the watchface's internal module ID.
+
+    Archive filenames are user-facing labels and can be renamed at any time.
+    Internal SiFli module/resource IDs remain part of the package itself.
+    """
+    module_ids = {
+        Path(entry.filename).stem
+        for entry in safe_zip_files(zf)
+        if entry.filename.lower().endswith(".so")
+        and "/watchface/" in entry.filename.lower()
+    }
+    # Verified from the Red John package's native module and call sites.
+    if "wf_clock1003" in module_ids:
+        return "wf_clock1003"
+    return None
+
+
 def _render_clock_preview(background: Image.Image, digits: dict[int, Image.Image], layout: str) -> Image.Image:
     """Render only a clock layout that has been reverse-engineered for this face.
 
@@ -80,7 +98,7 @@ def _render_clock_preview(background: Image.Image, digits: dict[int, Image.Image
     """
     layouts = {
         # Red John module: separate hour/minute rows, top-left aligned.
-        "red-john": (
+        "wf_clock1003": (
             ((1, 0), (38, 42)),
             ((0, 8), (32, 258)),
         ),
