@@ -202,4 +202,44 @@ class WearfitProtocolTest {
     fun rejectsInvalidReminderTime() {
         WearfitProtocol.reminderSchedule(0x53, true, 25, 0, 21, 0, 60)
     }
+    @Test
+    fun parsesDirectCameraSwitchEvent() {
+        val event = WearfitProtocol.parseCameraControlEvent(
+            byteArrayOf(0xEA.toByte(), 0, 3, 0, 0x15, 2)
+        )
+        assertNotNull(event)
+        assertFalse(event!!.requestsCamera)
+        assertFalse(event.takePhoto)
+        assertTrue(event.switchCamera)
+    }
+
+    @Test
+    fun parsesCameraRequestAndShutterState() {
+        val event = WearfitProtocol.parseCameraControlEvent(
+            byteArrayOf(0xEA.toByte(), 0, 4, 0, 0x15, 1, 1)
+        )
+        assertNotNull(event)
+        assertTrue(event!!.requestsCamera)
+        assertTrue(event.takePhoto)
+        assertFalse(event.switchCamera)
+    }
+
+    @Test
+    fun parsesCameraRequestAndLensSwitchState() {
+        val event = WearfitProtocol.parseCameraControlEvent(
+            byteArrayOf(0xEA.toByte(), 0, 4, 0, 0x15, 1, 2)
+        )
+        assertNotNull(event)
+        assertTrue(event!!.requestsCamera)
+        assertFalse(event.takePhoto)
+        assertTrue(event.switchCamera)
+    }
+
+    @Test
+    fun ignoresMalformedCameraEvents() {
+        assertNull(WearfitProtocol.parseCameraControlEvent(byteArrayOf(0xEA.toByte(), 0, 3, 0, 0x15, 1)))
+        assertNull(WearfitProtocol.parseCameraControlEvent(byteArrayOf(0xAB.toByte(), 0, 3, 0, 0x15, 2)))
+        assertNull(WearfitProtocol.parseCameraControlEvent(byteArrayOf(0xEA.toByte(), 0, 3, 0, 0x14, 2)))
+    }
+
 }
