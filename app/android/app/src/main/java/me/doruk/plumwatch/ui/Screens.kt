@@ -1478,6 +1478,7 @@ fun MusicScreen(onBack: () -> Unit) {
                 FilledTonalButton(onClick = { musicPicker.launch(arrayOf("audio/mpeg", "audio/mp4", "audio/*")) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
                     Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Choose music files")
                 }
+                if (selectedMusic.isNotEmpty()) Text(selectedMusic.joinToString("\n"), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 Text("Transfer is not enabled yet: Wearfit exposes a separate music file-transfer service, but its framing and compatibility with this watch are not verified.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
         }
