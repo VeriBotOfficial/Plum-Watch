@@ -29,13 +29,15 @@ object WatchfaceRepository {
     suspend fun load(): WatchfaceLibraryResult = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         try {
-            connection = (URL(MANIFEST_URL).openConnection() as HttpURLConnection).apply {
+            connection = (URL("$MANIFEST_URL?refresh=${System.currentTimeMillis()}").openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 12_000
                 readTimeout = 15_000
+                useCaches = false
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("User-Agent", "Plum-Watch-Android")
-                setRequestProperty("Cache-Control", "no-cache")
+                setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0")
+                setRequestProperty("Pragma", "no-cache")
             }
             when (connection.responseCode) {
                 HttpURLConnection.HTTP_NOT_FOUND,
