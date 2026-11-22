@@ -148,6 +148,8 @@ import me.doruk.plumwatch.watch.WatchDevice
 import me.doruk.plumwatch.watch.BleWatchManager
 import java.io.File
 import java.io.FileInputStream
+import java.text.DateFormat
+import java.util.Date
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
@@ -1485,6 +1487,23 @@ fun MusicScreen(onBack: () -> Unit) {
     }
 }
 
+private data class HealthSample(
+    val timestamp: Long,
+    val value: Int
+)
+
+private fun decodeHealthSamples(value: String?): List<HealthSample> =
+    value.orEmpty().split(",").mapNotNull { token ->
+        val parts = token.split(":", limit = 2)
+        if (parts.size != 2) return@mapNotNull null
+        val timestamp = parts[0].toLongOrNull() ?: return@mapNotNull null
+        val sample = parts[1].toIntOrNull() ?: return@mapNotNull null
+        HealthSample(timestamp, sample)
+    }.takeLast(72)
+
+private fun encodeHealthSamples(samples: List<HealthSample>): String =
+    samples.joinToString(",") { "${it.timestamp}:${it.value}" }
+
 private data class NotificationAppChoice(
     val packageName: String,
     val label: String
@@ -1496,43 +1515,163 @@ fun HealthScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val manager = remember(context) { BleWatchManager.getInstance(context) }
     val state by manager.state.collectAsStateWithLifecycle()
-    val prefs = remember(context) { context.getSharedPreferences("plum_watch_health_history", Context.MODE_PRIVATE) }
-    val hr = remember { mutableStateListOf<Int>().apply { addAll(prefs.getString("hr", "").orEmpty().split(",").mapNotNull { it.toIntOrNull() }.takeLast(48)) } }
-    val spo = remember { mutableStateListOf<Int>().apply { addAll(prefs.getString("spo", "").orEmpty().split(",").mapNotNull { it.toIntOrNull() }.takeLast(48)) } }
+    val prefs = remember(context) {
+        context.getSharedPreferences("plum_watch_health_history", Context.MODE_PRIVATE)
+    }
+    val hr = remember(prefs) {
+        mutableStateListOf<HealthSample>().apply {
+            addAll(decodeHealthSamples(prefs.getString("hr_samples", null)))
+        }
+    }
+    val spo = remember(prefs) {
+        mutableStateListOf<HealthSample>().apply {
+            addAll(decodeHealthSamples(prefs.getString("spo_samples", null)))
+        }
+    }
     var feedback by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) { manager.refreshHealth() }
-    LaunchedEffect(state.heartRateBpm) { val v = state.heartRateBpm; if (v != null && hr.lastOrNull() != v) { hr.add(v); while (hr.size > 48) hr.removeAt(0); prefs.edit().putString("hr", hr.joinToString(",")).apply() } }
-    LaunchedEffect(state.bloodOxygenPercent) { val v = state.bloodOxygenPercent; if (v != null && spo.lastOrNull() != v) { spo.add(v); while (spo.size > 48) spo.removeAt(0); prefs.edit().putString("spo", spo.joinToString(",")).apply() } }
-    Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        TextButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("My Watch") }
+    LaunchedEffect(state.heartRateUpdatedAt) {
+        val timestamp = state.heartRateUpdatedAt ?: return@LaunchedEffect
+        val value = state.heartRateBpm ?: return@LaunchedEffect
+        if (hr.lastOrNull()?.timestamp != timestamp) {
+            hr.add(HealthSample(timestamp, value))
+            while (hr.size > 72) hr.removeAt(0)
+            prefs.edit().putString("hr_samples", encodeHealthSamples(hr)).apply()
+        }
+    }
+    LaunchedEffect(state.bloodOxygenUpdatedAt) {
+        val timestamp = state.bloodOxygenUpdatedAt ?: return@LaunchedEffect
+        val value = state.bloodOxygenPercent ?: return@LaunchedEffect
+        if (spo.lastOrNull()?.timestamp != timestamp) {
+            spo.add(HealthSample(timestamp, value))
+            while (spo.size > 72) spo.removeAt(0)
+            prefs.edit().putString("spo_samples", encodeHealthSamples(spo)).apply()
+        }
+    }
+
+    Column(
+        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("My Watch")
+        }
         PageTitle("Health")
-        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) { Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Heart rate", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-            Text(state.heartRateBpm?.let { "$it bpm" } ?: "No reading yet", color = MaterialTheme.colorScheme.onSurface, fontSize = 27.sp, fontWeight = FontWeight.SemiBold)
-            HealthHistoryChart(hr.toList(), MaterialTheme.colorScheme.primary)
-            Text("${hr.size} saved readings", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-            FilledTonalButton(enabled = state.isConnected && state.supportsProprietaryCommands, onClick = { feedback = if (manager.requestHeartRateMeasurement()) "Heart-rate measurement requested." else "Could not request measurement." }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("Measure heart rate") }
-        } }
-        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) { Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Blood oxygen", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-            Text(state.bloodOxygenPercent?.let { "$it%" } ?: "No reading yet", color = MaterialTheme.colorScheme.onSurface, fontSize = 27.sp, fontWeight = FontWeight.SemiBold)
-            HealthHistoryChart(spo.toList(), Color(0xFF36A6A0))
-            Text("${spo.size} saved readings", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-            FilledTonalButton(enabled = state.isConnected && state.supportsProprietaryCommands, onClick = { feedback = if (manager.requestBloodOxygenMeasurement()) "Blood-oxygen measurement requested." else "Could not request measurement." }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("Measure blood oxygen") }
-        } }
-        if (feedback != null) Text(feedback!!, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-        if (!state.isConnected) Text("Connect your watch to take measurements.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Heart rate", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Text(
+                    state.heartRateBpm?.let { "$it bpm" } ?: "No reading yet",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 27.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                HealthHistoryChart(hr.toList(), MaterialTheme.colorScheme.primary)
+                Text(
+                    healthRangeLabel(hr),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp
+                )
+                FilledTonalButton(
+                    enabled = state.isConnected && state.supportsProprietaryCommands,
+                    onClick = {
+                        feedback = if (manager.requestHeartRateMeasurement()) {
+                            "Heart-rate measurement requested."
+                        } else "Could not request measurement."
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) { Text("Measure heart rate") }
+            }
+        }
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Blood oxygen", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Text(
+                    state.bloodOxygenPercent?.let { "$it%" } ?: "No reading yet",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 27.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                HealthHistoryChart(spo.toList(), Color(0xFF36A6A0))
+                Text(
+                    healthRangeLabel(spo),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp
+                )
+                FilledTonalButton(
+                    enabled = state.isConnected && state.supportsProprietaryCommands,
+                    onClick = {
+                        feedback = if (manager.requestBloodOxygenMeasurement()) {
+                            "Blood-oxygen measurement requested."
+                        } else "Could not request measurement."
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) { Text("Measure blood oxygen") }
+            }
+        }
+        if (feedback != null) {
+            Text(feedback!!, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        }
+        if (!state.isConnected) {
+            Text("Connect your watch to take measurements.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        }
+        Text(
+            "Charts show timestamped readings received by Plum. Historical records already stored on the watch still require the separate Wearfit history-sync response format.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 11.sp,
+            lineHeight = 16.sp
+        )
     }
 }
+
+private fun healthRangeLabel(samples: List<HealthSample>): String {
+    if (samples.isEmpty()) return "No saved readings"
+    val format = DateFormat.getTimeInstance(DateFormat.SHORT)
+    val first = format.format(Date(samples.first().timestamp))
+    val last = format.format(Date(samples.last().timestamp))
+    return "${samples.size} readings · $first – $last"
+}
+
 @Composable
-private fun HealthHistoryChart(values: List<Int>, color: Color) {
-    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(92.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .32f), RoundedCornerShape(14.dp)).padding(9.dp)) {
-        if (values.size < 2) return@Canvas
-        val low = (values.minOrNull()!! - 5).toFloat()
-        val span = ((values.maxOrNull()!! + 5).toFloat() - low).coerceAtLeast(1f)
+private fun HealthHistoryChart(samples: List<HealthSample>, color: Color) {
+    androidx.compose.foundation.Canvas(
+        Modifier.fillMaxWidth().height(112.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .32f), RoundedCornerShape(14.dp))
+            .padding(9.dp)
+    ) {
+        if (samples.isEmpty()) return@Canvas
+        val minTime = samples.first().timestamp
+        val maxTime = samples.last().timestamp
+        val timeSpan = (maxTime - minTime).coerceAtLeast(1L).toFloat()
+        val low = (samples.minOf { it.value } - 5).toFloat()
+        val valueSpan = (samples.maxOf { it.value } + 5 - low).coerceAtLeast(1f)
         val path = androidx.compose.ui.graphics.Path()
-        values.forEachIndexed { i, v -> val x = size.width * i / (values.size - 1).toFloat(); val y = size.height - ((v - low) / span) * size.height; if (i == 0) path.moveTo(x, y) else path.lineTo(x, y) }
-        drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        val points = samples.map { sample ->
+            val x = ((sample.timestamp - minTime).toFloat() / timeSpan) * size.width
+            val y = size.height - ((sample.value - low) / valueSpan) * size.height
+            androidx.compose.ui.geometry.Offset(x, y)
+        }
+        points.forEachIndexed { index, point ->
+            if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+        }
+        if (points.size > 1) {
+            drawPath(
+                path,
+                color,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 3.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                )
+            )
+        }
+        points.forEach { point -> drawCircle(color, radius = 3.dp.toPx(), center = point) }
     }
 }
 
