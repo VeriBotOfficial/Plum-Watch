@@ -1,27 +1,29 @@
 # Wearfit APK research workspace
 
-Persistent home for reverse-engineering notes and eventual JADX output.
+Persistent home for JADX source, APK-derived protocol notes and Plum integration research.
 
-## Inputs and status
+## Inputs
 
-The repository entries under `research/apk/` are Git LFS pointers. The analysis workspace currently has the 210,859,037-byte `base.apk` binary (17 DEX files) plus the Turkish and xxhdpi splits. The arm64 split is not locally materialized.
+The JADX Java source export supplied by the user is stored under `decompiled/sources/` (approximately 47,500 source files). The original split APKs remain under `research/apk/` as Git LFS entries.
 
-Existing APK-derived reference documents:
-- `research/wearfit_protocol.md`
-- `research/wearfit_uuid_routes.md`
-- `research/wearfit_features.md`
-- `research/sifli_watchface_transport.md`
-- `research/plum_current_gap_analysis.md`
+Current research documents:
+- `research/wearfit_protocol.md` — packet framing and known command builders.
+- `research/wearfit_uuid_routes.md` — NUS, FTP and SiFli service routing.
+- `research/wearfit_features.md` — Wearfit API/analyzer inventory.
+- `research/wearfit_jadx_source_audit.md` — source-level audit of music, health sync, camera and transfer helpers.
+- `research/sifli_watchface_transport.md` — separate SiFli watchface transfer state machine.
+- `research/plum_current_gap_analysis.md` — current implementation status.
+- `research/plum_feature_roadmap.md` — priorities and evidence requirements.
 
-The 2026-11-22 Plum source audit found that music is picker-only, health is one-shot measurement plus local scalar history (no watch-history request), and camera is phone CameraX remote control (no picture/video receive pipeline). See the gap analysis for exact code paths and evidence.
+## Decompilation coverage
 
-## Full decompile status
+The JADX export is broad but several critical concrete implementation classes are not present as readable Java sources:
+- `BleWatchServiceImpl`
+- `DataSyncProxy` / `OldDataSyncProxy`
+- `RequestHealthAnalyzer` / `PictureTransferAnalyzer`
+- concrete `DeviceTransferService`
+- concrete `DeviceManagerService.sendData` adapter.
 
-A full JADX Java/Kotlin source export has **not** been produced in this environment. Java is available, but JADX/apktool are not installed and outbound package/release downloads are unavailable. The existing protocol notes are static DEX/APK-derived research, not a full source decompilation.
+Interfaces, analyzers, packet builders and transport routing are available and have been cross-referenced. The remaining missing classes are recorded explicitly rather than inferred from their method names.
 
-Follow `decompiled/HOW_TO_DECOMPILE.md` to export the APK on a local Fedora/Linux machine. Put the output under:
-- `decompiled/jadx/base/sources/`
-- `decompiled/jadx/base/resources/`
-- optional split outputs under `decompiled/jadx/split_config.*/`
-
-Do not duplicate the APK binaries in this directory. Keep canonical inputs under `research/apk/`.
+See `decompiled/HOW_TO_DECOMPILE.md` for targeted recovery instructions. Do not repeat the full export unless the JADX source is missing or corrupted; smali for the missing class descriptors plus the JADX error log is the most useful next input.
