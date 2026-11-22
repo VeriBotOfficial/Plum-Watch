@@ -146,3 +146,27 @@ Start with connection setup, a device-info request, a heartbeat round-trip, and 
 ---
 
 **Conclusion:** the present source contains several protocol assumptions contradicted by the Wearfit APK. The research now supports a much more specific next step: verify and implement the real NUS command route (or the model-specific route actually seen on the HK watch), then correct the command builders and response handling. This audit does not modify or claim to validate the running app.
+
+
+## Current feature-branch implementation and CI validation (2026-11-22)
+
+The `fix/plum-watch-controls-camera-notifications` branch now includes the following application-side changes:
+
+- Dedicated Alarm, Health, Notifications and Camera pages; these controls are not duplicated inside Other Settings.
+- Alarm records are created by the user, persisted locally, and only editable/sent while the proprietary command channel is available. Sound is not exposed as a configurable watch alarm capability.
+- Notification listener access is user-granted and notifications are filtered by the selected launcher-app package names.
+- CameraX supplies the phone preview and local capture path; remote watch shutter and camera-switch events are handled by the incoming `0x15` command path.
+- Health requests use the APK's `0x31` request form; replies are handled from `0x31` measurement-type/value fields. An additional strict `0x51/0x20` parser is kept separate and is based on a different Wearfit X10 capture; its compatibility with the HK 10 Pro Max+ remains unverified.
+- Notification text fragmentation uses a 20-byte initial write and indexed 19-byte continuation payloads, with unit tests covering ordering, limits and reconstruction.
+- SiFli serial frames cap Android characteristic values at 512 bytes, with MTU-517 boundary and reassembly tests. This fixes the Android-side attribute-value length failure but does not prove that the watch accepts the current outer SiFli framing or file-transfer handshake.
+
+### Required physical-device validation
+
+The following are not proven by unit tests or source inspection alone:
+
+1. A complete watchface installation on the HK 10 Pro Max+ (including watch-side acceptance and final response).
+2. The exact camera-preview/remote-shutter interaction on this model.
+3. The `0x51/0x20` Health response layout on this model; the primary `0x31` measurement response path is handled independently.
+4. Long notification delivery and app filtering on the physical watch.
+
+The Android build workflow runs `testDebugUnitTest` and `assembleDebug`; a successful Actions run validates compilation and unit tests, not these hardware-dependent behaviors.
