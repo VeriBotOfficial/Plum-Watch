@@ -1,6 +1,11 @@
 package me.doruk.plumwatch.watch
 
 /** Packet builders for command layouts verified in the supplied Wearfit Pro APK. */
+internal data class HealthMeasurement(
+    val heartRateBpm: Int?,
+    val bloodOxygenPercent: Int?
+)
+
 internal object WearfitProtocol {
     fun packet(
         commandId: Int,
@@ -24,6 +29,33 @@ internal object WearfitProtocol {
 
     fun enabledSetting(commandId: Int, enabled: Boolean): ByteArray =
         packet(commandId, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+
+    /**
+     * Parses the 0x51/0x20 health-sync frame used by Wearfit's health analyzer.
+     * The documented frame stores heart rate and SpO2 at absolute offsets 16 and 17.
+     * Other command variants are deliberately ignored rather than guessed.
+     */
+    fun parseHealthMeasurement(frame: ByteArray): HealthMeasurement? {
+        if (frame.size < 18) return null
+        if ((frame[0].toInt() and 0xFF) != 0xAB ||
+            (frame[4].toInt() and 0xFF) != 0x51 ||
+            (frame[5].toInt() and 0xFF) != 0x20
+        ) return null
+
+        val bodyLength = ((frame[1].toInt() and 0xFF) shl 8) or
+            (frame[2].toInt() and 0xFF)
+        if (bodyLength < 15 || frame.size < bodyLength + 3) return null
+
+        val heartRate = frame[16].toInt() and 0xFF
+        val bloodOxygen = frame[17].toInt() and 0xFF
+        val result = HealthMeasurement(
+            heartRateBpm = heartRate.takeIf { it in 1..250 },
+            bloodOxygenPercent = bloodOxygen.takeIf { it in 50..100 }
+        )
+        return result.takeIf {
+            it.heartRateBpm != null || it.bloodOxygenPercent != null
+        }
+    }
 
     /** Camera mode state: Wearfit's CameraControlAnalyzer expects EA 00 04 00 15 04 state. */
     fun cameraPreviewState(enabled: Boolean): ByteArray =
