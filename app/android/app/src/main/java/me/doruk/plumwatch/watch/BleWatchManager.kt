@@ -1402,19 +1402,17 @@ class BleWatchManager(context: Context) {
     private fun sendSplitProprietaryCommand(
         gatt: BluetoothGatt,
         characteristic: BluetoothGattCharacteristic,
-        payload: ByteArray,
-        blockSize: Int = 19
+        payload: ByteArray
     ): Boolean {
         if (bluetoothGatt !== gatt ||
             !wearfitNotificationsReady ||
             characteristic.uuid != wearfitWriteCharacteristic?.uuid ||
             (characteristic.uuid == SIFLI_SERIAL_DATA_UUID && sifliPushMutex.isLocked) ||
-            blockSize !in 1..512 ||
             payload.isEmpty()
         ) return false
 
-        payload.asList().chunked(blockSize).forEach { block ->
-            pendingWearfitWrites.addLast(block.toByteArray())
+        WearfitProtocol.splitLongMessage(payload).forEach { fragment ->
+            pendingWearfitWrites.addLast(fragment)
         }
         if (activeWearfitWrite == null) startNextWearfitWrite(gatt)
         return activeWearfitWrite != null || pendingWearfitWrites.isNotEmpty()
