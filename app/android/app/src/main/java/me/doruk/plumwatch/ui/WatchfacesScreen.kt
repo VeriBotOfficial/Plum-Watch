@@ -34,9 +34,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -44,9 +45,11 @@ import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog as MaterialAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -95,6 +98,7 @@ fun StoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
     var loading by remember { mutableStateOf(false) }
     var selectedWatchface by remember { mutableStateOf<Watchface?>(null) }
     var selectedSection by remember { mutableStateOf(StoreSection.WATCHFACES) }
+    var searchQuery by remember { mutableStateOf("") }
 
     suspend fun refreshLibrary() {
         loading = true
@@ -133,6 +137,8 @@ fun StoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
                     WatchfaceGalleryList(
                         result = result,
                         loading = loading,
+                        searchQuery = searchQuery,
+                        onSearchQueryChange = { searchQuery = it },
                         onRefresh = { scope.launch { refreshLibrary() } },
                         onSelect = { selectedWatchface = it }
                     )
@@ -258,17 +264,21 @@ private fun AppStoreEmptyState() {
 private fun WatchfaceGalleryList(
     result: WatchfaceLibraryResult?,
     loading: Boolean,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     onRefresh: () -> Unit,
     onSelect: (Watchface) -> Unit
 ) {
-    LazyColumn(
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 148.dp),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 10.dp, bottom = 126.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 8.dp, bottom = 126.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PageTitle("Watchfaces")
@@ -283,52 +293,82 @@ private fun WatchfaceGalleryList(
                 }
             }
         }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp),
+                placeholder = { Text("Search watchfaces") },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) }
+            )
+        }
         when {
-            loading && result == null -> item {
+            loading && result == null -> item(span = { GridItemSpan(maxLineSpan) }) {
                 Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
                     PlumProgressLabel("Loading watchfaces")
                 }
             }
-            result is WatchfaceLibraryResult.PrivateOrUnavailable -> item {
-                WatchfaceInfoState("Repository is private", action = "Refresh", onAction = onRefresh)
+            result is WatchfaceLibraryResult.PrivateOrUnavailable -> item(span = { GridItemSpan(maxLineSpan) }) {
+                WatchfaceInfoState("Store unavailable", action = "Refresh", onAction = onRefresh)
             }
-            result is WatchfaceLibraryResult.Failed -> item {
+            result is WatchfaceLibraryResult.Failed -> item(span = { GridItemSpan(maxLineSpan) }) {
                 WatchfaceInfoState("Couldn't load watchfaces", detail = result.message, action = "Retry", onAction = onRefresh)
             }
             result is WatchfaceLibraryResult.Available -> {
-                val faces = result.watchfaces
-                if (faces.isEmpty()) item { WatchfaceInfoState("No watchfaces yet") }
-                else item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 22.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(faces, key = { it.id }) { face ->
-                            Column(
-                                modifier = Modifier.width(156.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                val allFaces = result.watchfaces
+                val faces = allFaces.filter { face ->
+                    searchQuery.isBlank() ||
+                        face.name.contains(searchQuery, ignoreCase = true) ||
+                        face.description?.contains(searchQuery, ignoreCase = true) == true
+                }
+                if (faces.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        WatchfaceInfoState(
+                            if (allFaces.isEmpty()) "No watchfaces yet" else "No matching watchfaces",
+                            detail = if (allFaces.isEmpty()) null else "Try another search."
+                        )
+                    }
+                } else {
+                    items(faces, key = { it.id }) { face ->
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.Start,
+                            verticalArrangement = Arrangement.spacedBy(9.dp)
+                        ) {
+                            AppClickableSurface(
+                                onClick = { onSelect(face) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(26.dp)
                             ) {
-                                AppClickableSurface(
-                                    onClick = { onSelect(face) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(30.dp)
+                                Box(
+                                    Modifier.padding(4.dp)
+                                        .border(
+                                            2.dp,
+                                            MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+                                            RoundedCornerShape(22.dp)
+                                        )
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color(0xFF050607))
                                 ) {
-                                    Box(
-                                        Modifier.padding(5.dp)
-                                            .border(3.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
-                                            .clip(RoundedCornerShape(21.dp))
-                                            .background(Color(0xFF050607))
-                                    ) {
-                                        WatchfaceArtwork(face.previewUrl, Modifier.fillMaxWidth())
-                                    }
+                                    WatchfaceArtwork(face.previewUrl, Modifier.fillMaxWidth())
                                 }
+                            }
+                            Text(
+                                face.name,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            face.description?.takeIf { it.isNotBlank() }?.let { description ->
                                 Text(
-                                    face.name,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
+                                    description,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 11.sp,
+                                    maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
@@ -339,7 +379,6 @@ private fun WatchfaceGalleryList(
         }
     }
 }
-
 
 @Composable
 private fun WatchfaceDetailScreen(
