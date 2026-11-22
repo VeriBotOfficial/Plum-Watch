@@ -69,3 +69,17 @@ The full APK contains other UUIDs from unrelated SDK modules (for example smart-
 ## 6. Limitations
 
 This route map is static evidence from the supplied Wearfit Pro APK. It does not include a GATT trace from the user's HK 10 Pro Max+. The model may advertise another service, require a pairing/bonding sequence, or select a device-specific override. Confirm on the actual watch before implementing.
+
+
+## 5. Source-level confirmation of file route assignment
+
+The JADX source `com.wakeup.module.device.work.utils.WriteQueue` routes all five file-transfer order identifiers to the FTP route above:
+- `SEND_TRANS_FILE_HEAD`
+- `SEND_TRANS_FILE_HEAD_RESP`
+- `SEND_TRANS_FILE_DATA`
+- `SEND_TRANS_FILE_DATA_RESP`
+- `SEND_TRANS_STREAM_CTRL`
+
+The custom service and write characteristic are assigned by order identifier. This is not the normal NUS command path and is not the SiFli watchface route. The FTP notify characteristic is `6E400013-B5A3-F393-E0A9-E50E24DCCA9E`.
+
+Plum currently does not select/discover this FTP route, queue file-transfer order IDs or parse transfer acknowledgements. See [the JADX source audit](wearfit_jadx_source_audit.md) for the A0/A1 packet builders and remaining unknowns.
