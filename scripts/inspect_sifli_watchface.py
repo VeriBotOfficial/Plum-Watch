@@ -33,7 +33,7 @@ with zipfile.ZipFile(ARCHIVE) as archive:
             with tempfile.NamedTemporaryFile(suffix=".so") as tmp:
                 tmp.write(data)
                 tmp.flush()
-                for command in (["readelf", "-h", tmp.name], ["readelf", "-Ws", tmp.name], ["objdump", "-d", tmp.name]):
+                for command in (["readelf", "-h", tmp.name], ["readelf", "-Ws", tmp.name], ["arm-none-eabi-objdump", "-d", tmp.name]):
                     print("\nCOMMAND", " ".join(command))
                     result = subprocess.run(command, text=True, capture_output=True)
                     print(result.stdout[:50000])
