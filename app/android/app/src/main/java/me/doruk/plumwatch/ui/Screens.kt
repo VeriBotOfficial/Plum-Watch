@@ -303,6 +303,7 @@ fun MyWatchScreen(
     onOpenWatchfaces: () -> Unit,
     onOpenOtherSettings: () -> Unit,
     onFindWatch: () -> Unit,
+    onSyncTime: () -> Unit,
     onOpenAlarms: () -> Unit,
     onOpenHealth: () -> Unit,
     onOpenNotifications: () -> Unit,
@@ -398,6 +399,11 @@ fun MyWatchScreen(
                     subtitle = "Ping your watch",
                     enabled = state.isConnected && (state.canFindWatch || state.supportsProprietaryCommands),
                     onClick = { if (state.isConnected) onFindWatch() }
+                ),
+                QuickFeature("Sync Time", Icons.Outlined.Refresh,
+                    subtitle = "Update watch time",
+                    enabled = state.isConnected && state.supportsTimeSync,
+                    onClick = onSyncTime
                 ),
                 QuickFeature("Alarms", Icons.Outlined.Alarm,
                     subtitle = "Create and manage alarms",
@@ -742,58 +748,56 @@ private fun ConnectedWatchCard(
                 }
             }
 
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
                         RoundedCornerShape(17.dp)
                     )
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(9.dp)
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        "Battery",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        batteryPercent?.let { "$it%" } ?: "—",
-                        color = batteryColor,
-                        fontSize = 23.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        lineHeight = 25.sp
-                    )
-                }
-                if (normalizedBattery == null) {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth().height(5.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                } else {
-                    LinearProgressIndicator(
-                        progress = animatedBattery,
-                        modifier = Modifier.fillMaxWidth().height(5.dp),
-                        color = batteryColor,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                }
-                if (normalizedBattery == null) {
-                    Text(
-                        if (supportsBattery) "Waiting for battery level" else "Battery level not reported yet",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
-                    )
-                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Battery",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            batteryPercent?.let { "$it%" } ?: "—",
+                            color = batteryColor,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    if (normalizedBattery == null) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth().height(4.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            progress = animatedBattery,
+                            modifier = Modifier.fillMaxWidth().height(4.dp),
+                            color = batteryColor,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    }
                     Text(
                         when {
+                            normalizedBattery == null && supportsBattery -> "Waiting for battery level"
+                            normalizedBattery == null -> "Battery level unavailable"
                             normalizedBattery <= 15 -> "Low battery"
                             normalizedBattery <= 30 -> "Battery running down"
                             else -> "Battery level"
@@ -1653,6 +1657,10 @@ fun HealthScreen(onBack: () -> Unit) {
     val state by manager.state.collectAsStateWithLifecycle()
     var feedback by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(Unit) {
+        manager.refreshHealth()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1911,7 +1919,6 @@ fun AlarmsScreen(onBack: () -> Unit) {
                             minute = preferences.getInt("alarm_$id_minute", 0),
                             repeatMask = preferences.getInt("alarm_$id_repeat", 0),
                             vibrate = preferences.getBoolean("alarm_$id_vibrate", true),
-                            sound = preferences.getBoolean("alarm_$id_sound", true)
                         )
                     )
                 }
@@ -1928,7 +1935,6 @@ fun AlarmsScreen(onBack: () -> Unit) {
             .putInt("alarm_${config.id}_minute", config.minute)
             .putInt("alarm_${config.id}_repeat", config.repeatMask)
             .putBoolean("alarm_${config.id}_vibrate", config.vibrate)
-            .putBoolean("alarm_${config.id}_sound", config.sound)
             .apply()
     }
 
@@ -1941,12 +1947,7 @@ fun AlarmsScreen(onBack: () -> Unit) {
                 hour = config.hour,
                 minute = config.minute,
                 repeatMask = config.repeatMask,
-                remindFlags = when {
-                    config.vibrate && config.sound -> 3
-                    config.vibrate -> 1
-                    config.sound -> 2
-                    else -> 0
-                }
+                remindFlags = if (config.vibrate) 1 else 0
             )
         }
     }
@@ -2035,6 +2036,7 @@ fun AlarmsScreen(onBack: () -> Unit) {
                             val alarmState = remember(config.id) { mutableStateOf(config) }
                             AlarmRow(
                                 alarm = alarmState,
+                                enabled = uiState.isConnected && uiState.supportsProprietaryCommands,
                                 startExpanded = newlyCreatedId == config.id,
                                 onSend = { updated ->
                                     val position = alarms.indexOfFirst { it.id == updated.id }
@@ -2085,12 +2087,12 @@ data class AlarmConfig(
     var minute: Int = 0,
     var repeatMask: Int = 0,
     var vibrate: Boolean = true,
-    var sound: Boolean = true
 )
 
 @Composable
 private fun AlarmRow(
     alarm: MutableState<AlarmConfig>,
+    enabled: Boolean,
     onSend: (AlarmConfig) -> Unit,
     onDelete: (AlarmConfig) -> Unit,
     startExpanded: Boolean = false
@@ -2111,6 +2113,7 @@ private fun AlarmRow(
                 Switch(
                     checked = config.enabled,
                     onCheckedChange = { alarm.value = config.copy(enabled = it) },
+                    enabled = enabled,
                     modifier = Modifier.padding(end = 4.dp)
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -2131,7 +2134,7 @@ private fun AlarmRow(
                 TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Done" else "Edit") }
                 TextButton(
                     onClick = { onSend(config) },
-                    enabled = true
+                    enabled = enabled
                 ) { Text("Send", color = MaterialTheme.colorScheme.primary) }
                 IconButton(onClick = { onDelete(config) }) {
                     Icon(Icons.Outlined.DeleteOutline, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
@@ -2153,7 +2156,8 @@ private fun AlarmRow(
                         label = { Text("Hour") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
+                        singleLine = true,
+                        enabled = enabled
                     )
                     OutlinedTextField(
                         value = config.minute.toString(),
@@ -2161,22 +2165,30 @@ private fun AlarmRow(
                         label = { Text("Minute") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
+                        singleLine = true,
+                        enabled = enabled
                     )
                 }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Checkbox(checked = config.vibrate, onCheckedChange = { alarm.value = config.copy(vibrate = it) })
-                        Text("Vibrate")
-                        Spacer(Modifier.width(16.dp))
-                        Checkbox(checked = config.sound, onCheckedChange = { alarm.value = config.copy(sound = it) })
-                        Text("Sound")
-                    }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = config.vibrate,
+                        onCheckedChange = { alarm.value = config.copy(vibrate = it) },
+                        enabled = enabled
+                    )
+                    Text(
+                        "Vibration",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 13.sp
+                    )
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Repeat:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterVertically))
                     RepeatMaskSelector(
                         currentMask = config.repeatMask,
+                        enabled = enabled,
                         onChange = { alarm.value = config.copy(repeatMask = it) }
                     )
                 }
@@ -2186,7 +2198,11 @@ private fun AlarmRow(
 }
 
 @Composable
-private fun RepeatMaskSelector(currentMask: Int, onChange: (Int) -> Unit) {
+private fun RepeatMaskSelector(
+    currentMask: Int,
+    enabled: Boolean = true,
+    onChange: (Int) -> Unit
+) {
     val days = listOf(
         1 to "Mon", 2 to "Tue", 4 to "Wed", 8 to "Thu",
         16 to "Fri", 32 to "Sat", 64 to "Sun", 128 to "Once"
@@ -2201,6 +2217,7 @@ private fun RepeatMaskSelector(currentMask: Int, onChange: (Int) -> Unit) {
             val checked = (currentMask and bit) != 0
             FilterChip(
                 selected = checked,
+                enabled = enabled,
                 onClick = {
                     val nextMask = when {
                         checked -> currentMask and bit.inv()
