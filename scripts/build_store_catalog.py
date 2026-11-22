@@ -11,6 +11,7 @@ from io import BytesIO
 from pathlib import Path
 
 from PIL import Image, ImageOps, ImageSequence
+from ezip_preview import decode_ezip_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
 STORE = ROOT / "store"
@@ -69,9 +70,60 @@ def choose_preview(zf: zipfile.ZipFile, metadata: dict):
     return images[0] if len(images) == 1 else None
 
 
+
+def make_ezip_animation(zf: zipfile.ZipFile, item: dict, output_dir: Path) -> bool:
+    candidates = []
+    for entry in safe_zip_files(zf):
+        base = Path(entry.filename).name.lower()
+        match = re.search(r"_bg(\d*)\.bin$", base)
+        if match:
+            frame_number = int(match.group(1)) if match.group(1) else 1
+            candidates.append((frame_number, entry))
+    candidates.sort(key=lambda pair: pair[0])
+    if len(candidates) < 2:
+        return False
+
+    frames = []
+    failures = []
+    for _, entry in candidates:
+        try:
+            frames.append(decode_ezip_bytes(zf.read(entry)))
+        except Exception as exc:
+            failures.append(f"{entry.filename}: {exc}")
+    if len(frames) < 2 or len(frames) != len(candidates):
+        item["previewError"] = (failures[0] if failures else "Not enough decodable EZIP frames")[:180]
+        return False
+
+    dimensions = {frame.size for frame in frames}
+    if len(dimensions) != 1:
+        item["previewError"] = "EZIP animation frames have inconsistent dimensions"
+        return False
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_name = slug(item["id"]) + ".gif"
+    duration = int(item.get("previewFrameDurationMs", 120))
+    duration = max(40, min(duration, 2000))
+    rgba_frames = [frame.convert("RGBA") for frame in frames]
+    rgba_frames[0].save(
+        output_dir / output_name,
+        save_all=True,
+        append_images=rgba_frames[1:],
+        duration=duration,
+        loop=0,
+        optimize=True,
+        disposal=2,
+    )
+    item["previewUrl"] = f"{RAW}/generated/previews/{output_name}"
+    item["previewStatus"] = "generated_ezip_animation"
+    item["previewFrameCount"] = len(rgba_frames)
+    item["previewFrameDurationMs"] = duration
+    return True
+
 def make_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
     entry = choose_preview(zf, item)
     if entry is None:
+        if make_ezip_animation(zf, item, output_dir):
+            return
         names = [entry.filename.lower() for entry in safe_zip_files(zf)]
         if any(name.endswith((".bin", ".dsc")) for name in names):
             item["previewStatus"] = "requires_ezip_decoder"
