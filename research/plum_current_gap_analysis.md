@@ -12,7 +12,7 @@
 | Camera remote control | Correct Wearfit event decoding; command activation waits until the NUS command/notify channel is ready; shake-to-capture is now a separate setting | The watch's preview/image frame path remains unavailable; live preview on the watch is not implemented |
 | Health charts | Each received HR/SpO₂ value is stored with a timestamp; repeated identical readings are retained; charts use time-based x coordinates and survive restart | No watch-history request/backfill; no 0x51 historical record decoder for this target |
 | Music upload | Research now confirms exact file header/block builder and dedicated FTP UUID route | UI is still picker-only; no transfer state machine, ACK/retry handling or file-list verification |
-| Wearfit feature coverage | API families and source map documented; explicit shake-to-capture setting added | Most additional features need model capability gating and target validation |
+| Wearfit feature coverage | API families and source map documented; separate Shake to Capture, Sleep Mode and Physical Training controls added | Most additional features need model capability gating and target validation |
 
 ## 1. Findings from the JADX export
 
