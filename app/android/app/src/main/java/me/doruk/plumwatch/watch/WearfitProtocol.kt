@@ -25,6 +25,64 @@ internal object WearfitProtocol {
     fun enabledSetting(commandId: Int, enabled: Boolean): ByteArray =
         packet(commandId, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
 
+    /** Camera mode state: Wearfit's CameraControlAnalyzer expects EA 00 04 00 15 04 state. */
+    fun cameraPreviewState(enabled: Boolean): ByteArray =
+        packet(
+            commandId = 0x15,
+            data = byteArrayOf(0x04, if (enabled) 1 else 0),
+            marker = 0xEA,
+            separator = 0x00
+        )
+
+    /** Camera callback state: EA 00 06 00 15 03 followed by three one-byte values. */
+    fun cameraPhotoState(first: Int, second: Int, third: Int): ByteArray {
+        require(first in 0..255 && second in 0..255 && third in 0..255)
+        return packet(
+            commandId = 0x15,
+            data = byteArrayOf(0x03, first.toByte(), second.toByte(), third.toByte()),
+            marker = 0xEA,
+            separator = 0x00
+        )
+    }
+
+    /**
+     * Wearfit notification content command. This is separate from notificationDisplay().
+     * The APK sends AB .. FF 72 80 <icon/type> <source/type> + UTF-8 body through
+     * SplitWriter in 19-byte blocks. Its text helper truncates around 321 UTF-8 bytes.
+     */
+    fun notificationContent(
+        content: String,
+        iconType: Int = 34,
+        messageType: Int = 2
+    ): ByteArray {
+        require(iconType in 0..255 && messageType in 0..255)
+        val bytes = truncateUtf8(content, 321)
+        require(bytes.isNotEmpty()) { "Notification content must not be empty." }
+        return packet(
+            commandId = 0x72,
+            data = byteArrayOf(0x80.toByte(), iconType.toByte(), messageType.toByte()) + bytes,
+            marker = 0xAB,
+            separator = 0xFF
+        )
+    }
+
+    private fun truncateUtf8(value: String, maxBytes: Int): ByteArray {
+        val output = java.io.ByteArrayOutputStream()
+        var index = 0
+        while (index < value.length) {
+            val charCount = if (
+                Character.isHighSurrogate(value[index]) &&
+                index + 1 < value.length &&
+                Character.isLowSurrogate(value[index + 1])
+            ) 2 else 1
+            val next = value.substring(index, index + charCount).toByteArray(Charsets.UTF_8)
+            if (output.size() + next.size > maxBytes) break
+            output.write(next)
+            index += charCount
+        }
+        return output.toByteArray()
+    }
+
     fun notificationDisplay(iconPrompt: Int, show: Boolean, hideDetails: Boolean): ByteArray {
         require(iconPrompt in 0..3)
         return packet(
