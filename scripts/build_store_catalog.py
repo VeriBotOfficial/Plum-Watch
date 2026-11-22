@@ -21,6 +21,7 @@ RAW = "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store"
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 SAMPLE_TIME = (10, 8, 30)
 SAMPLE_DATE = (22, 11, 2026)
+DISPLAY_NAMES = {"Blue Liquid": "Black Liquid", "21553_4_dial": "Blue Liquid"}
 
 
 def slug(value: str) -> str:
@@ -225,12 +226,14 @@ def _render_analog(background: Image.Image, assets: dict[str, Image.Image]) -> t
 
 
 def _render_watchface_frame(background: Image.Image, assets: dict[str, Image.Image], model: dict) -> tuple[Image.Image, bool]:
-    if model["kind"] == "analog":
-        return _render_analog(background, assets)
-    if model["kind"] in {"digital_split", "digital_complications"}:
-        # The internal module identifier is authoritative. A single ZIP may
-        # contain paired/resource modules, so resolve the primary clock module.
-        module_id = next((name for name in model["modules"] if name.startswith("wf_clock") and not name.endswith("_res")), "")
+    # Only the two individually verified liquid dials receive a clock overlay.
+    # Other faces remain faithful background-only previews until their own
+    # module layout has been reconstructed and validated.
+    module_id = next(
+        (name for name in model["modules"] if name.startswith("wf_clock") and not name.endswith("_res")),
+        ""
+    )
+    if model["kind"] == "digital_split" and module_id in {"wf_clock1000", "wf_clock1003"}:
         return _render_split_digital(background, assets, module_id)
     return background.convert("RGBA"), False
 
@@ -312,7 +315,7 @@ def scan_watchfaces(output_dir: Path):
         if item_id in seen_ids:
             raise ValueError(f"Watchface filenames produce a duplicate Store ID: {archive.name}")
         seen_ids.add(item_id)
-        item = {"id": item_id, "name": archive.stem, "archiveUrl": f"{RAW}/watchfaces/{quote(archive.name, safe='')}", "archiveSizeBytes": archive.stat().st_size}
+        item = {"id": item_id, "name": DISPLAY_NAMES.get(archive.stem, archive.stem), "archiveUrl": f"{RAW}/watchfaces/{quote(archive.name, safe='')}", "archiveSizeBytes": archive.stat().st_size}
         with zipfile.ZipFile(archive) as zf:
             corrupt = zf.testzip()
             if corrupt:
