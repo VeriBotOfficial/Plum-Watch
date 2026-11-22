@@ -1,7 +1,7 @@
 # Wearfit Pro BLE feature/API inventory
 
 **APK:** `com.wakeup.howear hw_5.6.21`  
-**Primary source:** `classes4.dex`, `BleWatchServiceImpl` + `BleWatchService`, with supporting analyzers and business orchestration classes.  
+**Primary source:** APK/Dex symbol inventory plus the exported `BleWatchService` interface and readable analyzers/builders in `decompiled/sources/`. The concrete `BleWatchServiceImpl` is not present in the readable JADX export; API presence and decoded helper methods are distinguished below.  
 **Companion reference:** [wearfit_protocol.md](wearfit_protocol.md)
 
 This is an inventory of operations exposed by the supplied Wearfit Pro build. It is deliberately not a claim that every operation is supported by the HK 10 Pro Max+. An API or analyzer can exist for another watch family, require server/app setup, or depend on a model-specific capability flag.
@@ -427,3 +427,17 @@ The following method names were extracted from `BleWatchServiceImpl` in `classes
 `sendEphemerisState`, `syncGpsData`, `syncGpsLog`, `sendLocation`, `sendLocationStr`, `sendAirPressureAndUV`, `sendAltitudeAndPressure`, `sendCityName`, `sendCityWeather`, `sendCityAllWeather`, `sendWeatherInfo`, `sendWeatherInfo2`, `sendWeatherSwitch`, `sendMapMode`, `sendMapNaviData`, `sendMapNaviDirection`, `sendMapNaviStatus`, `sendNaviState`, `sendNaviTransferOverState`, `setContactNum`, `sendContactName`, `sendContactPhone`, `verifyFriendInfo`, `sendFriendAddressAndLocation`, `sendFriendHealthData`, `sendFriendImage`, `sendFriendImageData`, `sendFriendNameAndDate`, `sendRTTAvatarImgWithIndex`, `sendContentPaste`, `sendDelPoint`, `sendNfcState`, `syncSchedule`, `synchronousRequest`.
 
 For an implementation decision, use the packet-level sections above rather than the symbol inventory. A method name proves the API exists; it does not prove the target model's feature, payload shape, framing, units, transport or acknowledgement.
+
+
+## JADX source-level additions (2026-11-22)
+
+The user's JADX export provides these new source-level confirmations:
+- `DeviceTransferService.startPushMusic(path, callback)` exists; music upload is a file transfer, not `MusicControlAnalyzer`.
+- `FileTransferOrder` constructs an A0 file header and A1 block packets with length and CRC.
+- `WriteQueue` explicitly routes file-transfer order IDs to the FTP service `6E400011...` and write characteristic `6E400012...`.
+- `DataSyncMgr.startSyncData()` reads a per-MAC last-sync timestamp and triggers HR, sleep-apnea, GPS and subsequent sleep-history sync.
+- `HealthDataAnalyzer` routes `0x51` subtypes 17/18 to history HR/SpO₂ storage, separate from `0x31` single/current reads.
+- `CameraControlAnalyzer` distinguishes direct lens-switch event byte 2 from action-envelope byte 1 followed by state 1 (shutter) or 2 (switch).
+- `TransferOrder` includes a separate `0xAD/0xAE` picture-transfer helper family.
+
+The concrete `BleWatchServiceImpl`, old-data health proxies, picture-transfer analyzer and `DeviceTransferService` implementation are absent from the readable source export. See [the detailed source audit](wearfit_jadx_source_audit.md); do not infer those omitted implementations.
