@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T19:05:39.388891+00:00",
+  "generatedAt": "2026-11-22T19:16:26.763434+00:00",
   "watchfaces": [
     {
       "id": "21540_4_dial",
@@ -17,7 +17,7 @@
         ]
       },
       "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21540_4_dial.png",
-      "previewStatus": "rendered"
+      "previewStatus": "background_only"
     },
     {
       "id": "21541_4_dial",
@@ -34,7 +34,7 @@
         ]
       },
       "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21541_4_dial.png",
-      "previewStatus": "rendered"
+      "previewStatus": "background_only"
     },
     {
       "id": "21543_4_dial",
@@ -52,7 +52,7 @@
         ]
       },
       "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21543_4_dial.png",
-      "previewStatus": "rendered"
+      "previewStatus": "background_only"
     },
     {
       "id": "21553_4_dial",
