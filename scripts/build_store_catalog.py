@@ -57,7 +57,7 @@ def _clock_digit_assets(zf: zipfile.ZipFile) -> dict[int, Image.Image]:
     """Decode the numbered SiFli clock glyphs (01..10 => 0..9)."""
     digits = {}
     for entry in safe_zip_files(zf):
-        match = re.search(r"_time_num_(\\d+)\\.bin$", Path(entry.filename).name, re.IGNORECASE)
+        match = re.search(r"_time_num_(\d+)\.bin$", Path(entry.filename).name, re.IGNORECASE)
         if not match:
             continue
         try:
