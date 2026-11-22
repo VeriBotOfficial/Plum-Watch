@@ -285,6 +285,7 @@ fun PlumWatchApp(
                                 onOpenWatchfaces = { page = AppPage.WATCHFACES },
                                 onOpenOtherSettings = { page = AppPage.WATCH_SETTINGS },
                                 onFindWatch = watchManager::findWatch,
+                                onSyncTime = watchManager::syncCurrentTime,
                                 onOpenAlarms = { page = AppPage.ALARMS },
                                 onOpenHealth = { page = AppPage.HEALTH },
                                 onOpenNotifications = { page = AppPage.NOTIFICATIONS },
