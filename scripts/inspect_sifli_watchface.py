@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Temporary deep-inspection helper for the Red John SiFli watchface package."""
+"""Inspect SiFli watchface metadata, ELF layout, relocations and Thumb code."""
 from __future__ import annotations
 
 import re
@@ -14,11 +14,7 @@ ARCHIVE = Path("store/watchfaces/Red John.zip")
 
 def image_header(data: bytes):
     word = struct.unpack_from("<I", data, 0)[0]
-    return {
-        "format": word & 0x1F,
-        "width": (word >> 10) & 0x7FF,
-        "height": (word >> 21) & 0x7FF,
-    }
+    return {"format": word & 0x1F, "width": (word >> 10) & 0x7FF, "height": (word >> 21) & 0x7FF}
 
 
 with zipfile.ZipFile(ARCHIVE) as archive:
@@ -33,12 +29,19 @@ with zipfile.ZipFile(ARCHIVE) as archive:
             with tempfile.NamedTemporaryFile(suffix=".so") as tmp:
                 tmp.write(data)
                 tmp.flush()
-                for command in (["readelf", "-h", tmp.name], ["readelf", "-Ws", tmp.name], ["arm-none-eabi-objdump", "-d", tmp.name]):
+                commands = (
+                    ["readelf", "-h", tmp.name],
+                    ["readelf", "-S", tmp.name],
+                    ["readelf", "-Ws", tmp.name],
+                    ["readelf", "-r", tmp.name],
+                    ["arm-none-eabi-objdump", "-D", "-M", "force-thumb", tmp.name],
+                )
+                for command in commands:
                     print("\nCOMMAND", " ".join(command))
                     result = subprocess.run(command, text=True, capture_output=True)
-                    print(result.stdout[:50000])
+                    print(result.stdout[:80000])
                     if result.stderr:
-                        print("STDERR", result.stderr[:2000])
+                        print("STDERR", result.stderr[:3000])
         elif "_time_num_" in name or re.search(r"_bg\d*\.bin$", name):
             data = archive.read(name)
             print("IMAGE", name, image_header(data), "bytes", len(data))
