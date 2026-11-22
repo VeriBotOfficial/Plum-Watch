@@ -101,3 +101,21 @@ If these classes are present in the original DEX but not in `decompiled/sources`
 - concrete `DeviceTransferService` and `DeviceManagerService` adapter.
 
 A GATT HCI capture of a successful operation on the user's HK 10 Pro Max+ is even more valuable than another static export for confirming model routing and response behavior.
+
+
+## 8. Follow-up implementation status — 2026-11-22
+
+Branch: `codex/automatic-watch-sync-and-controls`.
+
+| Area | Follow-up change | Remaining gap |
+|---|---|---|
+| Automatic connection | Connected-device foreground service keeps the saved GATT connection active in normal background operation | Android/OEM process killing and watch firmware sleep policies still apply |
+| Battery | Five-minute background refresh loop; standard battery values and WearFit battery reports are persisted | Requires real-watch test with display off; device may only report on its own schedule |
+| Live health | Automatic measurement mode is requested; current HR/SpO₂ polls run every 15 minutes; samples are persisted below the UI | Historical backfill and sleep-stage history still blocked by missing WearFit proxy/decoder classes |
+| Camera | Phone CameraX preview and remote watch shutter/lens controls; shake-to-capture is enabled only while Camera is active | No verified live-video/image-frame transfer to the watch |
+| Music | FTP route and packet builders documented | No concrete `startPushMusic` implementation, ACK/retry handling or end protocol; upload remains unavailable |
+| Sleep mode | Saved settings are sent immediately on change and restored on reconnect | Physical target-watch behavior requires validation |
+| Alarms | Clock picker, immediate sends, persistent schedule and reconnect replay | Confirm repeat-day and vibration/sound behavior on device |
+| Physical Training | Removed from the user-facing settings UI | Protocol builder retained internally but unused |
+
+The current implementation intentionally distinguishes **live readings received by Plum** from **historical data stored on the watch**. It also distinguishes **phone camera remote control** from **video streaming to the watch**. Neither unsupported path is represented as complete.

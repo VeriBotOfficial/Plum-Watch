@@ -1536,21 +1536,16 @@ fun HealthScreen(onBack: () -> Unit) {
         if (state.isConnected) manager.refreshHealth()
     }
     LaunchedEffect(state.heartRateUpdatedAt) {
-        val timestamp = state.heartRateUpdatedAt ?: return@LaunchedEffect
-        val value = state.heartRateBpm ?: return@LaunchedEffect
-        if (hr.lastOrNull()?.timestamp != timestamp) {
-            hr.add(HealthSample(timestamp, value))
-            while (hr.size > 72) hr.removeAt(0)
-            prefs.edit().putString("hr_samples", encodeHealthSamples(hr)).apply()
+        if (state.heartRateUpdatedAt != null) {
+            // The BLE manager persists samples even while this screen is closed.
+            hr.clear()
+            hr.addAll(decodeHealthSamples(prefs.getString("hr_samples", null)))
         }
     }
     LaunchedEffect(state.bloodOxygenUpdatedAt) {
-        val timestamp = state.bloodOxygenUpdatedAt ?: return@LaunchedEffect
-        val value = state.bloodOxygenPercent ?: return@LaunchedEffect
-        if (spo.lastOrNull()?.timestamp != timestamp) {
-            spo.add(HealthSample(timestamp, value))
-            while (spo.size > 72) spo.removeAt(0)
-            prefs.edit().putString("spo_samples", encodeHealthSamples(spo)).apply()
+        if (state.bloodOxygenUpdatedAt != null) {
+            spo.clear()
+            spo.addAll(decodeHealthSamples(prefs.getString("spo_samples", null)))
         }
     }
 
@@ -1843,8 +1838,8 @@ fun AlarmsScreen(onBack: () -> Unit) {
                             enabled = preferences.getBoolean("alarm_${id}_enabled", false),
                             hour = preferences.getInt("alarm_${id}_hour", 8),
                             minute = preferences.getInt("alarm_${id}_minute", 0),
-                            repeatMask = preferences.getInt("alarm_${id}_repeat", 0),
-                            vibrate = preferences.getBoolean("alarm_${id}_vibrate", true),
+                            repeatMask = preferences.getInt("alarm_${id}_repeat", 128),
+                            vibrate = preferences.getBoolean("alarm_${id}_vibrate", true)
                         )
                     )
                 }
@@ -1865,7 +1860,7 @@ fun AlarmsScreen(onBack: () -> Unit) {
     }
 
     fun send(config: AlarmConfig, enabled: Boolean = config.enabled) {
-        if (!uiState.isConnected) return
+        if (!uiState.isConnected || !uiState.supportsProprietaryCommands) return
         scope.launch {
             watchManager.setAlarm(
                 id = config.id,
@@ -1873,9 +1868,18 @@ fun AlarmsScreen(onBack: () -> Unit) {
                 hour = config.hour,
                 minute = config.minute,
                 repeatMask = config.repeatMask,
-                remindFlags = if (config.vibrate) 1 else 0
+                // Wearfit alarm flags: bit 0 vibration, bit 1 sound.
+                remindFlags = if (config.vibrate) 3 else 2
             )
         }
+    }
+
+    fun addAlarm(id: Int) {
+        val config = AlarmConfig(id = id, enabled = true)
+        alarms.add(config)
+        persist(config)
+        send(config)
+        newlyCreatedId = id
     }
 
     Column(
@@ -1903,10 +1907,7 @@ fun AlarmsScreen(onBack: () -> Unit) {
                 onClick = {
                     val used = alarms.map { it.id }.toSet()
                     val id = (0..7).firstOrNull { it !in used } ?: return@IconButton
-                    val config = AlarmConfig(id = id, enabled = true)
-                    alarms.add(config)
-                    persist(config)
-                    newlyCreatedId = id
+                    addAlarm(id)
                 }
             ) {
                 Icon(Icons.Outlined.Add, contentDescription = "Add alarm", tint = MaterialTheme.colorScheme.primary)
@@ -1931,19 +1932,14 @@ fun AlarmsScreen(onBack: () -> Unit) {
                     Icon(Icons.Outlined.Alarm, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
                     Text("No alarms yet", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Add an alarm when you need one. Nothing is created automatically.",
+                        "Create an alarm and choose its time on the clock.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center
                     )
                     FilledTonalButton(
                         enabled = uiState.isConnected && uiState.supportsProprietaryCommands,
-                        onClick = {
-                            val config = AlarmConfig(id = 0, enabled = true)
-                            alarms.add(config)
-                            persist(config)
-                            newlyCreatedId = config.id
-                        }
+                        onClick = { addAlarm(0) }
                     ) {
                         Icon(Icons.Outlined.Add, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
@@ -1987,10 +1983,7 @@ fun AlarmsScreen(onBack: () -> Unit) {
                             onClick = {
                                 val used = alarms.map { it.id }.toSet()
                                 val id = (0..7).firstOrNull { it !in used } ?: return@TextButton
-                                val config = AlarmConfig(id = id, enabled = true)
-                                alarms.add(config)
-                                persist(config)
-                                newlyCreatedId = id
+                                addAlarm(id)
                             },
                             enabled = uiState.isConnected && uiState.supportsProprietaryCommands,
                             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -2008,13 +2001,14 @@ fun AlarmsScreen(onBack: () -> Unit) {
 
 data class AlarmConfig(
     val id: Int = 0,
-    var enabled: Boolean = false,
-    var hour: Int = 8,
-    var minute: Int = 0,
-    var repeatMask: Int = 0,
-    var vibrate: Boolean = true,
+    val enabled: Boolean = false,
+    val hour: Int = 8,
+    val minute: Int = 0,
+    val repeatMask: Int = 128,
+    val vibrate: Boolean = true
 )
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun AlarmRow(
     alarm: MutableState<AlarmConfig>,
@@ -2025,6 +2019,17 @@ private fun AlarmRow(
 ) {
     val config = alarm.value
     var expanded by remember { mutableStateOf(startExpanded) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    val timePickerState = androidx.compose.material3.rememberTimePickerState(
+        initialHour = config.hour,
+        initialMinute = config.minute,
+        is24Hour = true
+    )
+
+    fun update(updated: AlarmConfig) {
+        alarm.value = updated
+        onSend(updated)
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -2038,7 +2043,7 @@ private fun AlarmRow(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Switch(
                     checked = config.enabled,
-                    onCheckedChange = { alarm.value = config.copy(enabled = it) },
+                    onCheckedChange = { update(config.copy(enabled = it)) },
                     enabled = enabled,
                     modifier = Modifier.padding(end = 4.dp)
                 )
@@ -2058,12 +2063,8 @@ private fun AlarmRow(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Done" else "Edit") }
-                TextButton(
-                    onClick = { onSend(config) },
-                    enabled = enabled
-                ) { Text("Send", color = MaterialTheme.colorScheme.primary) }
                 IconButton(onClick = { onDelete(config) }, enabled = enabled) {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Delete alarm", tint = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -2075,25 +2076,25 @@ private fun AlarmRow(
                     .padding(start = 56.dp, top = 8.dp, bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = config.hour.toString(),
-                        onValueChange = { v -> alarm.value = config.copy(hour = (v.toIntOrNull() ?: config.hour).coerceIn(0, 23)) },
-                        label = { Text("Hour") },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        enabled = enabled
-                    )
-                    OutlinedTextField(
-                        value = config.minute.toString(),
-                        onValueChange = { v -> alarm.value = config.copy(minute = (v.toIntOrNull() ?: config.minute).coerceIn(0, 59)) },
-                        label = { Text("Minute") },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        enabled = enabled
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Time", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                        Text(
+                            "${"%02d".format(config.hour)}:${"%02d".format(config.minute)}",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 25.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = { showTimePicker = true },
+                        enabled = enabled,
+                        shape = RoundedCornerShape(14.dp)
+                    ) { Text("Choose time") }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -2101,7 +2102,7 @@ private fun AlarmRow(
                 ) {
                     Checkbox(
                         checked = config.vibrate,
-                        onCheckedChange = { alarm.value = config.copy(vibrate = it) },
+                        onCheckedChange = { update(config.copy(vibrate = it)) },
                         enabled = enabled
                     )
                     Text(
@@ -2115,11 +2116,30 @@ private fun AlarmRow(
                     RepeatMaskSelector(
                         currentMask = config.repeatMask,
                         enabled = enabled,
-                        onChange = { alarm.value = config.copy(repeatMask = it) }
+                        onChange = { update(config.copy(repeatMask = it)) }
                     )
                 }
             }
         }
+    }
+
+    if (showTimePicker) {
+        MaterialAlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("Alarm time") },
+            text = { androidx.compose.material3.TimePicker(state = timePickerState) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        update(config.copy(hour = timePickerState.hour, minute = timePickerState.minute))
+                        showTimePicker = false
+                    }
+                ) { Text("Save time") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 

@@ -10,6 +10,9 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothStatusCodes
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.view.KeyEvent
 import android.os.Build
@@ -121,6 +124,10 @@ class BleWatchManager(context: Context) {
         WATCH_PREFERENCES,
         Context.MODE_PRIVATE
     )
+    private val deviceSettingsPreferences = appContext.getSharedPreferences(
+        DEVICE_SETTINGS_PREFERENCES,
+        Context.MODE_PRIVATE
+    )
     private val initialSavedDevice = readSavedDevice()
     private val mutableState = MutableStateFlow(
         BleUiState(
@@ -203,6 +210,23 @@ class BleWatchManager(context: Context) {
 
     init {
         if (initialSavedDevice != null) scheduleReconnect(INITIAL_RECONNECT_DELAY_MS)
+    }
+
+    private var lastAutomaticHealthSyncAt = 0L
+    private val automaticSyncTask = object : Runnable {
+        override fun run() {
+            if (bluetoothGatt == null) return
+            refreshBattery()
+            val now = System.currentTimeMillis()
+            if (mutableState.value.supportsProprietaryCommands &&
+                (lastAutomaticHealthSyncAt == 0L ||
+                    now - lastAutomaticHealthSyncAt >= AUTO_SYNC_HEALTH_INTERVAL_MS)
+            ) {
+                refreshHealth()
+                lastAutomaticHealthSyncAt = now
+            }
+            handler.postDelayed(this, AUTO_SYNC_BATTERY_INTERVAL_MS)
+        }
     }
 
     private val connectionTimeoutTask = Runnable {
@@ -331,6 +355,7 @@ class BleWatchManager(context: Context) {
                     bluetoothGatt = null
                     handler.removeCallbacks(connectionTimeoutTask)
                     handler.removeCallbacks(stopFindWatchTask)
+                    stopAutomaticSync()
                     resetWearfitTransport()
                     batteryCharacteristic = null
                     heartRateCharacteristic = null
@@ -704,15 +729,17 @@ class BleWatchManager(context: Context) {
             val commandId = cmd[4].toInt() and 0xFF
 
             WearfitProtocol.parseHealthMeasurement(cmd)?.let { measurement ->
+                val timestamp = System.currentTimeMillis()
+                measurement.heartRateBpm?.let { persistHealthSample("hr_samples", timestamp, it) }
+                measurement.bloodOxygenPercent?.let { persistHealthSample("spo_samples", timestamp, it) }
                 mutableState.update { current ->
                     current.copy(
                         heartRateBpm = measurement.heartRateBpm ?: current.heartRateBpm,
                         bloodOxygenPercent = measurement.bloodOxygenPercent ?: current.bloodOxygenPercent,
-                        heartRateUpdatedAt = if (measurement.heartRateBpm != null) System.currentTimeMillis() else current.heartRateUpdatedAt,
-                        bloodOxygenUpdatedAt = if (measurement.bloodOxygenPercent != null) System.currentTimeMillis() else current.bloodOxygenUpdatedAt,
+                        heartRateUpdatedAt = if (measurement.heartRateBpm != null) timestamp else current.heartRateUpdatedAt,
+                        bloodOxygenUpdatedAt = if (measurement.bloodOxygenPercent != null) timestamp else current.bloodOxygenUpdatedAt,
                         supportsHeartRate = current.supportsHeartRate || measurement.heartRateBpm != null,
-                        supportsBloodOxygen = current.supportsBloodOxygen ||
-                            measurement.bloodOxygenPercent != null
+                        supportsBloodOxygen = current.supportsBloodOxygen || measurement.bloodOxygenPercent != null
                     )
                 }
                 return
@@ -741,7 +768,9 @@ class BleWatchManager(context: Context) {
                             connectionMessage = "Connected · watch handshake complete"
                         )
                     }
-                    }
+                    applyAutomaticConnectionSettings()
+                    startAutomaticSync()
+                }
                 return
             }
 
@@ -749,6 +778,7 @@ class BleWatchManager(context: Context) {
             if (commandId == PROPRIETARY_CMD_BATTERY && cmd.size >= 8) {
                 val level = cmd[7].toInt() and 0xFF
                 if (level in 0..100) {
+                    persistBatteryLevel(level)
                     mutableState.update {
                         it.copy(batteryPercent = level, supportsBattery = true)
                     }
@@ -762,21 +792,24 @@ class BleWatchManager(context: Context) {
             if (marker == 0xAB && separator == 0xFF && commandId == 0x31 && cmd.size >= 7) {
                 val measurementType = cmd[5].toInt() and 0xFF
                 val reading = cmd[6].toInt() and 0xFF
+                val timestamp = System.currentTimeMillis()
                 when (measurementType) {
                     9, 10 -> if (reading in 1..255) {
+                        persistHealthSample("hr_samples", timestamp, reading)
                         mutableState.update {
                             it.copy(
                                 heartRateBpm = reading,
-                                heartRateUpdatedAt = System.currentTimeMillis(),
+                                heartRateUpdatedAt = timestamp,
                                 supportsHeartRate = true
                             )
                         }
                     }
                     17, 18 -> if (reading in 1..100) {
+                        persistHealthSample("spo_samples", timestamp, reading)
                         mutableState.update {
                             it.copy(
                                 bloodOxygenPercent = reading,
-                                bloodOxygenUpdatedAt = System.currentTimeMillis(),
+                                bloodOxygenUpdatedAt = timestamp,
                                 supportsBloodOxygen = true
                             )
                         }
@@ -877,6 +910,79 @@ class BleWatchManager(context: Context) {
             // notification does not block battery reads or service initialization.
             handler.post { writeNextNotificationDescriptor(gatt) }
         }
+    }
+
+    private fun startAutomaticSync() {
+        handler.removeCallbacks(automaticSyncTask)
+        lastAutomaticHealthSyncAt = 0L
+        handler.postDelayed(automaticSyncTask, AUTO_SYNC_INITIAL_DELAY_MS)
+    }
+
+    private fun stopAutomaticSync() {
+        handler.removeCallbacks(automaticSyncTask)
+        lastAutomaticHealthSyncAt = 0L
+    }
+
+    private fun applyAutomaticConnectionSettings() {
+        setTimeFormat(deviceSettingsPreferences.getBoolean(KEY_TIME_FORMAT_24H, true))
+        setRaiseToWake(deviceSettingsPreferences.getBoolean(KEY_RAISE_TO_WAKE, true))
+        setAutomaticHealthMeasurements(deviceSettingsPreferences.getBoolean(KEY_AUTO_HEALTH, true))
+        setSleepMode(
+            enabled = deviceSettingsPreferences.getBoolean(KEY_SLEEP_ACTIVE, false),
+            mode = deviceSettingsPreferences.getInt(KEY_SLEEP_MODE, 2),
+            tracking = deviceSettingsPreferences.getBoolean(KEY_SLEEP_TRACKING, true),
+            chargeReminder = deviceSettingsPreferences.getBoolean(KEY_SLEEP_CHARGE_REMINDER, false)
+        )
+        if (deviceSettingsPreferences.contains(KEY_LANGUAGE)) {
+            setWatchLanguage(deviceSettingsPreferences.getInt(KEY_LANGUAGE, 1))
+        }
+        if (deviceSettingsPreferences.contains(KEY_BODY_TEMPERATURE)) {
+            setBodyTemperatureMeasurement(
+                deviceSettingsPreferences.getBoolean(KEY_BODY_TEMPERATURE, false)
+            )
+        }
+        if (deviceSettingsPreferences.contains(KEY_NOTIFICATION_ICON)) {
+            setNotificationDisplay(
+                deviceSettingsPreferences.getInt(KEY_NOTIFICATION_ICON, 3),
+                deviceSettingsPreferences.getBoolean(KEY_NOTIFICATION_SHOW, true),
+                deviceSettingsPreferences.getBoolean(KEY_NOTIFICATION_HIDE_DETAILS, false)
+            )
+        }
+        // Temporary camera-session mode must not remain enabled after a process restart.
+        setShakeToPhoto(false)
+        syncStoredAlarms()
+    }
+
+    private fun syncStoredAlarms() {
+        val alarmPreferences = appContext.getSharedPreferences("plum_watch_alarms", Context.MODE_PRIVATE)
+        for (id in 0..7) {
+            if (!alarmPreferences.getBoolean("alarm_${id}_exists", false)) continue
+            val vibrate = alarmPreferences.getBoolean("alarm_${id}_vibrate", true)
+            setAlarm(
+                id = id,
+                enabled = alarmPreferences.getBoolean("alarm_${id}_enabled", false),
+                hour = alarmPreferences.getInt("alarm_${id}_hour", 8),
+                minute = alarmPreferences.getInt("alarm_${id}_minute", 0),
+                repeatMask = alarmPreferences.getInt("alarm_${id}_repeat", 128),
+                remindFlags = if (vibrate) 3 else 2
+            )
+        }
+    }
+
+    private fun persistHealthSample(key: String, timestamp: Long, value: Int) {
+        val history = appContext.getSharedPreferences(HEALTH_HISTORY_PREFERENCES, Context.MODE_PRIVATE)
+        val existing = history.getString(key, null).orEmpty()
+            .split(',')
+            .filter { it.contains(':') }
+        val encoded = "$timestamp:$value"
+        if (existing.lastOrNull() == encoded) return
+        history.edit()
+            .putString(key, (existing + encoded).takeLast(72).joinToString(","))
+            .apply()
+    }
+
+    private fun persistBatteryLevel(level: Int) {
+        preferences.edit().putInt(KEY_BATTERY_PERCENT, level).apply()
     }
 
     @SuppressLint("MissingPermission")
@@ -1329,6 +1435,7 @@ class BleWatchManager(context: Context) {
             BATTERY_LEVEL_UUID -> {
                 val level = value.firstOrNull()?.toInt()?.and(0xFF)
                     ?.takeIf { it in 0..100 } ?: return
+                persistBatteryLevel(level)
                 mutableState.update { it.copy(batteryPercent = level) }
             }
             HEART_RATE_MEASUREMENT_UUID -> {
@@ -1341,8 +1448,12 @@ class BleWatchManager(context: Context) {
                 } else {
                     value[1].toInt() and 0xFF
                 }
-                if (bpm in 1..65535) mutableState.update {
-                    it.copy(heartRateBpm = bpm, heartRateUpdatedAt = System.currentTimeMillis())
+                if (bpm in 1..65535) {
+                    val timestamp = System.currentTimeMillis()
+                    persistHealthSample("hr_samples", timestamp, bpm)
+                    mutableState.update {
+                        it.copy(heartRateBpm = bpm, heartRateUpdatedAt = timestamp)
+                    }
                 }
             }
         }
@@ -1575,17 +1686,24 @@ class BleWatchManager(context: Context) {
 
     fun setWatchLanguage(languageCode: Int): Boolean {
         if (languageCode !in setOf(0, 1, 5, 6, 8, 9, 10, 11, 13, 24)) return false
+        deviceSettingsPreferences.edit().putInt(KEY_LANGUAGE, languageCode).apply()
         return sendWearfitSetting(0x7B, byteArrayOf(0x80.toByte(), languageCode.toByte()))
     }
 
-    fun setTimeFormat(use24Hour: Boolean): Boolean =
-        sendWearfitSetting(0x7C, byteArrayOf(0x80.toByte(), if (use24Hour) 1 else 0))
+    fun setTimeFormat(use24Hour: Boolean): Boolean {
+        deviceSettingsPreferences.edit().putBoolean(KEY_TIME_FORMAT_24H, use24Hour).apply()
+        return sendWearfitSetting(0x7C, byteArrayOf(0x80.toByte(), if (use24Hour) 1 else 0))
+    }
 
-    fun setRaiseToWake(enabled: Boolean): Boolean =
-        sendWearfitSetting(0x77, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+    fun setRaiseToWake(enabled: Boolean): Boolean {
+        deviceSettingsPreferences.edit().putBoolean(KEY_RAISE_TO_WAKE, enabled).apply()
+        return sendWearfitSetting(0x77, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+    }
 
-    fun setAutomaticHealthMeasurements(enabled: Boolean): Boolean =
-        sendWearfitSetting(0x78, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+    fun setAutomaticHealthMeasurements(enabled: Boolean): Boolean {
+        deviceSettingsPreferences.edit().putBoolean(KEY_AUTO_HEALTH, enabled).apply()
+        return sendWearfitSetting(0x78, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+    }
 
     fun setShakeToPhoto(enabled: Boolean): Boolean =
         sendWearfitSetting(0x79, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
@@ -1642,11 +1760,18 @@ class BleWatchManager(context: Context) {
         return queued
     }
 
-    fun setBodyTemperatureMeasurement(enabled: Boolean): Boolean =
-        sendWearfitSetting(0x86, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+    fun setBodyTemperatureMeasurement(enabled: Boolean): Boolean {
+        deviceSettingsPreferences.edit().putBoolean(KEY_BODY_TEMPERATURE, enabled).apply()
+        return sendWearfitSetting(0x86, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
+    }
 
     fun setNotificationDisplay(iconPrompt: Int, display: Boolean, hideDetails: Boolean): Boolean {
         require(iconPrompt in 0..3)
+        deviceSettingsPreferences.edit()
+            .putInt(KEY_NOTIFICATION_ICON, iconPrompt)
+            .putBoolean(KEY_NOTIFICATION_SHOW, display)
+            .putBoolean(KEY_NOTIFICATION_HIDE_DETAILS, hideDetails)
+            .apply()
         return sendWearfitSetting(
             commandId = 0x72,
             data = byteArrayOf(0x01, iconPrompt.toByte(), if (display) 1 else 0, if (hideDetails) 1 else 0),
@@ -1656,6 +1781,12 @@ class BleWatchManager(context: Context) {
 
     fun setSleepMode(enabled: Boolean, mode: Int, tracking: Boolean, chargeReminder: Boolean): Boolean {
         require(mode in 0..2)
+        deviceSettingsPreferences.edit()
+            .putBoolean(KEY_SLEEP_ACTIVE, enabled)
+            .putInt(KEY_SLEEP_MODE, mode)
+            .putBoolean(KEY_SLEEP_TRACKING, tracking)
+            .putBoolean(KEY_SLEEP_CHARGE_REMINDER, chargeReminder)
+            .apply()
         return sendWearfitSetting(
             commandId = 0x7F,
             data = byteArrayOf(
@@ -1875,6 +2006,7 @@ class BleWatchManager(context: Context) {
         autoReconnectEnabled = true
         reconnectAttempts = 0
         persistSavedDevice(device)
+        ensureBackgroundSync()
         mutableState.update { it.copy(savedDevice = device, errorMessage = null) }
         handler.removeCallbacks(reconnectTask)
         connectInternal(device, reconnecting = false)
@@ -1971,6 +2103,8 @@ class BleWatchManager(context: Context) {
     @SuppressLint("MissingPermission")
     fun disconnect(forgetDevice: Boolean = false) {
         stopScan()
+        stopAutomaticSync()
+        appContext.stopService(Intent(appContext, WatchSyncService::class.java))
         autoReconnectEnabled = false
         handler.removeCallbacks(reconnectTask)
         handler.removeCallbacks(connectionTimeoutTask)
@@ -2047,9 +2181,22 @@ class BleWatchManager(context: Context) {
 
     fun reconnectSavedDevice() {
         if (mutableState.value.savedDevice == null) return
+        ensureBackgroundSync()
         autoReconnectEnabled = true
         reconnectAttempts = 0
         scheduleReconnect(250L)
+    }
+
+    fun hasSavedDevice(): Boolean = mutableState.value.savedDevice != null
+
+    fun ensureBackgroundSync() {
+        if (!hasSavedDevice()) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            appContext.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+        ) return
+        runCatching {
+            appContext.startForegroundService(Intent(appContext, WatchSyncService::class.java))
+        }
     }
 
     fun resumeConnection() {
@@ -2113,6 +2260,24 @@ class BleWatchManager(context: Context) {
     companion object {
         private const val SCAN_WINDOW_MS = 15_000L
         private const val WATCH_PREFERENCES = "plum-watch-saved-device"
+        private const val DEVICE_SETTINGS_PREFERENCES = "plum_watch_device_settings"
+        private const val HEALTH_HISTORY_PREFERENCES = "plum_watch_health_history"
+        private const val KEY_LANGUAGE = "watch-language"
+        private const val KEY_TIME_FORMAT_24H = "time-format-24h"
+        private const val KEY_RAISE_TO_WAKE = "raise-to-wake"
+        private const val KEY_AUTO_HEALTH = "auto-health"
+        private const val KEY_BODY_TEMPERATURE = "body-temperature"
+        private const val KEY_NOTIFICATION_ICON = "notification-icon"
+        private const val KEY_NOTIFICATION_SHOW = "notification-show"
+        private const val KEY_NOTIFICATION_HIDE_DETAILS = "notification-hide-details"
+        private const val KEY_SLEEP_ACTIVE = "sleep-active"
+        private const val KEY_SLEEP_MODE = "sleep-mode"
+        private const val KEY_SLEEP_TRACKING = "sleep-tracking"
+        private const val KEY_SLEEP_CHARGE_REMINDER = "sleep-charge-reminder"
+        private const val KEY_BATTERY_PERCENT = "battery-percent"
+        private const val AUTO_SYNC_INITIAL_DELAY_MS = 5_000L
+        private const val AUTO_SYNC_BATTERY_INTERVAL_MS = 5 * 60 * 1_000L
+        private const val AUTO_SYNC_HEALTH_INTERVAL_MS = 15 * 60 * 1_000L
         private const val KEY_DEVICE_NAME = "device-name"
         private const val KEY_DEVICE_ADDRESS = "device-address"
         private const val INITIAL_RECONNECT_DELAY_MS = 1_500L

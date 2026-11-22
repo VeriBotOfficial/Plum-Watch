@@ -360,6 +360,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        watchManager.ensureBackgroundSync()
         watchManager.resumeConnection()
 
         if (updateDownloadState.value.isOpeningInstaller) {

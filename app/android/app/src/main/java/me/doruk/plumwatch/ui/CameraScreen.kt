@@ -153,7 +153,10 @@ fun CameraScreen(
         if (!hasCameraPermission) return@LaunchedEffect
 
         if (!watchState.isConnected || !watchState.supportsProprietaryCommands) {
-            if (watchCameraEnabled) watchManager.stopCamera()
+            if (watchCameraEnabled) {
+                watchManager.setShakeToPhoto(false)
+                watchManager.stopCamera()
+            }
             watchCameraEnabled = false
             statusMessage = when {
                 !watchState.isConnected -> "Phone preview is available. Connect the watch to enable its camera controls."
@@ -163,6 +166,9 @@ fun CameraScreen(
         }
 
         watchCameraEnabled = watchManager.startCamera()
+        if (watchCameraEnabled) {
+            watchManager.setShakeToPhoto(true)
+        }
         statusMessage = if (watchCameraEnabled) {
             "Watch controls are ready. The phone supplies the preview; the watch can trigger capture and switch lenses."
         } else {
@@ -226,7 +232,10 @@ fun CameraScreen(
     DisposableEffect(Unit) {
         onDispose {
             runCatching { cameraProviderFuture.get().unbindAll() }
-            if (cameraSessionStarted) watchManager.stopCamera()
+            if (cameraSessionStarted) {
+                watchManager.setShakeToPhoto(false)
+                watchManager.stopCamera()
+            }
         }
     }
 

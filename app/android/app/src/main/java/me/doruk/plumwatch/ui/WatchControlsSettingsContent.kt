@@ -38,6 +38,9 @@ fun WatchControlsSettingsContent() {
     val context = LocalContext.current
     val manager = remember(context) { BleWatchManager.getInstance(context) }
     val state by manager.state.collectAsStateWithLifecycle()
+    val settings = remember(context) {
+        context.getSharedPreferences("plum_watch_device_settings", android.content.Context.MODE_PRIVATE)
+    }
     val canSend = state.isConnected && state.supportsProprietaryCommands
 
     fun report(label: String, queued: Boolean) {
@@ -64,11 +67,12 @@ fun WatchControlsSettingsContent() {
 
         LanguageSetting(
             enabled = canSend,
+            initialCode = settings.getInt("watch-language", 1),
             onSend = { code -> report("Language", manager.setWatchLanguage(code)) }
         )
 
         SettingPanel("Time format", "Choose how the watch displays time.") {
-            var use24Hour by remember { mutableStateOf(true) }
+            var use24Hour by remember { mutableStateOf(settings.getBoolean("time-format-24h", true)) }
             SettingSwitch(
                 title = "24-hour clock",
                 subtitle = if (use24Hour) "Currently selected: 24-hour" else "Currently selected: 12-hour",
@@ -82,38 +86,22 @@ fun WatchControlsSettingsContent() {
             )
         }
 
-        SettingPanel("Camera") {
-            var shakeToPhoto by remember { mutableStateOf(false) }
-            SettingSwitch(
-                "Shake to capture",
-                "Allow the watch's shake gesture to trigger the phone camera.",
-                shakeToPhoto,
-                canSend
-            ) {
-                val sent = manager.setShakeToPhoto(it)
-                if (sent) shakeToPhoto = it
-                report("Shake to capture", sent)
-            }
-        }
-
-        SleepModeSetting(enabled = canSend) { active, mode, tracking, chargeReminder ->
+        SleepModeSetting(
+            enabled = canSend,
+            initialEnabled = settings.getBoolean("sleep-active", false),
+            initialMode = settings.getInt("sleep-mode", 2),
+            initialTracking = settings.getBoolean("sleep-tracking", true),
+            initialChargeReminder = settings.getBoolean("sleep-charge-reminder", false)
+        ) { active, mode, tracking, chargeReminder ->
             report(
                 "Sleep mode",
                 manager.setSleepMode(active, mode, tracking, chargeReminder)
             )
         }
 
-        TrainingSetting(enabled = canSend) { autoPause, startPrompt, stopPrompt, keyPause ->
-            report(
-                "Physical training",
-                manager.setPhysicalTraining(autoPause, startPrompt, stopPrompt, keyPause)
-            )
-        }
-
         SettingPanel("Display and health") {
-            var raiseToWake by remember { mutableStateOf(true) }
-            var autoHealth by remember { mutableStateOf(false) }
-            var bodyTemperature by remember { mutableStateOf(false) }
+            var raiseToWake by remember { mutableStateOf(settings.getBoolean("raise-to-wake", true)) }
+            var bodyTemperature by remember { mutableStateOf(settings.getBoolean("body-temperature", false)) }
 
             SettingSwitch(
                 "Raise wrist to wake",
@@ -124,16 +112,6 @@ fun WatchControlsSettingsContent() {
                 val sent = manager.setRaiseToWake(it)
                 if (sent) raiseToWake = it
                 report("Raise wrist", sent)
-            }
-            SettingSwitch(
-                "Automatic health measurements",
-                "Enable the watch's automatic heart-rate / SpO₂ measurement mode.",
-                autoHealth,
-                canSend
-            ) {
-                val sent = manager.setAutomaticHealthMeasurements(it)
-                if (sent) autoHealth = it
-                report("Automatic health measurements", sent)
             }
             SettingSwitch(
                 "Body-temperature measurement",
@@ -155,9 +133,17 @@ fun NotificationDisplaySettingsContent() {
     val context = LocalContext.current
     val manager = remember(context) { BleWatchManager.getInstance(context) }
     val state by manager.state.collectAsStateWithLifecycle()
+    val settings = remember(context) {
+        context.getSharedPreferences("plum_watch_device_settings", android.content.Context.MODE_PRIVATE)
+    }
     val enabled = state.isConnected && state.supportsProprietaryCommands
 
-    NotificationSetting(enabled = enabled) { icon, show, hide ->
+    NotificationSetting(
+        enabled = enabled,
+        initialIcon = settings.getInt("notification-icon", 3),
+        initialShow = settings.getBoolean("notification-show", true),
+        initialHideDetails = settings.getBoolean("notification-hide-details", false)
+    ) { icon, show, hide ->
         val sent = manager.setNotificationDisplay(icon, show, hide)
         if (!sent) {
             Toast.makeText(
@@ -172,6 +158,7 @@ fun NotificationDisplaySettingsContent() {
 @Composable
 private fun LanguageSetting(
     enabled: Boolean,
+    initialCode: Int,
     onSend: (Int) -> Unit
 ) {
     val languages = listOf(
@@ -186,7 +173,7 @@ private fun LanguageSetting(
         13 to "French",
         24 to "Vietnamese"
     )
-    var selectedCode by remember { mutableStateOf(1) }
+    var selectedCode by remember { mutableStateOf(initialCode) }
     var expanded by remember { mutableStateOf(false) }
     SettingPanel("Watch language", "Choose the language used by your watch.") {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -225,16 +212,23 @@ private fun LanguageSetting(
 @Composable
 private fun SleepModeSetting(
     enabled: Boolean,
+    initialEnabled: Boolean,
+    initialMode: Int,
+    initialTracking: Boolean,
+    initialChargeReminder: Boolean,
     onSend: (Boolean, Int, Boolean, Boolean) -> Unit
 ) {
-    var active by remember { mutableStateOf(false) }
-    var mode by remember { mutableStateOf(2) }
-    var tracking by remember { mutableStateOf(true) }
-    var chargeReminder by remember { mutableStateOf(false) }
+    var active by remember { mutableStateOf(initialEnabled) }
+    var mode by remember { mutableStateOf(initialMode.coerceIn(0, 2)) }
+    var tracking by remember { mutableStateOf(initialTracking) }
+    var chargeReminder by remember { mutableStateOf(initialChargeReminder) }
     var expanded by remember { mutableStateOf(false) }
 
     SettingPanel("Sleep mode", "Choose how sleep mode behaves.") {
-        SettingSwitch("Enable sleep mode", null, active, enabled) { active = it }
+        SettingSwitch("Enable sleep mode", null, active, enabled) {
+            active = it
+            onSend(it, mode, tracking, chargeReminder)
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 when (mode) { 0 -> "Off"; 1 -> "Manual"; else -> "Automatic" },
@@ -250,100 +244,39 @@ private fun SleepModeSetting(
                 tonalElevation = 6.dp
             ) {
                 listOf(0 to "Off", 1 to "Manual", 2 to "Automatic").forEach { (value, label) ->
-                    DropdownMenuItem(text = { Text(label, color = MaterialTheme.colorScheme.onSurface) }, onClick = { mode = value; expanded = false })
+                    DropdownMenuItem(
+                        text = { Text(label, color = MaterialTheme.colorScheme.onSurface) },
+                        onClick = {
+                            mode = value
+                            expanded = false
+                            onSend(active, value, tracking, chargeReminder)
+                        }
+                    )
                 }
             }
         }
-        SettingSwitch("Sleep tracking", null, tracking, enabled) { tracking = it }
-        SettingSwitch("Charging reminder", null, chargeReminder, enabled) { chargeReminder = it }
-        Button(
-            onClick = { onSend(active, mode, tracking, chargeReminder) },
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Send sleep settings") }
-    }
-}
-
-@Composable
-private fun ReminderSetting(
-    title: String,
-    description: String,
-    enabled: Boolean,
-    onSend: (Boolean, Int, Int, Int, Int, Int) -> Boolean,
-    onResult: (Boolean) -> Unit
-) {
-    val context = LocalContext.current
-    var active by remember { mutableStateOf(false) }
-    var startTime by remember { mutableStateOf("09:00") }
-    var endTime by remember { mutableStateOf("21:00") }
-    var interval by remember { mutableStateOf("60") }
-
-    SettingPanel(title, description) {
-        SettingSwitch("Enable reminder", null, active, enabled) { active = it }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = startTime,
-                onValueChange = { startTime = it },
-                label = { Text("Start (HH:mm)") },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                enabled = enabled
-            )
-            OutlinedTextField(
-                value = endTime,
-                onValueChange = { endTime = it },
-                label = { Text("End (HH:mm)") },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                enabled = enabled
-            )
+        SettingSwitch("Sleep tracking", null, tracking, enabled) {
+            tracking = it
+            onSend(active, mode, it, chargeReminder)
         }
-        OutlinedTextField(
-            value = interval,
-            onValueChange = { interval = it.filter(Char::isDigit).take(3) },
-            label = { Text("Interval (minutes)") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            enabled = enabled,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-        )
-        Button(
-            onClick = {
-                val start = parseClock(startTime)
-                val end = parseClock(endTime)
-                val minutes = interval.toIntOrNull()
-                if (start == null || end == null || minutes == null || minutes !in 1..255) {
-                    Toast.makeText(
-                        context,
-                        "Enter valid HH:mm times and an interval from 1 to 255.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                } else {
-                    onResult(onSend(active, start.first, start.second, end.first, end.second, minutes))
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = enabled
-        ) { Text("Send reminder") }
+        SettingSwitch("Charging reminder", null, chargeReminder, enabled) {
+            chargeReminder = it
+            onSend(active, mode, tracking, it)
+        }
     }
-}
-
-private fun parseClock(value: String): Pair<Int, Int>? {
-    val parts = value.split(':')
-    if (parts.size != 2) return null
-    val hour = parts[0].toIntOrNull() ?: return null
-    val minute = parts[1].toIntOrNull() ?: return null
-    return if (hour in 0..23 && minute in 0..59) hour to minute else null
 }
 
 @Composable
 private fun NotificationSetting(
     enabled: Boolean,
+    initialIcon: Int,
+    initialShow: Boolean,
+    initialHideDetails: Boolean,
     onSend: (Int, Boolean, Boolean) -> Unit
 ) {
-    var icon by remember { mutableStateOf(3) }
-    var show by remember { mutableStateOf(true) }
-    var hideDetails by remember { mutableStateOf(false) }
+    var icon by remember { mutableStateOf(initialIcon.coerceIn(0, 3)) }
+    var show by remember { mutableStateOf(initialShow) }
+    var hideDetails by remember { mutableStateOf(initialHideDetails) }
     var expanded by remember { mutableStateOf(false) }
     SettingPanel("Notification display", "Choose how notifications appear on your watch.") {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -361,37 +294,21 @@ private fun NotificationSetting(
                 tonalElevation = 6.dp
             ) {
                 listOf(0 to "No icon", 1 to "Call", 2 to "Message", 3 to "App").forEach { (value, label) ->
-                    DropdownMenuItem(text = { Text(label, color = MaterialTheme.colorScheme.onSurface) }, onClick = { icon = value; expanded = false })
+                    DropdownMenuItem(
+                        text = { Text(label, color = MaterialTheme.colorScheme.onSurface) },
+                        onClick = { icon = value; expanded = false; onSend(icon, show, hideDetails) }
+                    )
                 }
             }
         }
-        SettingSwitch("Show notification prompts", null, show, enabled) { show = it }
-        SettingSwitch("Hide notification details", null, hideDetails, enabled) { hideDetails = it }
-        Button(onClick = { onSend(icon, show, hideDetails) }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
-            Text("Send notification settings")
+        SettingSwitch("Show notification prompts", null, show, enabled) {
+            show = it
+            onSend(icon, it, hideDetails)
         }
-    }
-}
-
-@Composable
-private fun TrainingSetting(
-    enabled: Boolean,
-    onSend: (Boolean, Boolean, Boolean, Boolean) -> Unit
-) {
-    var autoPause by remember { mutableStateOf(false) }
-    var startPrompt by remember { mutableStateOf(true) }
-    var stopPrompt by remember { mutableStateOf(true) }
-    var keyPause by remember { mutableStateOf(false) }
-    SettingPanel("Physical training", "Set automatic pause and workout prompts.") {
-        SettingSwitch("Auto-pause", null, autoPause, enabled) { autoPause = it }
-        SettingSwitch("Start prompt", null, startPrompt, enabled) { startPrompt = it }
-        SettingSwitch("Stop prompt", null, stopPrompt, enabled) { stopPrompt = it }
-        SettingSwitch("Button pause", null, keyPause, enabled) { keyPause = it }
-        Button(
-            onClick = { onSend(autoPause, startPrompt, stopPrompt, keyPause) },
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Send training settings") }
+        SettingSwitch("Hide notification details", null, hideDetails, enabled) {
+            hideDetails = it
+            onSend(icon, show, it)
+        }
     }
 }
 
