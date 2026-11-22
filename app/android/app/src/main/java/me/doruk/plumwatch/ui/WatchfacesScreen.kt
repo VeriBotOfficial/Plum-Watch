@@ -304,9 +304,7 @@ private fun WatchfaceGalleryList(
             result is WatchfaceLibraryResult.Available -> {
                 val allFaces = result.watchfaces
                 val faces = allFaces.filter { face ->
-                    searchQuery.isBlank() ||
-                        face.name.contains(searchQuery, ignoreCase = true) ||
-                        false
+                    searchQuery.isBlank() || face.name.contains(searchQuery, ignoreCase = true)
                 }
                 if (faces.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {

@@ -9,6 +9,7 @@ import zipfile
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import quote
 
 from PIL import Image, ImageOps, ImageSequence, ImageStat
 from ezip_preview import decode_ezip_bytes
@@ -156,12 +157,16 @@ def scan_watchfaces(output_dir: Path):
     base = STORE / "watchfaces"
     if not base.exists():
         return entries
+    seen_ids = set()
     for archive in sorted(base.glob("*.zip"), key=lambda path: path.name.casefold()):
         item_id = slug(archive.stem)
+        if item_id in seen_ids:
+            raise ValueError(f"Watchface filenames produce a duplicate Store ID: {archive.name}")
+        seen_ids.add(item_id)
         item = {
             "id": item_id,
             "name": archive.stem,
-            "archiveUrl": f"{RAW}/watchfaces/{archive.name}",
+            "archiveUrl": f"{RAW}/watchfaces/{quote(archive.name, safe='')}",
             "archiveSizeBytes": archive.stat().st_size,
         }
         with zipfile.ZipFile(archive) as zf:
