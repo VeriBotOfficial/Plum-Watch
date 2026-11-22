@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T17:34:15.268056+00:00",
+  "generatedAt": "2026-11-22T17:34:44.384272+00:00",
   "watchfaces": [
     {
       "id": "red-john",
       "name": "Red John",
-      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/Red John.zip",
+      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/Red%20John.zip",
       "archiveSizeBytes": 967370,
       "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/red-john.png",
       "animatedPreviewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/red-john.gif",
