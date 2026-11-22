@@ -1,26 +1,27 @@
 # Wearfit APK research workspace
 
-Persistent home for readable reverse-engineering notes and future JADX output.
+Persistent home for reverse-engineering notes and eventual JADX output.
 
 ## Inputs and status
 
-The four entries under `research/apk/` are Git LFS pointers in the repository tree, not ordinary APK blobs. A 202 MB `base.apk` and two split APKs were materialized separately in the analysis workspace; the arm64 split was not available as a local binary. Those workspace copies are temporary.
+The repository entries under `research/apk/` are Git LFS pointers. The analysis workspace currently has the 210,859,037-byte `base.apk` binary (17 DEX files) plus the Turkish and xxhdpi splits. The arm64 split is not locally materialized.
 
-The Wearfit Pro APK was inspected for BLE command builders, analyzers, and service-layer methods. Durable findings are recorded in:
+Existing APK-derived reference documents:
 - `research/wearfit_protocol.md`
+- `research/wearfit_uuid_routes.md`
 - `research/wearfit_features.md`
 - `research/sifli_watchface_transport.md`
+- `research/plum_current_gap_analysis.md`
 
-The source exposes health history synchronization, music file transfer, and camera preview/capture paths. Music uses dedicated file-transfer methods such as `sendFileTransHead` and `sendFileTransData`. Camera mode is a command, separate from preview-frame/image transfer. Target-model framing is not yet verified.
+The 2026-11-22 Plum source audit found that music is picker-only, health is one-shot measurement plus local scalar history (no watch-history request), and camera is phone CameraX remote control (no picture/video receive pipeline). See the gap analysis for exact code paths and evidence.
 
 ## Full decompile status
 
-A full Java/Kotlin decompile has **not** been produced. JADX/apktool are not installed in the current build environment, and GitHub's text file interface cannot retrieve binary LFS objects. Do not mistake the protocol notes for a complete decompile.
+A full JADX Java/Kotlin source export has **not** been produced in this environment. Java is available, but JADX/apktool are not installed and outbound package/release downloads are unavailable. The existing protocol notes are static DEX/APK-derived research, not a full source decompilation.
 
-When the APK binaries and JADX are available, place outputs here:
-- `decompiled/jadx/base/`
-- `decompiled/jadx/split_config.arm64_v8a/`
-- `decompiled/jadx/split_config.tr/`
-- `decompiled/jadx/split_config.xxhdpi/`
+Follow `decompiled/HOW_TO_DECOMPILE.md` to export the APK on a local Fedora/Linux machine. Put the output under:
+- `decompiled/jadx/base/sources/`
+- `decompiled/jadx/base/resources/`
+- optional split outputs under `decompiled/jadx/split_config.*/`
 
-Keep outputs split-specific. Do not duplicate APK binaries here; retain canonical inputs under `research/apk/`.
+Do not duplicate the APK binaries in this directory. Keep canonical inputs under `research/apk/`.
