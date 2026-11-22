@@ -103,8 +103,11 @@ fun StoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
 
     suspend fun refreshLibrary() {
         loading = true
-        result = WatchfaceRepository.load()
-        loading = false
+        try {
+            result = WatchfaceRepository.load()
+        } finally {
+            loading = false
+        }
     }
 
     LaunchedEffect(Unit) { refreshLibrary() }
