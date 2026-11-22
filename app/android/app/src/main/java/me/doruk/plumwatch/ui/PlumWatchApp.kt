@@ -290,7 +290,6 @@ fun PlumWatchApp(
                                 onOpenWatchfaces = { page = AppPage.WATCHFACES },
                                 onOpenOtherSettings = { page = AppPage.WATCH_SETTINGS },
                                 onFindWatch = watchManager::findWatch,
-                                onSyncTime = watchManager::syncCurrentTime,
                                 onOpenAlarms = { page = AppPage.ALARMS },
                                 onOpenHealth = { page = AppPage.HEALTH },
                                 onOpenNotifications = { page = AppPage.NOTIFICATIONS },
@@ -324,8 +323,7 @@ fun PlumWatchApp(
                                 onBack = { page = AppPage.WATCH }
                             )
                             AppPage.MUSIC -> MusicScreen(
-                                onBack = { page = AppPage.WATCH },
-                                onControl = watchManager::controlPhoneMedia
+                                onBack = { page = AppPage.WATCH }
                             )
                         }
                     }
