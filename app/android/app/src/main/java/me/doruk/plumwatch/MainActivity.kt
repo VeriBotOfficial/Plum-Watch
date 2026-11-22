@@ -33,6 +33,7 @@ import androidx.core.view.WindowCompat
 import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.data.AppUpdateInfo
 import me.doruk.plumwatch.ui.PlumWatchApp
+import me.doruk.plumwatch.ui.cleanupPlumWatchStorage
 import me.doruk.plumwatch.watch.BleWatchManager
 import java.security.MessageDigest
 
@@ -85,6 +86,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Thread({ cleanupPlumWatchStorage(applicationContext) }, "plum-storage-cleanup").start()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (intent.getBooleanExtra(EXTRA_OPEN_SETTINGS, false)) {
             settingsOpenRequest.intValue = 1
