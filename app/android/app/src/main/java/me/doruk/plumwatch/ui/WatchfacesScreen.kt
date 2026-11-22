@@ -614,8 +614,49 @@ private suspend fun downloadWatchfaceArchive(
 }
 
 
+private const val MAX_WATCHFACE_PREVIEW_BYTES = 8L * 1024 * 1024
+private const val MAX_WATCHFACE_PREVIEW_CACHE_BYTES = 32L * 1024 * 1024
+private const val MAX_WATCHFACE_PREVIEW_CACHE_FILES = 60
+private const val WATCHFACE_PREVIEW_CACHE_MAX_AGE_MS = 14L * 24 * 60 * 60 * 1_000
+private val watchfacePreviewCacheLock = Any()
+
 private val watchfacePreviewMemoryCache = object : LruCache<String, ByteArray>(8 * 1024 * 1024) {
     override fun sizeOf(key: String, value: ByteArray): Int = value.size
+}
+
+private fun pruneWatchfacePreviewDiskCache(directory: File) {
+    synchronized(watchfacePreviewCacheLock) {
+        val files = directory.listFiles()?.filter { it.isFile } ?: return
+        val now = System.currentTimeMillis()
+
+        // Remove interrupted writes, invalid files and previews older than two weeks.
+        files.filter { file ->
+            file.name.endsWith(".tmp") ||
+                !file.name.endsWith(".img") ||
+                file.length() <= 0L ||
+                file.length() > MAX_WATCHFACE_PREVIEW_BYTES ||
+                now - file.lastModified() > WATCHFACE_PREVIEW_CACHE_MAX_AGE_MS
+        }.forEach { it.delete() }
+
+        val previews = directory.listFiles()
+            ?.filter { it.isFile && it.name.endsWith(".img") }
+            ?.sortedBy { it.lastModified() }
+            ?: return
+        var totalBytes = previews.sumOf { it.length() }
+        var remainingFiles = previews.size
+
+        // Keep the newest previews and enforce both a byte and file-count ceiling.
+        for (file in previews) {
+            if (totalBytes <= MAX_WATCHFACE_PREVIEW_CACHE_BYTES &&
+                remainingFiles <= MAX_WATCHFACE_PREVIEW_CACHE_FILES
+            ) break
+            val size = file.length()
+            if (file.delete()) {
+                totalBytes -= size
+                remainingFiles--
+            }
+        }
+    }
 }
 
 private suspend fun loadCachedWatchfacePreview(context: Context, url: String): ByteArray? =
@@ -623,13 +664,26 @@ private suspend fun loadCachedWatchfacePreview(context: Context, url: String): B
         watchfacePreviewMemoryCache.get(url)?.let { return@withContext it }
         val directory = File(context.cacheDir, "store-previews")
         if (!directory.exists()) directory.mkdirs()
-        val cachedFile = File(directory, url.hashCode().toUInt().toString(16) + ".img")
-        if (cachedFile.exists() && cachedFile.length() in 1..8_388_608L) {
-            val cached = runCatching { cachedFile.readBytes() }.getOrNull()
+        pruneWatchfacePreviewDiskCache(directory)
+
+        val fileKey = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(url.toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte) }
+        val cachedFile = File(directory, "$fileKey.img")
+        if (cachedFile.exists()) {
+            val cached = runCatching {
+                synchronized(watchfacePreviewCacheLock) {
+                    cachedFile.takeIf {
+                        it.isFile && it.length() in 1..MAX_WATCHFACE_PREVIEW_BYTES
+                    }?.readBytes()
+                }
+            }.getOrNull()
             if (cached != null) {
+                cachedFile.setLastModified(System.currentTimeMillis())
                 watchfacePreviewMemoryCache.put(url, cached)
                 return@withContext cached
             }
+            cachedFile.delete()
         }
 
         var connection: HttpURLConnection? = null
@@ -641,9 +695,29 @@ private suspend fun loadCachedWatchfacePreview(context: Context, url: String): B
                 setRequestProperty("Cache-Control", "public, max-age=86400")
             }
             if (connection.responseCode !in 200..299) return@withContext null
-            val data = connection.inputStream.use { it.readBytes() }
-            if (data.isEmpty() || data.size > 8 * 1024 * 1024) return@withContext null
-            runCatching { cachedFile.writeBytes(data) }
+            val data = connection.inputStream.use { input ->
+                val output = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(16 * 1024)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    if (output.size().toLong() + count > MAX_WATCHFACE_PREVIEW_BYTES) {
+                        return@withContext null
+                    }
+                    output.write(buffer, 0, count)
+                }
+                output.toByteArray()
+            }
+            if (data.isEmpty()) return@withContext null
+
+            synchronized(watchfacePreviewCacheLock) {
+                val temporaryFile = File(directory, "$fileKey.tmp")
+                runCatching {
+                    temporaryFile.writeBytes(data)
+                    if (!temporaryFile.renameTo(cachedFile)) temporaryFile.delete()
+                }
+                pruneWatchfacePreviewDiskCache(directory)
+            }
             watchfacePreviewMemoryCache.put(url, data)
             data
         } catch (_: Exception) {
