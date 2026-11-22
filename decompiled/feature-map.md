@@ -13,6 +13,8 @@
 | Camera image/picture transfer | `startPushCamera`, picture methods and `TransferOrder` A0/AE-like packet family | Not implemented; concrete transfer analyzer missing |
 | Watchfaces | SiFli request/response push SDK | Existing SiFli path retained |
 | Shake to capture | `setSharkTakePhoto` API | Separate explicit setting exposed; not toggled by Camera page |
+| Sleep mode | `setSleepMode` builder | Existing builder now exposed in Other Settings |
+| Physical training | `setPhysicalTraining` builder | Existing builder now exposed in Other Settings |
 | Body temperature mode | `bodyTempMeasure` builder | Setting exposed |
 | Alarms/reminders/notifications | Builders and analyzers in Wearfit service API | Some controls implemented; verify exact model support |
 | Weather/GPS/maps/sport/contacts/voice/translation | API/analyzer families exist | Not blanket-enabled; require payload and capability work |
