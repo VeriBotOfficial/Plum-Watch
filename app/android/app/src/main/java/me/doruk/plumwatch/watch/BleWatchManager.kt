@@ -735,6 +735,27 @@ class BleWatchManager(context: Context) {
                 return
             }
 
+            // HealthDataAnalyzer: command 0x31 dispatches measurement type from byte 5.
+            // OldDataSyncProxy.saveSingleHR/saveCurrentHR and saveSingleBO/saveCurrentBO
+            // read the returned numeric measurement from byte 6.
+            if (marker == 0xAB && separator == 0xFF && commandId == 0x31 && cmd.size >= 7) {
+                val measurementType = cmd[5].toInt() and 0xFF
+                val reading = cmd[6].toInt() and 0xFF
+                when (measurementType) {
+                    9, 10 -> if (reading in 1..255) {
+                        mutableState.update {
+                            it.copy(heartRateBpm = reading, supportsHeartRate = true)
+                        }
+                    }
+                    17, 18 -> if (reading in 1..100) {
+                        mutableState.update {
+                            it.copy(bloodOxygenPercent = reading, supportsBloodOxygen = true)
+                        }
+                    }
+                }
+                return
+            }
+
             // CameraControlAnalyzer accepts EA / command 0x15.
             // Byte 5 == 1 emits a direct front/rear-switch event. When the
             // packet also contains byte 6, that byte is the state from the
