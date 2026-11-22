@@ -2136,7 +2136,7 @@ private fun AlarmRow(
                     onClick = { onSend(config) },
                     enabled = enabled
                 ) { Text("Send", color = MaterialTheme.colorScheme.primary) }
-                IconButton(onClick = { onDelete(config) }) {
+                IconButton(onClick = { onDelete(config) }, enabled = enabled) {
                     Icon(Icons.Outlined.DeleteOutline, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
                 }
             }
