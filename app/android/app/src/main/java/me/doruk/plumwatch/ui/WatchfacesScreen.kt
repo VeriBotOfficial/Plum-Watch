@@ -624,6 +624,22 @@ private val watchfacePreviewMemoryCache = object : LruCache<String, ByteArray>(8
     override fun sizeOf(key: String, value: ByteArray): Int = value.size
 }
 
+fun cleanupPlumWatchStorage(context: Context) {
+    val cacheDirectory = context.cacheDir
+    pruneWatchfacePreviewDiskCache(File(cacheDirectory, "store-previews"))
+
+    // A process killed during a transfer cannot run its finally cleanup.
+    // No transfer can still be active when the application process starts.
+    cacheDirectory.listFiles()?.forEach { file ->
+        val isAbandonedWatchfaceTransfer =
+            file.name.startsWith("plum-watchface-") ||
+                (file.name.startsWith("watchface-") && file.name.endsWith(".zip"))
+        if (isAbandonedWatchfaceTransfer && file.lastModified() < System.currentTimeMillis() - 60L * 60 * 1_000) {
+            file.deleteRecursively()
+        }
+    }
+}
+
 private fun pruneWatchfacePreviewDiskCache(directory: File) {
     synchronized(watchfacePreviewCacheLock) {
         val files = directory.listFiles()?.filter { it.isFile } ?: return
