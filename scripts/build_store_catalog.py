@@ -71,32 +71,32 @@ def _clock_digit_assets(zf: zipfile.ZipFile) -> dict[int, Image.Image]:
     return digits
 
 
-def _render_clock_preview(background: Image.Image, digits: dict[int, Image.Image]) -> Image.Image:
-    """Render the two native SiFli time-number rows at their module-defined positions.
+def _render_clock_preview(background: Image.Image, digits: dict[int, Image.Image], layout: str) -> Image.Image:
+    """Render only a clock layout that has been reverse-engineered for this face.
 
-    Reverse-engineered from Red John's ARM Thumb module:
-    both number image objects are created and passed to lv_obj_align with
-    LV_ALIGN_TOP_LEFT (1). The hour row uses x=38,y=42; the minute row
-    uses x=32,y=258. The bundled time_num assets are 168x~194 px and are
-    used at native resolution. The watchface does not use a horizontal
-    HH:MM clock or a synthetic colon.
+    Unknown layouts deliberately keep the untouched background. SiFli faces
+    can use one-row digital clocks, split rows, analogue hands, or custom
+    complications; the presence of time_num assets does not identify layout.
     """
-    required = (1, 0, 0, 8)
-    if not all(number in digits for number in required):
+    layouts = {
+        # Red John module: separate hour/minute rows, top-left aligned.
+        "red-john": (
+            ((1, 0), (38, 42)),
+            ((0, 8), (32, 258)),
+        ),
+    }
+    rows = layouts.get(layout)
+    if rows is None:
+        return background.convert("RGBA")
+    required = {digit for pair, _ in rows for digit in pair}
+    if not required.issubset(digits):
         return background.convert("RGBA")
 
     canvas = background.convert("RGBA")
-    rows = (
-        ((digits[1], digits[0]), (38, 42)),   # hour, top row
-        ((digits[0], digits[8]), (32, 258)),  # minute, lower row
-    )
-
     for pair, (x, y) in rows:
         cursor_x = x
-        for glyph in pair:
-            # Preserve the original resource canvas and alpha bounds exactly.
-            # The module aligns the image objects; no guessed scaling/cropping.
-            native = glyph.convert("RGBA")
+        for digit in pair:
+            native = digits[digit].convert("RGBA")
             if cursor_x + native.width > canvas.width or y + native.height > canvas.height:
                 raise ValueError(
                     f"Native SiFli clock glyph at {(cursor_x, y)} exceeds "
@@ -104,7 +104,6 @@ def _render_clock_preview(background: Image.Image, digits: dict[int, Image.Image
                 )
             canvas.alpha_composite(native, (cursor_x, y))
             cursor_x += native.width
-
     return canvas
 
 
@@ -127,7 +126,7 @@ def make_ezip_animation(zf: zipfile.ZipFile, item: dict, output_dir: Path) -> bo
     # Render a stable sample time into every animated frame using those assets.
     clock_digits = _clock_digit_assets(zf)
     rgba_frames = [
-        _render_clock_preview(frame, clock_digits) if clock_digits else frame.convert("RGBA")
+        _render_clock_preview(frame, clock_digits, item["id"]) if clock_digits else frame.convert("RGBA")
         for frame in frames
     ]
 
