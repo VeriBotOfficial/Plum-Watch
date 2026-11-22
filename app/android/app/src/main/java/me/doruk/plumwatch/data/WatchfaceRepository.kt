@@ -47,18 +47,26 @@ object WatchfaceRepository {
             }
 
             val response = connection.inputStream.bufferedReader().use { it.readText() }
-            val entries = if (response.trimStart().startsWith("[")) {
-                JSONArray(response)
+            val manifest = if (response.trimStart().startsWith("{")) JSONObject(response) else null
+            val previewRevision = manifest?.optString("generatedAt")
+                ?.filter { it.isLetterOrDigit() }
+                ?.takeIf { it.isNotBlank() }
+            val entries = if (manifest != null) {
+                manifest.optJSONArray("watchfaces") ?: JSONArray()
             } else {
-                JSONObject(response).optJSONArray("watchfaces") ?: JSONArray()
+                JSONArray(response)
             }
             val watchfaces = buildList {
                 for (index in 0 until entries.length()) {
                     val item = entries.optJSONObject(index) ?: continue
                     val id = item.optString("id").takeIf { it.isNotBlank() } ?: continue
                     val name = item.optString("name").takeIf { it.isNotBlank() } ?: id
-                    val preview = item.optString("previewUrl").takeIf { it.startsWith("https://") }
-                    val animatedPreview = item.optString("animatedPreviewUrl").takeIf { it.startsWith("https://") }
+                    fun versionedPreviewUrl(key: String): String? =
+                        item.optString(key).takeIf { it.startsWith("https://") }?.let { source ->
+                            previewRevision?.let { "$source?v=$it" } ?: source
+                        }
+                    val preview = versionedPreviewUrl("previewUrl")
+                    val animatedPreview = versionedPreviewUrl("animatedPreviewUrl")
                     val archive = item.optString("archiveUrl").takeIf { it.startsWith("https://") } ?: continue
                     val archiveSizeBytes = item.optLong("archiveSizeBytes", -1L).takeIf { it > 0L }
                     add(
