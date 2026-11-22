@@ -72,69 +72,39 @@ def _clock_digit_assets(zf: zipfile.ZipFile) -> dict[int, Image.Image]:
 
 
 def _render_clock_preview(background: Image.Image, digits: dict[int, Image.Image]) -> Image.Image:
-    """Composite a representative 10:08 digital clock from the watchface's own glyphs."""
+    """Render the two native SiFli time-number rows at their module-defined positions.
+
+    Reverse-engineered from Red John's ARM Thumb module:
+    both number image objects are created and passed to lv_obj_align with
+    LV_ALIGN_TOP_LEFT (1). The hour row uses x=38,y=42; the minute row
+    uses x=32,y=258. The bundled time_num assets are 168x~194 px and are
+    used at native resolution. The watchface does not use a horizontal
+    HH:MM clock or a synthetic colon.
+    """
     required = (1, 0, 0, 8)
     if not all(number in digits for number in required):
         return background.convert("RGBA")
 
     canvas = background.convert("RGBA")
-    glyphs = []
-    for number in required:
-        glyph = digits[number]
-        alpha = glyph.getchannel("A")
-        bounds = alpha.getbbox()
-        if bounds:
-            glyph = glyph.crop(bounds)
-        else:
-            continue
-        glyphs.append(glyph)
+    rows = (
+        ((digits[1], digits[0]), (38, 42)),   # hour, top row
+        ((digits[0], digits[8]), (32, 258)),  # minute, lower row
+    )
 
-    if len(glyphs) != 4:
-        return canvas
+    for pair, (x, y) in rows:
+        cursor_x = x
+        for glyph in pair:
+            # Preserve the original resource canvas and alpha bounds exactly.
+            # The module aligns the image objects; no guessed scaling/cropping.
+            native = glyph.convert("RGBA")
+            if cursor_x + native.width > canvas.width or y + native.height > canvas.height:
+                raise ValueError(
+                    f"Native SiFli clock glyph at {(cursor_x, y)} exceeds "
+                    f"the {canvas.width}x{canvas.height} watchface canvas"
+                )
+            canvas.alpha_composite(native, (cursor_x, y))
+            cursor_x += native.width
 
-    # Keep the original glyph design and aspect ratio; scale as one clock group.
-    target_height = max(18, int(canvas.height * 0.105))
-    scaled = []
-    for glyph in glyphs:
-        height = min(target_height, max(1, glyph.height))
-        width = max(1, round(glyph.width * height / glyph.height))
-        scaled.append(glyph.resize((width, height), Image.Resampling.LANCZOS))
-
-    gap = max(2, round(target_height * 0.09))
-    colon_width = max(4, round(target_height * 0.15))
-    colon_gap = max(2, round(target_height * 0.06))
-    clock_width = sum(g.width for g in scaled) + gap * 3 + colon_width + colon_gap * 2
-    clock_height = max(g.height for g in scaled)
-    x = max(0, (canvas.width - clock_width) // 2)
-    # A restrained upper-middle placement keeps the clock legible without
-    # covering the central subject in most portrait watchface compositions.
-    y = max(0, round(canvas.height * 0.31) - clock_height // 2)
-
-    positions = []
-    cursor = x
-    for index, glyph in enumerate(scaled):
-        positions.append((cursor, y + (clock_height - glyph.height) // 2))
-        cursor += glyph.width
-        if index == 1:
-            cursor += colon_gap
-            cursor += colon_width
-            cursor += colon_gap
-        elif index < 3:
-            cursor += gap
-
-    for glyph, position in zip(scaled, positions):
-        canvas.alpha_composite(glyph, position)
-
-    # Match the colon to the glyph artwork instead of introducing a new font.
-    sample = scaled[1].getpixel((scaled[1].width // 2, scaled[1].height // 2))
-    color = sample if sample[3] > 0 else (255, 255, 255, 230)
-    colon_x = positions[1][0] + scaled[1].width + colon_gap
-    colon_x += max(0, (colon_width - max(2, target_height // 10)) // 2)
-    dot = max(2, target_height // 10)
-    draw = ImageDraw.Draw(canvas)
-    center_y = y + clock_height // 2
-    draw.ellipse((colon_x, center_y - dot * 2, colon_x + dot, center_y - dot), fill=color)
-    draw.ellipse((colon_x, center_y + dot, colon_x + dot, center_y + dot * 2), fill=color)
     return canvas
 
 
