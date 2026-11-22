@@ -4,6 +4,10 @@ import android.content.Context
 import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Movie
+import android.graphics.Canvas as AndroidCanvas
+import android.graphics.PorterDuff
+import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -69,6 +73,8 @@ import java.io.FileInputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import me.doruk.plumwatch.data.Watchface
 import me.doruk.plumwatch.data.WatchfaceLibraryResult
@@ -82,12 +88,12 @@ private const val WATCHFACE_ASPECT_RATIO = 0.82f
 
 
 @Composable
-fun WatchfacesScreen(watchManager: BleWatchManager, watchState: BleUiState) {
-    val context = LocalContext.current
+fun StoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
     val scope = rememberCoroutineScope()
     var result by remember { mutableStateOf<WatchfaceLibraryResult?>(null) }
     var loading by remember { mutableStateOf(false) }
     var selectedWatchface by remember { mutableStateOf<Watchface?>(null) }
+    var selectedSection by remember { mutableStateOf(StoreSection.WATCHFACES) }
 
     suspend fun refreshLibrary() {
         loading = true
@@ -95,46 +101,155 @@ fun WatchfacesScreen(watchManager: BleWatchManager, watchState: BleUiState) {
         loading = false
     }
 
-    LaunchedEffect(Unit) {
-        refreshLibrary()
-    }
+    LaunchedEffect(Unit) { refreshLibrary() }
+    BackHandler(enabled = selectedWatchface != null) { selectedWatchface = null }
 
-    BackHandler(enabled = selectedWatchface != null) {
-        selectedWatchface = null
-    }
-
-    AnimatedContent(
-        targetState = selectedWatchface,
-        modifier = Modifier.fillMaxSize(),
-        transitionSpec = {
-            val openingPreview = targetState != null
-            val direction = if (openingPreview) 1 else -1
-            (fadeIn(tween(260)) + slideInHorizontally(
-                animationSpec = tween(360, easing = FastOutSlowInEasing),
-                initialOffsetX = { width -> direction * width / 16 }
-            )) togetherWith
-                (fadeOut(tween(190)) + slideOutHorizontally(
-                    animationSpec = tween(280, easing = FastOutSlowInEasing),
-                    targetOffsetX = { width -> -direction * width / 22 }
-                ))
-        },
-        label = "watchface-gallery-navigation"
-    ) { selected ->
-        if (selected == null) {
-            WatchfaceGalleryList(
-                result = result,
-                loading = loading,
-                onRefresh = { scope.launch { refreshLibrary() } },
-                onSelect = { selectedWatchface = it }
-            )
+    Column(Modifier.fillMaxSize()) {
+        if (selectedWatchface == null) {
+            StoreHeader(selectedSection) { selectedSection = it }
+        }
+        if (selectedSection == StoreSection.APPS && selectedWatchface == null) {
+            AppStoreEmptyState()
         } else {
-            WatchfaceDetailScreen(
-                watchface = selected,
-                watchManager = watchManager,
-                watchState = watchState,
-                onBack = { selectedWatchface = null }
+            AnimatedContent(
+                targetState = selectedWatchface,
+                modifier = Modifier.weight(1f),
+                transitionSpec = {
+                    val openingPreview = targetState != null
+                    val direction = if (openingPreview) 1 else -1
+                    (fadeIn(tween(260)) + slideInHorizontally(
+                        animationSpec = tween(360, easing = FastOutSlowInEasing),
+                        initialOffsetX = { width -> direction * width / 16 }
+                    )) togetherWith
+                        (fadeOut(tween(190)) + slideOutHorizontally(
+                            animationSpec = tween(280, easing = FastOutSlowInEasing),
+                            targetOffsetX = { width -> -direction * width / 22 }
+                        ))
+                },
+                label = "store-navigation"
+            ) { selected ->
+                if (selected == null) {
+                    WatchfaceGalleryList(
+                        result = result,
+                        loading = loading,
+                        onRefresh = { scope.launch { refreshLibrary() } },
+                        onSelect = { selectedWatchface = it }
+                    )
+                } else {
+                    WatchfaceDetailScreen(
+                        watchface = selected,
+                        watchManager = watchManager,
+                        watchState = watchState,
+                        onBack = { selectedWatchface = null }
+                    )
+                }
+            }
+        }
+    }
+}
+
+private enum class StoreSection { WATCHFACES, APPS }
+
+@Composable
+private fun StoreHeader(
+    selectedSection: StoreSection,
+    onSectionSelected: (StoreSection) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().statusBarsPadding()
+            .padding(horizontal = 22.dp).padding(top = 14.dp, bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            PageTitle("Store")
+            Text(
+                "Content for your watch",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
             )
         }
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(19.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            StoreSectionButton(
+                label = "Watchface Store",
+                selected = selectedSection == StoreSection.WATCHFACES,
+                modifier = Modifier.weight(1f),
+                onClick = { onSectionSelected(StoreSection.WATCHFACES) }
+            )
+            StoreSectionButton(
+                label = "App Store",
+                selected = selectedSection == StoreSection.APPS,
+                modifier = Modifier.weight(1f),
+                onClick = { onSectionSelected(StoreSection.APPS) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun StoreSectionButton(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    AppClickableSurface(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(15.dp)) {
+        Box(
+            modifier = Modifier.fillMaxWidth()
+                .background(if (selected) MaterialTheme.colorScheme.surface else Color.Transparent)
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                label,
+                color = if (selected) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppStoreEmptyState() {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 30.dp).padding(bottom = 90.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier.size(76.dp).clip(RoundedCornerShape(25.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Outlined.GridView,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "App Store",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 23.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Games and apps will appear here once their watch installation format and transfer flow are verified.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 13.sp,
+            lineHeight = 19.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
     }
 }
 
@@ -146,8 +261,8 @@ private fun WatchfaceGalleryList(
     onSelect: (Watchface) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().statusBarsPadding(),
-        contentPadding = PaddingValues(top = 22.dp, bottom = 126.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 10.dp, bottom = 126.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
@@ -155,7 +270,7 @@ private fun WatchfaceGalleryList(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PageTitle("Face Gallery")
+                PageTitle("Watchfaces")
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = onRefresh, enabled = !loading) {
                     if (loading) {
@@ -317,7 +432,7 @@ private fun WatchfaceDetailScreen(
                 }
             }
             Text(
-                "Face Gallery",
+                "Watchface Store",
                 Modifier.padding(start = 13.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp
@@ -496,31 +611,71 @@ private suspend fun downloadWatchfaceArchive(
 
 @Composable
 private fun WatchfaceArtwork(
-    url: String,
+    url: String?,
     modifier: Modifier = Modifier
 ) {
-    val bitmap by produceState<Bitmap?>(initialValue = null, key1 = url) {
-        value = withContext(Dispatchers.IO) {
+    val bytes by produceState<ByteArray?>(initialValue = null, key1 = url) {
+        value = if (url.isNullOrBlank()) null else withContext(Dispatchers.IO) {
             runCatching {
                 val connection = URL(url).openConnection() as HttpURLConnection
                 connection.connectTimeout = 10_000
                 connection.readTimeout = 12_000
                 try {
-                    connection.inputStream.use { BitmapFactory.decodeStream(it) }
+                    connection.inputStream.use { it.readBytes() }
                 } finally {
                     connection.disconnect()
                 }
             }.getOrNull()
         }
     }
+    val movie = remember(bytes) {
+        bytes?.let { Movie.decodeByteArray(it, 0, it.size) }?.takeIf { it.width() > 0 && it.height() > 0 }
+    }
+    var frameBitmap by remember(bytes) { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(bytes, movie) {
+        val data = bytes ?: run {
+            frameBitmap = null
+            return@LaunchedEffect
+        }
+        if (movie == null) {
+            frameBitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
+        } else {
+            val width = movie.width().coerceIn(1, 1024)
+            val height = movie.height().coerceIn(1, 1024)
+            val frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = AndroidCanvas(frame)
+            val duration = movie.duration().takeIf { it > 0 } ?: 1000
+            val startedAt = SystemClock.uptimeMillis()
+            while (isActive) {
+                val elapsed = ((SystemClock.uptimeMillis() - startedAt) % duration).toInt()
+                movie.setTime(elapsed)
+                canvas.drawColor(android.graphics.Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+                movie.draw(canvas, 0f, 0f)
+                frameBitmap = frame.copy(Bitmap.Config.ARGB_8888, false)
+                delay(70)
+            }
+        }
+    }
+
     Box(
         modifier = modifier.aspectRatio(WATCHFACE_ASPECT_RATIO).background(Color(0xFF050607)),
         contentAlignment = Alignment.Center
     ) {
-        if (bitmap != null) {
-            Image(bitmap!!.asImageBitmap(), "Watchface preview", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        if (frameBitmap != null) {
+            Image(
+                frameBitmap!!.asImageBitmap(),
+                "Watchface preview",
+                Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
         } else {
-            Icon(Icons.Outlined.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(25.dp))
+            Icon(
+                Icons.Outlined.Image,
+                null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(25.dp)
+            )
         }
     }
 }

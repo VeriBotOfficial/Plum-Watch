@@ -84,7 +84,7 @@ import me.doruk.plumwatch.watch.WatchDevice
 
 private enum class AppPage(val label: String) {
     WATCH("My Watch"),
-    WATCHFACES("Watchfaces"),
+    STORE("Store"),
     SETTINGS("Settings"),
     WATCH_SETTINGS("Other Settings"),
     ALARMS("Alarms"),
@@ -287,7 +287,7 @@ fun PlumWatchApp(
                                 onConnect = watchManager::connect,
                                 onReconnect = watchManager::reconnectSavedDevice,
                                 onRemoveWatch = onRemoveWatch,
-                                onOpenWatchfaces = { page = AppPage.WATCHFACES },
+                                onOpenWatchfaces = { page = AppPage.STORE },
                                 onOpenOtherSettings = { page = AppPage.WATCH_SETTINGS },
                                 onFindWatch = watchManager::findWatch,
                                 onOpenAlarms = { page = AppPage.ALARMS },
@@ -296,7 +296,7 @@ fun PlumWatchApp(
                                 onOpenCamera = { page = AppPage.CAMERA },
                                 onOpenMusic = { page = AppPage.MUSIC }
                             )
-                            AppPage.WATCHFACES -> WatchfacesScreen(watchManager = watchManager, watchState = watchState)
+                            AppPage.STORE -> StoreScreen(watchManager = watchManager, watchState = watchState)
                             AppPage.SETTINGS -> SettingsScreen(
                                 themeMode = themeMode,
                                 onThemeModeChange = onThemeModeChange,
@@ -381,7 +381,7 @@ private fun FloatingNavigationBar(
     backdrop: com.kyant.backdrop.Backdrop?,
     modifier: Modifier = Modifier
 ) {
-    val pages = listOf(AppPage.WATCH, AppPage.WATCHFACES, AppPage.SETTINGS)
+    val pages = listOf(AppPage.WATCH, AppPage.STORE, AppPage.SETTINGS)
     val selectedIndex = pages.indexOf(selectedPage).coerceAtLeast(0)
     val selectedTabIndex = remember(selectedIndex) { { selectedIndex } }
 
@@ -477,7 +477,7 @@ private fun NavigationItemContent(
 
 private fun IconsForPage(page: AppPage): ImageVector = when (page) {
     AppPage.WATCH -> Icons.Outlined.Watch
-    AppPage.WATCHFACES -> Icons.Outlined.GridView
+    AppPage.STORE -> Icons.Outlined.GridView
     AppPage.SETTINGS -> Icons.Outlined.Settings
     AppPage.WATCH_SETTINGS -> Icons.Outlined.Settings
     AppPage.ALARMS -> Icons.Outlined.Alarm

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": null,
+  "watchfaces": [
+    {
+      "id": "RedJohn",
+      "name": "Red John",
+      "description": "Animated SiFli watchface package. A faithful preview is pending a compatible EZIP decoder.",
+      "author": "Unknown",
+      "version": "1.0.0",
+      "category": "Animated",
+      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/RedJohn/RedJohn.zip",
+      "archiveSizeBytes": 967370,
+      "previewStatus": "requires_ezip_decoder"
+    }
+  ],
+  "apps": []
+}
