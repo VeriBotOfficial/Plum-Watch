@@ -122,6 +122,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -1421,8 +1422,8 @@ private fun AboutSettingsContent(appVersion: String) {
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Outlined.Watch,
-                        contentDescription = null,
+                        painter = painterResource(me.doruk.plumwatch.R.drawable.ic_launcher_foreground),
+                        contentDescription = "Plum Watch",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(23.dp)
                     )
