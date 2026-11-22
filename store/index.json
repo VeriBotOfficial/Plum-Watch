@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": null,
+  "generatedAt": "2026-11-22T17:12:38.478811+00:00",
   "watchfaces": [
     {
       "id": "RedJohn",
@@ -11,6 +11,7 @@
       "category": "Animated",
       "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/RedJohn/RedJohn.zip",
       "archiveSizeBytes": 967370,
+      "previewError": "dyn/dynamic_app/watchface/wf_clock1003/ezip/wf_clock1003_bg.bin: standard stream: Error -3 while decompressing data: invalid stored block lengths; legacy stream: legacy shared-Huff",
       "previewStatus": "requires_ezip_decoder"
     }
   ],
