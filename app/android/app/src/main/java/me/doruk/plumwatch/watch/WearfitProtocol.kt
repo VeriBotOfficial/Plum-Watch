@@ -31,9 +31,10 @@ internal object WearfitProtocol {
         packet(commandId, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
 
     /**
-     * Parses the 0x51/0x20 health-sync frame used by Wearfit's health analyzer.
-     * The documented frame stores heart rate and SpO2 at absolute offsets 16 and 17.
-     * Other command variants are deliberately ignored rather than guessed.
+     * Parses the 0x51/0x20 hourly health-sync frame documented in a live Wearfit X10
+     * (Bluetrum) trace. Its offsets are not yet confirmed for the HK 10 Pro Max+.
+     * Keep this parser strict: only this exact frame family and plausible scalar
+     * ranges are accepted. Unknown model-specific variants are ignored.
      */
     fun parseHealthMeasurement(frame: ByteArray): HealthMeasurement? {
         if (frame.size < 18) return null
