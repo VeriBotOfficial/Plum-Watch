@@ -57,6 +57,31 @@ class WearfitProtocolTest {
     }
 
     @Test
+    fun splitsLongWearfitMessageIntoTwentyByteFirstWriteAndIndexedContinuations() {
+        val message = ByteArray(47) { it.toByte() }
+
+        val fragments = WearfitProtocol.splitLongMessage(message)
+
+        assertEquals(3, fragments.size)
+        assertArrayEquals(message.copyOfRange(0, 20), fragments[0])
+        assertEquals(20, fragments[1].size)
+        assertEquals(1, fragments[1][0].toInt() and 0xFF)
+        assertArrayEquals(message.copyOfRange(20, 39), fragments[1].copyOfRange(1, 20))
+        assertEquals(9, fragments[2].size)
+        assertEquals(2, fragments[2][0].toInt() and 0xFF)
+        assertArrayEquals(message.copyOfRange(39, 47), fragments[2].copyOfRange(1, 9))
+    }
+
+    @Test
+    fun doesNotSplitWearfitMessagesThatFitOneDefaultAttWrite() {
+        val message = ByteArray(20) { it.toByte() }
+        val fragments = WearfitProtocol.splitLongMessage(message)
+
+        assertEquals(1, fragments.size)
+        assertArrayEquals(message, fragments.single())
+    }
+
+    @Test
     fun buildsSleepModePacketWithEaMarker() {
         assertArrayEquals(
             byteArrayOf(0xEA.toByte(), 0, 7, 0xFF.toByte(), 0x7F, 1, 1, 2, 1, 1),
