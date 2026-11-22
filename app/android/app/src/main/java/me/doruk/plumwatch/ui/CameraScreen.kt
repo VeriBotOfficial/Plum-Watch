@@ -145,14 +145,28 @@ fun CameraScreen(
         if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    LaunchedEffect(hasCameraPermission) {
-        if (hasCameraPermission) {
-            watchCameraEnabled = watchManager.startCamera()
-            statusMessage = if (watchCameraEnabled) {
-                "Watch camera mode enabled. The phone preview stays on this screen; the watch sends shutter and lens-switch commands."
-            } else {
-                "Phone preview is ready, but the watch camera command could not be queued."
+    LaunchedEffect(
+        hasCameraPermission,
+        watchState.isConnected,
+        watchState.supportsProprietaryCommands
+    ) {
+        if (!hasCameraPermission) return@LaunchedEffect
+
+        if (!watchState.isConnected || !watchState.supportsProprietaryCommands) {
+            if (watchCameraEnabled) watchManager.stopCamera()
+            watchCameraEnabled = false
+            statusMessage = when {
+                !watchState.isConnected -> "Phone preview is available. Connect the watch to enable its camera controls."
+                else -> "Phone preview is available. Waiting for the watch command channel to become ready."
             }
+            return@LaunchedEffect
+        }
+
+        watchCameraEnabled = watchManager.startCamera()
+        statusMessage = if (watchCameraEnabled) {
+            "Watch controls are ready. The phone supplies the preview; the watch can trigger capture and switch lenses."
+        } else {
+            "The watch camera command could not be queued. Reconnect and reopen Camera."
         }
     }
 
