@@ -129,6 +129,30 @@ class WearfitProtocolTest {
         )
     }
 
+    @Test
+    fun parsesWearfitHealthSyncHeartRateAndOxygenValues() {
+        val frame = byteArrayOf(
+            0xAB.toByte(), 0, 0x16, 0xFF.toByte(), 0x51, 0x20,
+            0x1A, 0x0A, 0x04, 0x01, 0, 0, 0, 0, 0, 0,
+            108, 99, 146.toByte(), 95, 0, 0, 0, 0, 0
+        )
+
+        val measurement = WearfitProtocol.parseHealthMeasurement(frame)
+
+        assertEquals(108, measurement?.heartRateBpm)
+        assertEquals(99, measurement?.bloodOxygenPercent)
+    }
+
+    @Test
+    fun ignoresUnrecognisedHealthFrames() {
+        val frame = byteArrayOf(
+            0xAB.toByte(), 0, 0x16, 0xFF.toByte(), 0x51, 0x21,
+            0x1A, 0x0A, 0x04, 0x01, 0, 0, 0, 0, 0, 0,
+            108, 99, 146.toByte(), 95, 0, 0, 0, 0, 0
+        )
+        assertEquals(null, WearfitProtocol.parseHealthMeasurement(frame))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsIncompleteHeartRateZoneConfiguration() {
         WearfitProtocol.heartRateZones(listOf(1, 2, 3))
