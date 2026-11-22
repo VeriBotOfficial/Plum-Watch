@@ -9,6 +9,7 @@ on:
       - "store/**"
       - "scripts/build_store_catalog.py"
       - "scripts/ezip_preview.py"
+      - "scripts/inspect_sifli_watchface.py"
       - ".github/workflows/store-catalogue.yml"
   workflow_dispatch:
 
