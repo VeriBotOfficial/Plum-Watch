@@ -1532,6 +1532,13 @@ class BleWatchManager(context: Context) {
     fun stopCamera(): Boolean {
         val previewStopped = setCameraPreviewState(false)
         val shakeStopped = setShakeToPhoto(false)
+        mutableState.update {
+            it.copy(
+                cameraRequestSequence = 0,
+                cameraShutterSequence = 0,
+                cameraSwitchSequence = 0
+            )
+        }
         return previewStopped && shakeStopped
     }
 
