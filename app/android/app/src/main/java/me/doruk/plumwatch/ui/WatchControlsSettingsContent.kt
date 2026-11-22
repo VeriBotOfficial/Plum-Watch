@@ -82,6 +82,20 @@ fun WatchControlsSettingsContent() {
             )
         }
 
+        SettingPanel("Camera") {
+            var shakeToPhoto by remember { mutableStateOf(false) }
+            SettingSwitch(
+                "Shake to capture",
+                "Allow the watch's shake gesture to trigger the phone camera.",
+                shakeToPhoto,
+                canSend
+            ) {
+                val sent = manager.setShakeToPhoto(it)
+                if (sent) shakeToPhoto = it
+                report("Shake to capture", sent)
+            }
+        }
+
         SettingPanel("Display and health") {
             var raiseToWake by remember { mutableStateOf(true) }
             var autoHealth by remember { mutableStateOf(false) }
