@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image, ImageOps, ImageSequence
+from PIL import Image, ImageOps, ImageSequence, ImageStat
 from ezip_preview import decode_ezip_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -100,20 +100,12 @@ def make_ezip_animation(zf: zipfile.ZipFile, item: dict, output_dir: Path) -> bo
         return False
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_name = slug(item["id"]) + ".gif"
+    gif_name = slug(item["id"]) + ".gif"
     duration = int(item.get("previewFrameDurationMs", 120))
     duration = max(40, min(duration, 2000))
     rgba_frames = [frame.convert("RGBA") for frame in frames]
-    stats = []
-    for frame in rgba_frames:
-        extrema = frame.getextrema()
-        stats.append({
-            "size": list(frame.size),
-            "bbox": list(frame.getbbox()) if frame.getbbox() else None,
-            "extrema": [list(channel) for channel in extrema],
-        })
     rgba_frames[0].save(
-        output_dir / output_name,
+        output_dir / gif_name,
         save_all=True,
         append_images=rgba_frames[1:],
         duration=duration,
@@ -121,13 +113,23 @@ def make_ezip_animation(zf: zipfile.ZipFile, item: dict, output_dir: Path) -> bo
         optimize=True,
         disposal=2,
     )
-    item["previewUrl"] = f"{RAW}/generated/previews/{output_name}"
+
+    def brightness(frame):
+        return sum(ImageStat.Stat(frame.convert("RGB")).mean) / 3
+
+    best_frame = max(rgba_frames, key=brightness)
+    thumbnail = best_frame.copy()
+    thumbnail.thumbnail((720, 880), Image.Resampling.LANCZOS)
+    png_name = slug(item["id"]) + ".png"
+    thumbnail.save(output_dir / png_name, format="PNG", optimize=True)
+
+    item["previewUrl"] = f"{RAW}/generated/previews/{png_name}"
+    item["animatedPreviewUrl"] = f"{RAW}/generated/previews/{gif_name}"
     item["previewStatus"] = "generated_ezip_animation"
     item["previewFrameCount"] = len(rgba_frames)
     item["previewFrameDurationMs"] = duration
-    item["previewFrameStats"] = stats
-    print(f"EZIP preview {item['id']}: {len(rgba_frames)} frames; first frame stats={stats[0]}")
     return True
+
 
 def make_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
     entry = choose_preview(zf, item)
@@ -152,15 +154,22 @@ def make_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
                 for frame in ImageSequence.Iterator(source):
                     frames.append(frame.convert("RGBA").copy())
                     durations.append(frame.info.get("duration", 100))
-                output_name = slug(item["id"]) + ".gif"
+                gif_name = slug(item["id"]) + ".gif"
                 frames[0].save(
-                    output_dir / output_name,
+                    output_dir / gif_name,
                     save_all=True,
                     append_images=frames[1:],
                     duration=durations,
                     loop=0,
                     optimize=True,
                 )
+                best_frame = max(frames, key=lambda frame: sum(ImageStat.Stat(frame.convert("RGB")).mean) / 3)
+                thumbnail = best_frame.copy()
+                thumbnail.thumbnail((720, 880), Image.Resampling.LANCZOS)
+                png_name = slug(item["id"]) + ".png"
+                thumbnail.save(output_dir / png_name, format="PNG", optimize=True)
+                item["animatedPreviewUrl"] = f"{RAW}/generated/previews/{gif_name}"
+                item["previewUrl"] = f"{RAW}/generated/previews/{png_name}"
             else:
                 image = ImageOps.exif_transpose(source).convert("RGBA")
                 image.thumbnail((720, 880), Image.Resampling.LANCZOS)
