@@ -686,16 +686,16 @@ private fun ConnectedWatchCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(19.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(66.dp)
+                        .size(52.dp)
                         .background(
                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
-                            RoundedCornerShape(21.dp)
+                            RoundedCornerShape(17.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -703,18 +703,18 @@ private fun ConnectedWatchCard(
                         Icons.Outlined.Watch,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     Text(
                         device.name,
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -729,45 +729,78 @@ private fun ConnectedWatchCard(
                         Text(
                             "Connected",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    if (supportsTimeSync) {
-                        Text(
-                            text = if (lastTimeSyncAt != null) "Time synchronized" else "Time sync available",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp
                         )
+                        if (supportsTimeSync) {
+                            Text(
+                                "  ·  " + if (lastTimeSyncAt != null) "Time synced" else "Time sync available",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 10.sp
+                            )
+                        }
                     }
                 }
             }
 
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                        RoundedCornerShape(17.dp)
+                    )
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Bottom
                 ) {
-                    Text("Battery", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text(
+                        "Battery",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                     Text(
                         batteryPercent?.let { "$it%" } ?: "—",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
+                        color = batteryColor,
+                        fontSize = 23.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 25.sp
                     )
                 }
-                LinearProgressIndicator(
-                    progress = animatedBattery,
-                    modifier = Modifier.fillMaxWidth().height(6.dp),
-                    color = batteryColor,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-                if (batteryPercent == null) {
-                    Text("Waiting for battery data", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                if (normalizedBattery == null) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().height(5.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        progress = animatedBattery,
+                        modifier = Modifier.fillMaxWidth().height(5.dp),
+                        color = batteryColor,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                }
+                if (normalizedBattery == null) {
+                    Text(
+                        if (supportsBattery) "Waiting for battery level" else "Battery level not reported yet",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                } else {
+                    Text(
+                        when {
+                            normalizedBattery <= 15 -> "Low battery"
+                            normalizedBattery <= 30 -> "Battery running down"
+                            else -> "Battery level"
+                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
                 }
             }
         }
