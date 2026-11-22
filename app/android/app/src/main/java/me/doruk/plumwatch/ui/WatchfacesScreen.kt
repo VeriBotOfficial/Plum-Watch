@@ -8,6 +8,7 @@ import android.graphics.Movie
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.PorterDuff
 import android.os.SystemClock
+import android.util.LruCache
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -122,12 +123,12 @@ fun StoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
                 transitionSpec = {
                     val openingPreview = targetState != null
                     val direction = if (openingPreview) 1 else -1
-                    (fadeIn(tween(260)) + slideInHorizontally(
-                        animationSpec = tween(360, easing = FastOutSlowInEasing),
+                    (fadeIn(tween(150)) + slideInHorizontally(
+                        animationSpec = tween(210, easing = FastOutSlowInEasing),
                         initialOffsetX = { width -> direction * width / 16 }
                     )) togetherWith
-                        (fadeOut(tween(190)) + slideOutHorizontally(
-                            animationSpec = tween(280, easing = FastOutSlowInEasing),
+                        (fadeOut(tween(110)) + slideOutHorizontally(
+                            animationSpec = tween(170, easing = FastOutSlowInEasing),
                             targetOffsetX = { width -> -direction * width / 22 }
                         ))
                 },
@@ -167,14 +168,7 @@ private fun StoreHeader(
             .padding(horizontal = 22.dp).padding(top = 14.dp, bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            PageTitle("Store")
-            Text(
-                "Content for your watch",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp
-            )
-        }
+        PageTitle("Store")
         Row(
             modifier = Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(19.dp))
@@ -244,18 +238,9 @@ private fun AppStoreEmptyState() {
         }
         Spacer(Modifier.height(20.dp))
         Text(
-            "App Store",
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 23.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Games and apps will appear here once their watch installation format and transfer flow are verified.",
+            "Coming soon",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp,
-            lineHeight = 19.sp,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            fontSize = 13.sp
         )
     }
 }
@@ -321,7 +306,7 @@ private fun WatchfaceGalleryList(
                 val faces = allFaces.filter { face ->
                     searchQuery.isBlank() ||
                         face.name.contains(searchQuery, ignoreCase = true) ||
-                        face.description?.contains(searchQuery, ignoreCase = true) == true
+                        false
                 }
                 if (faces.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
@@ -334,7 +319,7 @@ private fun WatchfaceGalleryList(
                     items(faces, key = { it.id }) { face ->
                         Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.Start,
+                            horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(9.dp)
                         ) {
                             AppClickableSurface(
@@ -361,17 +346,10 @@ private fun WatchfaceGalleryList(
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
                             )
-                            face.description?.takeIf { it.isNotBlank() }?.let { description ->
-                                Text(
-                                    description,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 11.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
                         }
                     }
                 }
@@ -496,31 +474,13 @@ private fun WatchfaceDetailScreen(
 
         Text(
             watchface.name,
+            modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.onSurface,
             fontSize = 26.sp,
             lineHeight = 31.sp,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
-
-        val metadataLine = listOfNotNull(
-            watchface.author?.takeIf { it.isNotBlank() }?.let { "By $it" },
-            watchface.version?.takeIf { it.isNotBlank() }?.let { "v$it" }
-        ).joinToString(" · ")
-        if (metadataLine.isNotBlank()) {
-            Text(
-                metadataLine,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp
-            )
-        }
-        watchface.description?.takeIf { it.isNotBlank() }?.let { description ->
-            Text(
-                description,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp,
-                lineHeight = 19.sp
-            )
-        }
 
         val buttonLabel = when {
             !watchState.isConnected -> "Connect your watch"
@@ -543,22 +503,6 @@ private fun WatchfaceDetailScreen(
             downloadingLabel = transferPhase,
             successLabel = "Transfer complete"
         )
-
-        if (!watchState.isConnected) {
-            Text(
-                "Connect your watch to send this face over Bluetooth.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                lineHeight = 16.sp
-            )
-        } else if (!watchState.supportsSifliWatchface) {
-            Text(
-                "This watch does not expose the SiFli watchface transfer service.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                lineHeight = 16.sp
-            )
-        }
 
         if (transferError != null) {
             Text(
@@ -669,24 +613,53 @@ private suspend fun downloadWatchfaceArchive(
     }
 }
 
+
+private val watchfacePreviewMemoryCache = object : LruCache<String, ByteArray>(8 * 1024 * 1024) {
+    override fun sizeOf(key: String, value: ByteArray): Int = value.size
+}
+
+private suspend fun loadCachedWatchfacePreview(context: Context, url: String): ByteArray? =
+    withContext(Dispatchers.IO) {
+        watchfacePreviewMemoryCache.get(url)?.let { return@withContext it }
+        val directory = File(context.cacheDir, "store-previews")
+        if (!directory.exists()) directory.mkdirs()
+        val cachedFile = File(directory, url.hashCode().toUInt().toString(16) + ".img")
+        if (cachedFile.exists() && cachedFile.length() in 1..8_388_608L) {
+            val cached = runCatching { cachedFile.readBytes() }.getOrNull()
+            if (cached != null) {
+                watchfacePreviewMemoryCache.put(url, cached)
+                return@withContext cached
+            }
+        }
+
+        var connection: HttpURLConnection? = null
+        try {
+            connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 7_000
+                readTimeout = 9_000
+                setRequestProperty("User-Agent", "Plum-Watch-Android")
+                setRequestProperty("Cache-Control", "public, max-age=86400")
+            }
+            if (connection.responseCode !in 200..299) return@withContext null
+            val data = connection.inputStream.use { it.readBytes() }
+            if (data.isEmpty() || data.size > 8 * 1024 * 1024) return@withContext null
+            runCatching { cachedFile.writeBytes(data) }
+            watchfacePreviewMemoryCache.put(url, data)
+            data
+        } catch (_: Exception) {
+            null
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
 @Composable
 private fun WatchfaceArtwork(
     url: String?,
     modifier: Modifier = Modifier
 ) {
     val bytes by produceState<ByteArray?>(initialValue = null, key1 = url) {
-        value = if (url.isNullOrBlank()) null else withContext(Dispatchers.IO) {
-            runCatching {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.connectTimeout = 10_000
-                connection.readTimeout = 12_000
-                try {
-                    connection.inputStream.use { it.readBytes() }
-                } finally {
-                    connection.disconnect()
-                }
-            }.getOrNull()
-        }
+        value = if (url.isNullOrBlank()) null else loadCachedWatchfacePreview(context, url)
     }
     val movie = remember(bytes) {
         bytes?.let { Movie.decodeByteArray(it, 0, it.size) }?.takeIf { it.width() > 0 && it.height() > 0 }
@@ -713,7 +686,7 @@ private fun WatchfaceArtwork(
                 canvas.drawColor(android.graphics.Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
                 movie.draw(canvas, 0f, 0f)
                 frameBitmap = frame.copy(Bitmap.Config.ARGB_8888, false)
-                delay(70)
+                delay(100)
             }
         }
     }

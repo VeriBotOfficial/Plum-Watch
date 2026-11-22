@@ -4,8 +4,11 @@ on:
   push:
     branches: [main]
     paths:
+      - "store/watchfaces/*.zip"
+      - "store/apps/**"
       - "store/**"
       - "scripts/build_store_catalog.py"
+      - "scripts/ezip_preview.py"
       - ".github/workflows/store-catalogue.yml"
   workflow_dispatch:
 
@@ -28,7 +31,7 @@ jobs:
           python-version: "3.12"
       - name: Install preview tooling
         run: python -m pip install --upgrade Pillow
-      - name: Validate packages and generate catalogue
+      - name: Validate ZIPs and generate catalogue/previews
         run: python scripts/build_store_catalog.py --write
       - name: Commit generated catalogue and previews
         run: |

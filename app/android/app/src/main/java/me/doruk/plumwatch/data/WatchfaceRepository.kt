@@ -13,9 +13,6 @@ data class Watchface(
     val previewUrl: String?,
     val archiveUrl: String,
     val archiveSizeBytes: Long? = null,
-    val description: String? = null,
-    val author: String? = null,
-    val version: String? = null,
     val animatedPreviewUrl: String? = null
 )
 
@@ -71,9 +68,6 @@ object WatchfaceRepository {
                             previewUrl = preview,
                             archiveUrl = archive,
                             archiveSizeBytes = archiveSizeBytes,
-                            description = item.optString("description").takeIf { it.isNotBlank() },
-                            author = item.optString("author").takeIf { it.isNotBlank() },
-                            version = item.optString("version").takeIf { it.isNotBlank() },
                             animatedPreviewUrl = animatedPreview
                         )
                     )

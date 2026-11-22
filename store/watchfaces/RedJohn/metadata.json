@@ -1,8 +1,0 @@
-{
-  "name": "Red John",
-  "description": "Animated SiFli watchface. Preview frames are extracted from its EZIP background resources.",
-  "author": "Unknown",
-  "version": "1.0.0",
-  "category": "Animated",
-  "previewFrameDurationMs": 120
-}
