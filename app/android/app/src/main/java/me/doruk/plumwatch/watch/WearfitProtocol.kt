@@ -99,6 +99,36 @@ internal object WearfitProtocol {
         )
     }
 
+    /**
+     * Splits long Wearfit messages for the default 20-byte ATT write size:
+     * the first write carries 20 bytes, then each continuation carries a one-byte
+     * sequence index followed by up to 19 message bytes. This is consistent with
+     * the APK's 20/19-byte OrderUtil split pattern and an independent live Wearfit
+     * X10 trace. Confirm the index convention against the HK 10 Pro Max+ before
+     * treating it as portable across all Wearfit device families.
+     */
+    fun splitLongMessage(message: ByteArray): List<ByteArray> {
+        require(message.isNotEmpty()) { "Wearfit message cannot be empty." }
+        if (message.size <= 20) return listOf(message.copyOf())
+
+        val fragments = ArrayList<ByteArray>()
+        fragments += message.copyOfRange(0, 20)
+
+        var offset = 20
+        var sequence = 1
+        while (offset < message.size) {
+            require(sequence <= 0xFF) { "Wearfit message requires too many BLE fragments." }
+            val count = minOf(19, message.size - offset)
+            val fragment = ByteArray(count + 1)
+            fragment[0] = sequence.toByte()
+            System.arraycopy(message, offset, fragment, 1, count)
+            fragments += fragment
+            offset += count
+            sequence++
+        }
+        return fragments
+    }
+
     private fun truncateUtf8(value: String, maxBytes: Int): ByteArray {
         val complete = value.toByteArray(Charsets.UTF_8)
         if (complete.size <= maxBytes) return complete
