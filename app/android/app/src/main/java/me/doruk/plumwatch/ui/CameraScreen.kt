@@ -149,9 +149,9 @@ fun CameraScreen(
         if (hasCameraPermission) {
             watchCameraEnabled = watchManager.startCamera()
             statusMessage = if (watchCameraEnabled) {
-                "Camera connected to the watch. Shake the watch to take a photo."
+                "Watch camera mode enabled. The phone preview stays on this screen; the watch sends shutter and lens-switch commands."
             } else {
-                "Phone camera is ready, but the watch command could not be queued."
+                "Phone preview is ready, but the watch camera command could not be queued."
             }
         }
     }
