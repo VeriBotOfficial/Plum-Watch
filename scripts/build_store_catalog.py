@@ -11,7 +11,7 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote
 
-from PIL import Image, ImageOps, ImageSequence, ImageStat
+from PIL import Image, ImageDraw, ImageOps, ImageSequence, ImageStat
 from ezip_preview import decode_ezip_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +53,91 @@ def choose_preview(zf: zipfile.ZipFile):
     return images[0] if len(images) == 1 else None
 
 
+def _clock_digit_assets(zf: zipfile.ZipFile) -> dict[int, Image.Image]:
+    """Decode the numbered SiFli clock glyphs (01..10 => 0..9)."""
+    digits = {}
+    for entry in safe_zip_files(zf):
+        match = re.search(r"_time_num_(\\d+)\\.bin$", Path(entry.filename).name, re.IGNORECASE)
+        if not match:
+            continue
+        try:
+            number = int(match.group(1))
+            if 1 <= number <= 10:
+                image = decode_ezip_bytes(zf.read(entry)).convert("RGBA")
+                # SiFli resource numbering is one-based: 01 is zero, 10 is nine.
+                digits[number - 1 if number < 10 else 9] = image
+        except Exception:
+            continue
+    return digits
+
+
+def _render_clock_preview(background: Image.Image, digits: dict[int, Image.Image]) -> Image.Image:
+    """Composite a representative 10:08 digital clock from the watchface's own glyphs."""
+    required = (1, 0, 0, 8)
+    if not all(number in digits for number in required):
+        return background.convert("RGBA")
+
+    canvas = background.convert("RGBA")
+    glyphs = []
+    for number in required:
+        glyph = digits[number]
+        alpha = glyph.getchannel("A")
+        bounds = alpha.getbbox()
+        if bounds:
+            glyph = glyph.crop(bounds)
+        else:
+            continue
+        glyphs.append(glyph)
+
+    if len(glyphs) != 4:
+        return canvas
+
+    # Keep the original glyph design and aspect ratio; scale as one clock group.
+    target_height = max(18, int(canvas.height * 0.105))
+    scaled = []
+    for glyph in glyphs:
+        height = min(target_height, max(1, glyph.height))
+        width = max(1, round(glyph.width * height / glyph.height))
+        scaled.append(glyph.resize((width, height), Image.Resampling.LANCZOS))
+
+    gap = max(2, round(target_height * 0.09))
+    colon_width = max(4, round(target_height * 0.15))
+    colon_gap = max(2, round(target_height * 0.06))
+    clock_width = sum(g.width for g in scaled) + gap * 3 + colon_width + colon_gap * 2
+    clock_height = max(g.height for g in scaled)
+    x = max(0, (canvas.width - clock_width) // 2)
+    # A restrained upper-middle placement keeps the clock legible without
+    # covering the central subject in most portrait watchface compositions.
+    y = max(0, round(canvas.height * 0.31) - clock_height // 2)
+
+    positions = []
+    cursor = x
+    for index, glyph in enumerate(scaled):
+        positions.append((cursor, y + (clock_height - glyph.height) // 2))
+        cursor += glyph.width
+        if index == 1:
+            cursor += colon_gap
+            cursor += colon_width
+            cursor += colon_gap
+        elif index < 3:
+            cursor += gap
+
+    for glyph, position in zip(scaled, positions):
+        canvas.alpha_composite(glyph, position)
+
+    # Match the colon to the glyph artwork instead of introducing a new font.
+    sample = scaled[1].getpixel((scaled[1].width // 2, scaled[1].height // 2))
+    color = sample if sample[3] > 0 else (255, 255, 255, 230)
+    colon_x = positions[1][0] + scaled[1].width + colon_gap
+    colon_x += max(0, (colon_width - max(2, target_height // 10)) // 2)
+    dot = max(2, target_height // 10)
+    draw = ImageDraw.Draw(canvas)
+    center_y = y + clock_height // 2
+    draw.ellipse((colon_x, center_y - dot * 2, colon_x + dot, center_y - dot), fill=color)
+    draw.ellipse((colon_x, center_y + dot, colon_x + dot, center_y + dot * 2), fill=color)
+    return canvas
+
+
 def make_ezip_animation(zf: zipfile.ZipFile, item: dict, output_dir: Path) -> bool:
     candidates = []
     for entry in safe_zip_files(zf):
@@ -68,10 +153,17 @@ def make_ezip_animation(zf: zipfile.ZipFile, item: dict, output_dir: Path) -> bo
     if len({frame.size for frame in frames}) != 1:
         raise ValueError(f"{item['name']}: EZIP frames have inconsistent dimensions")
 
+    # SiFli dynamic modules store the clock as separate numbered image assets.
+    # Render a stable sample time into every animated frame using those assets.
+    clock_digits = _clock_digit_assets(zf)
+    rgba_frames = [
+        _render_clock_preview(frame, clock_digits) if clock_digits else frame.convert("RGBA")
+        for frame in frames
+    ]
+
     output_dir.mkdir(parents=True, exist_ok=True)
     gif_name = item["id"] + ".gif"
     duration = 120
-    rgba_frames = [frame.convert("RGBA") for frame in frames]
     rgba_frames[0].save(
         output_dir / gif_name,
         save_all=True,
