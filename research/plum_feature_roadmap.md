@@ -17,7 +17,8 @@
 
 ## Priority 1 — low-risk, directly evidenced additions
 
-- Shake-to-capture setting: Wearfit exposes `setSharkTakePhoto`, and Plum now exposes this as a separate toggle rather than coupling it to camera mode.
+- Shake-to-capture setting: Wearfit exposes `setSharkTakePhoto`, and Plum exposes this as a separate toggle rather than coupling it to camera mode.
+- Sleep mode and physical training: Plum's existing packet builders are now exposed in Other Settings using `setSleepMode` and `setPhysicalTraining`.
 - Keep one-shot HR/SpO₂ requests distinct from history sync.
 - Expose health samples with timestamps and an explicit distinction between locally received history and watch backfill.
 - Keep Wearfit command, FTP file transfer, SiFli watchface transfer and picture-transfer packet families isolated in their own protocol modules.
