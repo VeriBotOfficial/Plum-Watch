@@ -1,0 +1,6 @@
+package io.appmetrica.analytics.impl;
+
+/* loaded from: classes6.dex */
+public interface J8 {
+    boolean b();
+}

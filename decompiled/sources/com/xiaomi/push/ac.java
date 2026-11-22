@@ -1,0 +1,25 @@
+package com.xiaomi.push;
+
+import android.content.Context;
+
+/* loaded from: classes4.dex */
+public class ac {
+
+    /* renamed from: a, reason: collision with root package name */
+    static final char[] f14416a = "0123456789ABCDEF".toCharArray();
+
+    public static boolean a(Context context) {
+        return ab.f14415a;
+    }
+
+    public static String a(byte[] bArr, int i, int i2) {
+        StringBuilder sb = new StringBuilder(i2 * 2);
+        for (int i3 = 0; i3 < i2; i3++) {
+            byte b = bArr[i + i3];
+            char[] cArr = f14416a;
+            sb.append(cArr[(b & 255) >> 4]);
+            sb.append(cArr[b & 15]);
+        }
+        return sb.toString();
+    }
+}

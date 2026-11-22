@@ -1,0 +1,47 @@
+package com.anythink.basead.exoplayer;
+
+/* loaded from: classes11.dex */
+public final class ac {
+
+    /* renamed from: a, reason: collision with root package name */
+    public static final ac f2359a;
+    public static final ac b;
+    public static final ac c;
+    public static final ac d;
+    public static final ac e;
+    public final long f;
+    public final long g;
+
+    static {
+        ac acVar = new ac(0L, 0L);
+        f2359a = acVar;
+        b = new ac(Long.MAX_VALUE, Long.MAX_VALUE);
+        c = new ac(Long.MAX_VALUE, 0L);
+        d = new ac(0L, Long.MAX_VALUE);
+        e = acVar;
+    }
+
+    public ac(long j, long j2) {
+        com.anythink.basead.exoplayer.k.a.a(j >= 0);
+        com.anythink.basead.exoplayer.k.a.a(j2 >= 0);
+        this.f = j;
+        this.g = j2;
+    }
+
+    public final boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj != null && getClass() == obj.getClass()) {
+            ac acVar = (ac) obj;
+            if (this.f == acVar.f && this.g == acVar.g) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public final int hashCode() {
+        return (((int) this.f) * 31) + ((int) this.g);
+    }
+}

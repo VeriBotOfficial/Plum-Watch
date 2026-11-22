@@ -1,0 +1,22 @@
+package com.hp.hpl.sparta.xpath;
+
+import android.gov.nist.core.Separators;
+import com.hp.hpl.sparta.Sparta;
+
+/* loaded from: classes12.dex */
+public abstract class AttrCompareExpr extends AttrExpr {
+    private final String attrValue_;
+
+    AttrCompareExpr(String str, String str2) {
+        super(str);
+        this.attrValue_ = Sparta.intern(str2);
+    }
+
+    public String getAttrValue() {
+        return this.attrValue_;
+    }
+
+    protected String toString(String str) {
+        return "[" + super.toString() + str + Separators.QUOTE + this.attrValue_ + "']";
+    }
+}

@@ -1,0 +1,23 @@
+package com.iab.omid.library.bigosg.adsession.media;
+
+import com.anythink.core.express.b.a;
+
+/* loaded from: classes17.dex */
+public enum PlayerState {
+    MINIMIZED("minimized"),
+    COLLAPSED("collapsed"),
+    NORMAL("normal"),
+    EXPANDED(a.g),
+    FULLSCREEN("fullscreen");
+
+    private final String playerState;
+
+    PlayerState(String str) {
+        this.playerState = str;
+    }
+
+    @Override // java.lang.Enum
+    public final String toString() {
+        return this.playerState;
+    }
+}

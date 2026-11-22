@@ -1,0 +1,10 @@
+package com.yandex.mobile.ads.impl;
+
+import android.view.View;
+
+/* loaded from: classes5.dex */
+public interface lz1 {
+    void a(View view);
+
+    void b(View view);
+}

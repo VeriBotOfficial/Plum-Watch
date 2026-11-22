@@ -1,0 +1,6 @@
+package com.baidu.platform.comapi.map.b0;
+
+/* compiled from: MapOnTouchMoveEvent.java */
+/* loaded from: classes13.dex */
+public class c {
+}

@@ -1,0 +1,15 @@
+package com.chad.library.adapter.base.listener;
+
+import android.graphics.Canvas;
+import androidx.recyclerview.widget.RecyclerView;
+
+/* loaded from: classes14.dex */
+public interface OnItemSwipeListener {
+    void clearView(RecyclerView.ViewHolder viewHolder, int pos);
+
+    void onItemSwipeMoving(Canvas canvas, RecyclerView.ViewHolder viewHolder, float dX, float dY, boolean isCurrentlyActive);
+
+    void onItemSwipeStart(RecyclerView.ViewHolder viewHolder, int pos);
+
+    void onItemSwiped(RecyclerView.ViewHolder viewHolder, int pos);
+}

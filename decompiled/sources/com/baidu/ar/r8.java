@@ -1,0 +1,28 @@
+package com.baidu.ar;
+
+import com.baidu.ar.ihttp.HttpFactory;
+import com.baidu.ar.ihttp.IHttpRequest;
+import org.json.JSONObject;
+
+/* loaded from: classes12.dex */
+public class r8 {
+    public static void a() {
+        HttpFactory.release();
+    }
+
+    public static void a(String str, JSONObject jSONObject, c6 c6Var) {
+        IHttpRequest newRequest = HttpFactory.newRequest();
+        if (newRequest != null) {
+            newRequest.setMethod("POST").setUrl(str).setBody(jSONObject);
+            newRequest.enqueue(c6Var);
+        }
+    }
+
+    public static void a(String str, byte[] bArr, c6 c6Var) {
+        try {
+            HttpFactory.newRequest().setUrl(str).addHeader("Content-Type:application/protobuf").setMethod("POST").setBody(bArr).enqueue(c6Var);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}

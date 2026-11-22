@@ -1,0 +1,15 @@
+package com.wakeup.commponent.api;
+
+import android.content.Context;
+import android.view.View;
+import com.alibaba.android.arouter.facade.template.IProvider;
+import kotlin.Metadata;
+
+/* compiled from: TrendService.kt */
+@Metadata(d1 = {"\u0000\u001e\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0010\u0002\n\u0002\b\u0002\bf\u0018\u00002\u00020\u0001J\u0010\u0010\u0002\u001a\u00020\u00032\u0006\u0010\u0004\u001a\u00020\u0005H&J\u0010\u0010\u0006\u001a\u00020\u00072\u0006\u0010\b\u001a\u00020\u0003H&¨\u0006\t"}, d2 = {"Lcom/wakeup/commponent/api/TrendService;", "Lcom/alibaba/android/arouter/facade/template/IProvider;", "getTrendView", "Landroid/view/View;", "context", "Landroid/content/Context;", "refreshView", "", "view", "commponent_overseasRelease"}, k = 1, mv = {2, 0, 0}, xi = 48)
+/* loaded from: classes2.dex */
+public interface TrendService extends IProvider {
+    View getTrendView(Context context);
+
+    void refreshView(View view);
+}

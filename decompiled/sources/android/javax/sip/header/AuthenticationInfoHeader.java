@@ -1,0 +1,28 @@
+package android.javax.sip.header;
+
+import java.text.ParseException;
+
+/* loaded from: classes.dex */
+public interface AuthenticationInfoHeader extends Parameters, Header {
+    public static final String NAME = "Authentication-Info";
+
+    String getCNonce();
+
+    String getNextNonce();
+
+    int getNonceCount();
+
+    String getQop();
+
+    String getResponse();
+
+    void setCNonce(String str) throws ParseException;
+
+    void setNextNonce(String str) throws ParseException;
+
+    void setNonceCount(int i) throws ParseException;
+
+    void setQop(String str) throws ParseException;
+
+    void setResponse(String str) throws ParseException;
+}

@@ -1,0 +1,294 @@
+package com.wakeup.module.ai;
+
+/* loaded from: classes4.dex */
+public final class R {
+
+    public static final class drawable {
+        public static int ic_ai_empty = 0x7f080541;
+        public static int ic_ai_history = 0x7f08054b;
+        public static int ic_ai_robot_history_empty = 0x7f08054f;
+        public static int ic_ai_subtitle_window_close = 0x7f080563;
+        public static int ic_ai_subtitle_window_jump = 0x7f080564;
+        public static int ic_ai_subtitles_n = 0x7f080565;
+        public static int ic_ai_subtitles_s = 0x7f080566;
+        public static int ic_ai_subtitles_tip = 0x7f080567;
+        public static int ic_app_llm_copy = 0x7f08057b;
+        public static int ic_app_llm_play = 0x7f08057c;
+        public static int ic_app_llm_stop = 0x7f08057d;
+        public static int ic_black_share = 0x7f0805ca;
+        public static int ic_call_record_end = 0x7f0805e6;
+        public static int ic_call_record_language = 0x7f0805e7;
+        public static int ic_call_record_player = 0x7f0805e8;
+        public static int ic_call_record_restart = 0x7f0805e9;
+        public static int ic_call_record_stop = 0x7f0805ea;
+        public static int ic_call_recorded = 0x7f0805eb;
+        public static int ic_call_recording = 0x7f0805ec;
+        public static int ic_change = 0x7f080603;
+        public static int ic_chat_copy = 0x7f080606;
+        public static int ic_chat_refresh = 0x7f080615;
+        public static int ic_chat_robot = 0x7f080616;
+        public static int ic_chat_send = 0x7f080617;
+        public static int ic_chat_user = 0x7f08061b;
+        public static int ic_chat_voice = 0x7f08061c;
+        public static int ic_chat_voice_play = 0x7f08061d;
+        public static int ic_chat_voice_play_mute = 0x7f08061e;
+        public static int ic_deep_thinking = 0x7f080732;
+        public static int ic_deep_thinking_sel = 0x7f080733;
+        public static int ic_def_ripple = 0x7f080734;
+        public static int ic_input_key_board = 0x7f0808fa;
+        public static int ic_no_change = 0x7f0809fb;
+        public static int ic_ocr_bg_large = 0x7f080a12;
+        public static int ic_pause = 0x7f080a24;
+        public static int ic_play = 0x7f080a72;
+        public static int ic_record_call_notify = 0x7f080aa3;
+        public static int ic_record_call_window = 0x7f080aa4;
+        public static int ic_sim_history = 0x7f080b0f;
+        public static int ic_sound = 0x7f080b20;
+        public static int ic_sound_arrow_down = 0x7f080b21;
+        public static int ic_sound_audio = 0x7f080b22;
+        public static int ic_sound_del = 0x7f080b24;
+        public static int ic_sound_pause = 0x7f080b2a;
+        public static int ic_sound_play = 0x7f080b2b;
+        public static int ic_sound_progress = 0x7f080b2c;
+        public static int ic_sound_share = 0x7f080b2d;
+        public static int ic_sound_txt = 0x7f080b2e;
+        public static int ic_speak_bg = 0x7f080b2f;
+        public static int ic_swap = 0x7f080bc5;
+        public static int ic_tran_swap = 0x7f080bff;
+        public static int ic_translation_fill = 0x7f080c0a;
+        public static int ic_translation_nor = 0x7f080c0b;
+        public static int ic_triangle_sel = 0x7f080c0f;
+        public static int ic_voice = 0x7f080c4f;
+        public static int ic_voice_mute = 0x7f080c51;
+        public static int iv_case = 0x7f080dd5;
+        public static int sel_deep_think_bg = 0x7f081046;
+        public static int shape_24d1bd_r999 = 0x7f08108c;
+        public static int shape_answer_bg = 0x7f0810aa;
+        public static int shape_cc000000_r16 = 0x7f0810d8;
+        public static int shape_chat_btn = 0x7f0810dd;
+        public static int shape_f9e5cf_r8 = 0x7f081171;
+        public static int shape_left_ff7300_r8 = 0x7f0811d3;
+        public static int shape_question_bg = 0x7f0811f1;
+        public static int shape_right_f3b30_r8 = 0x7f0811fc;
+        public static int shape_sound_seekbar_bg = 0x7f08121a;
+        public static int shape_speak_tip_nor = 0x7f08121b;
+        public static int shape_speak_tip_sel = 0x7f08121c;
+
+        private drawable() {
+        }
+    }
+
+    public static final class id {
+        public static int aee_ts = 0x7f0a009e;
+        public static int avatar_layout = 0x7f0a02e5;
+        public static int back_img = 0x7f0a02f7;
+        public static int bottom_layout = 0x7f0a03b4;
+        public static int btnShare = 0x7f0a040f;
+        public static int btn_delete = 0x7f0a0423;
+        public static int btn_left = 0x7f0a042f;
+        public static int btn_right = 0x7f0a0438;
+        public static int btn_share = 0x7f0a043d;
+        public static int chat_bottom_layout = 0x7f0a04cb;
+        public static int chat_content_rv = 0x7f0a04cc;
+        public static int chat_input_et = 0x7f0a04cf;
+        public static int cl_content = 0x7f0a051c;
+        public static int cl_deep_think = 0x7f0a051f;
+        public static int cl_lan = 0x7f0a0541;
+        public static int cl_language = 0x7f0a0542;
+        public static int cl_play = 0x7f0a0558;
+        public static int cl_query_img = 0x7f0a055f;
+        public static int cl_query_text = 0x7f0a0560;
+        public static int cl_result_music = 0x7f0a0568;
+        public static int cl_result_text = 0x7f0a0569;
+        public static int container = 0x7f0a05cc;
+        public static int et_answer = 0x7f0a079f;
+        public static int fl_close = 0x7f0a083b;
+        public static int fl_container = 0x7f0a0849;
+        public static int fl_jump = 0x7f0a085c;
+        public static int fl_restart = 0x7f0a0875;
+        public static int input_speak_tips_view = 0x7f0a09ec;
+        public static int item_chat_option_cl = 0x7f0a0af3;
+        public static int item_chat_user_img = 0x7f0a0afa;
+        public static int item_hs_chat_an_layout = 0x7f0a0b0f;
+        public static int item_hs_chat_copy = 0x7f0a0b10;
+        public static int item_hs_chat_gpt_content = 0x7f0a0b11;
+        public static int item_hs_chat_gpt_content_layout = 0x7f0a0b12;
+        public static int item_hs_chat_loading = 0x7f0a0b13;
+        public static int item_hs_chat_qt_layout = 0x7f0a0b14;
+        public static int item_hs_chat_reset = 0x7f0a0b15;
+        public static int item_hs_chat_user_content = 0x7f0a0b16;
+        public static int item_hs_chat_user_content_layout = 0x7f0a0b17;
+        public static int item_hs_chat_voice = 0x7f0a0b18;
+        public static int item_qs_chat_loading = 0x7f0a0b53;
+        public static int item_sound_ll = 0x7f0a0b62;
+        public static int ivAvatar = 0x7f0a0b7b;
+        public static int ivQr = 0x7f0a0bcc;
+        public static int iv_1 = 0x7f0a0be8;
+        public static int iv_2 = 0x7f0a0bea;
+        public static int iv_back = 0x7f0a0c0d;
+        public static int iv_bg = 0x7f0a0c19;
+        public static int iv_change = 0x7f0a0c31;
+        public static int iv_chat_gpt_copy = 0x7f0a0c32;
+        public static int iv_chat_user = 0x7f0a0c36;
+        public static int iv_close = 0x7f0a0c39;
+        public static int iv_deep_think = 0x7f0a0c54;
+        public static int iv_def_ripple = 0x7f0a0c55;
+        public static int iv_edit = 0x7f0a0c74;
+        public static int iv_expand_menu = 0x7f0a0c78;
+        public static int iv_key_board = 0x7f0a0cc9;
+        public static int iv_loading = 0x7f0a0cde;
+        public static int iv_menu = 0x7f0a0cef;
+        public static int iv_not_select = 0x7f0a0d11;
+        public static int iv_play = 0x7f0a0d20;
+        public static int iv_player = 0x7f0a0d28;
+        public static int iv_query_img_select = 0x7f0a0d36;
+        public static int iv_query_text_select = 0x7f0a0d37;
+        public static int iv_record = 0x7f0a0d3c;
+        public static int iv_record_flag = 0x7f0a0d3f;
+        public static int iv_result_text_select = 0x7f0a0d44;
+        public static int iv_robot = 0x7f0a0d46;
+        public static int iv_scroll_to_bottom = 0x7f0a0d4a;
+        public static int iv_send = 0x7f0a0d5c;
+        public static int iv_sound = 0x7f0a0d6b;
+        public static int iv_sound_voice = 0x7f0a0d6d;
+        public static int iv_speak_triangle = 0x7f0a0d70;
+        public static int iv_start = 0x7f0a0d7c;
+        public static int iv_swap = 0x7f0a0d8c;
+        public static int iv_voice = 0x7f0a0dba;
+        public static int key_board_layout = 0x7f0a0dd8;
+        public static int lan_layout = 0x7f0a0ded;
+        public static int line = 0x7f0a0e5f;
+        public static int ll_after = 0x7f0a0ec8;
+        public static int ll_before = 0x7f0a0ef7;
+        public static int ll_content = 0x7f0a0f18;
+        public static int ll_empty = 0x7f0a0f37;
+        public static int ll_iv = 0x7f0a0f78;
+        public static int ll_tip = 0x7f0a1013;
+        public static int ll_title = 0x7f0a1014;
+        public static int nestedScrollView = 0x7f0a1284;
+        public static int no_data_layout = 0x7f0a12aa;
+        public static int recyclerview = 0x7f0a1406;
+        public static int rv_call_record = 0x7f0a14f7;
+        public static int rv_chat = 0x7f0a14fb;
+        public static int rv_content = 0x7f0a1503;
+        public static int rv_history = 0x7f0a151b;
+        public static int rv_top = 0x7f0a1553;
+        public static int sb_player = 0x7f0a156b;
+        public static int scrollView = 0x7f0a15b7;
+        public static int seek_bar = 0x7f0a15e2;
+        public static int share_logo = 0x7f0a1615;
+        public static int space = 0x7f0a166d;
+        public static int space_view = 0x7f0a1673;
+        public static int speak_layout = 0x7f0a1675;
+        public static int speak_tip_layout = 0x7f0a1676;
+        public static int status_bar_layout = 0x7f0a16c6;
+        public static int title_bar = 0x7f0a17c7;
+        public static int toolbar = 0x7f0a17e3;
+        public static int topBar = 0x7f0a17e9;
+        public static int top_layout = 0x7f0a17f1;
+        public static int track_layout = 0x7f0a1816;
+        public static int tvTime = 0x7f0a19bb;
+        public static int tvUserName = 0x7f0a19cf;
+        public static int tv_after_lan = 0x7f0a1a01;
+        public static int tv_asr = 0x7f0a1a35;
+        public static int tv_before_lan = 0x7f0a1a51;
+        public static int tv_cancel = 0x7f0a1a80;
+        public static int tv_connect = 0x7f0a1ab6;
+        public static int tv_content = 0x7f0a1abd;
+        public static int tv_deep_think = 0x7f0a1af8;
+        public static int tv_desc = 0x7f0a1afd;
+        public static int tv_disconnect = 0x7f0a1b29;
+        public static int tv_duration = 0x7f0a1b3d;
+        public static int tv_edit = 0x7f0a1b45;
+        public static int tv_end_time = 0x7f0a1b4d;
+        public static int tv_flag = 0x7f0a1b88;
+        public static int tv_item_result = 0x7f0a1c28;
+        public static int tv_item_top = 0x7f0a1c2a;
+        public static int tv_item_voice = 0x7f0a1c2b;
+        public static int tv_key_board = 0x7f0a1c3c;
+        public static int tv_lan_left = 0x7f0a1c53;
+        public static int tv_lan_right = 0x7f0a1c54;
+        public static int tv_limit = 0x7f0a1c66;
+        public static int tv_more = 0x7f0a1c98;
+        public static int tv_music_name = 0x7f0a1c9f;
+        public static int tv_music_singer = 0x7f0a1ca0;
+        public static int tv_name = 0x7f0a1ca3;
+        public static int tv_question = 0x7f0a1d22;
+        public static int tv_share = 0x7f0a1d90;
+        public static int tv_share_audio = 0x7f0a1d91;
+        public static int tv_share_txt = 0x7f0a1d97;
+        public static int tv_source_lan = 0x7f0a1db7;
+        public static int tv_speak_tip = 0x7f0a1dbf;
+        public static int tv_start_act = 0x7f0a1dd7;
+        public static int tv_start_record = 0x7f0a1dd9;
+        public static int tv_start_sound = 0x7f0a1dda;
+        public static int tv_start_time = 0x7f0a1ddb;
+        public static int tv_stop_record = 0x7f0a1dee;
+        public static int tv_sure = 0x7f0a1dfe;
+        public static int tv_time = 0x7f0a1e20;
+        public static int tv_time_current = 0x7f0a1e21;
+        public static int tv_time_total = 0x7f0a1e25;
+        public static int tv_tip = 0x7f0a1e2b;
+        public static int tv_tip2 = 0x7f0a1e2d;
+        public static int tv_title = 0x7f0a1e36;
+        public static int tv_trans = 0x7f0a1e43;
+        public static int tv_trans_lan = 0x7f0a1e44;
+        public static int view_bar = 0x7f0a1f0f;
+        public static int view_line = 0x7f0a1f31;
+        public static int view_wave = 0x7f0a1f5f;
+
+        private id() {
+        }
+    }
+
+    public static final class layout {
+        public static int activity_ai_subtitles = 0x7f0d0032;
+        public static int activity_app_llm = 0x7f0d003d;
+        public static int activity_app_llm_share = 0x7f0d003e;
+        public static int activity_call_record = 0x7f0d005f;
+        public static int activity_call_record_select = 0x7f0d0060;
+        public static int activity_call_recording = 0x7f0d0061;
+        public static int activity_common_siminter = 0x7f0d0077;
+        public static int activity_sound_history = 0x7f0d01b5;
+        public static int activity_sound_history_details = 0x7f0d01b6;
+        public static int activity_test = 0x7f0d01cb;
+        public static int activity_wear_fit_ai = 0x7f0d01e9;
+        public static int activity_wear_fit_ai_history = 0x7f0d01ea;
+        public static int adapter_ai_chat_history_item = 0x7f0d01ff;
+        public static int adapter_chat_item = 0x7f0d0202;
+        public static int adapter_sound_records_item = 0x7f0d023c;
+        public static int dialog_ai_subtitles_close = 0x7f0d03e8;
+        public static int dialog_ai_subtitles_tip = 0x7f0d03e9;
+        public static int dialog_network_share_tip = 0x7f0d0459;
+        public static int dialog_record_edit = 0x7f0d0468;
+        public static int dialog_sound_share = 0x7f0d047e;
+        public static int item_ai_subtitles = 0x7f0d0577;
+        public static int item_ai_subtitles_window = 0x7f0d0578;
+        public static int item_app_llm_query_img = 0x7f0d0582;
+        public static int item_app_llm_query_text = 0x7f0d0583;
+        public static int item_app_llm_result_music = 0x7f0d0584;
+        public static int item_app_llm_result_text = 0x7f0d0585;
+        public static int item_bottom_normal = 0x7f0d0599;
+        public static int item_sound_txt = 0x7f0d067f;
+        public static int item_top_normal = 0x7f0d0690;
+        public static int layout_ai_subtitles_window = 0x7f0d069d;
+        public static int layout_record_call_notify = 0x7f0d0703;
+        public static int layout_robot_history_empty = 0x7f0d0705;
+        public static int view_window_record_call = 0x7f0d0885;
+
+        private layout() {
+        }
+    }
+
+    public static final class raw {
+        public static int chat_loading = 0x7f120007;
+        public static int chat_talk_loading = 0x7f12000b;
+        public static int chat_talk_loading_ff7300 = 0x7f12000c;
+
+        private raw() {
+        }
+    }
+
+    private R() {
+    }
+}

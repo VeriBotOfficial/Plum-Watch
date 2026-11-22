@@ -1,0 +1,100 @@
+package com.facebook.ads.redexgen.core;
+
+import com.beken.iot.smartsdk.core.pack.TransmissionUnpacked;
+import com.bluetrum.fota.manager.OtaCommandGenerator;
+import com.facebook.ads.internal.protocol.AdPlacementType;
+import com.hispark.crashdump.protocol.ProtocolBytes;
+import java.util.Arrays;
+
+/* loaded from: assets/audience_network.dex */
+public enum V6 {
+    A08(0),
+    A0G(4),
+    A0E(5),
+    A0F(6),
+    A0D(7),
+    A0J(100),
+    A0H(101),
+    A0K(102),
+    A0I(103),
+    A06(200),
+    A05(500),
+    A0A(800),
+    A09(801),
+    A0B(802),
+    A0C(803),
+    A04(201),
+    A07(400);
+
+    public static byte[] A01;
+    public static String[] A02 = {"xoorjXA1", "8Kzlxbd9kJAGgJ5s8zqJUL1qe9AHIUIK", "QN8uUwufS", "PR18pZpjozcSIXZf4lT3cJvr", "JMDwiJH22MlTXTQl0rguW6wocaX22ztq", "QzXzl66JDgXK1aMRt97r55ZmRT3IeIsK", "DoSMlBJtaYqhAaTANnzLFPIy6BzbSWA6", "RbI1uUei9L7jeefFAATAgb7svM9foe7U"};
+    public final int A00;
+
+    public static String A01(int i, int i2, int i3) {
+        byte[] copyOfRange = Arrays.copyOfRange(A01, i, i + i2);
+        for (int i4 = 0; i4 < copyOfRange.length; i4++) {
+            copyOfRange[i4] = (byte) ((copyOfRange[i4] - i3) - 72);
+        }
+        return new String(copyOfRange);
+    }
+
+    public static void A02() {
+        A01 = new byte[]{-18, -31, -12, -23, -10, -27, -1, -46, TransmissionUnpacked.HD_VAL_MAGIC_LB, -48, -36, -49, -30, -41, -28, -45, -19, -48, -49, -36, -36, -45, -32, -38, -51, -32, TransmissionUnpacked.HD_VAL_MAGIC_LB, -30, -47, -21, -31, -38, -41, -38, -37, -29, -38, -57, -70, -52, -74, -57, -71, -70, -71, -44, -53, -66, -71, -70, -60, -82, -89, -92, -89, -88, -80, -89, -89, -93, -80, -97, OtaCommandGenerator.CMD_GET_INFO_TLV, -91, -102, -89, -106, -80, -99, OtaCommandGenerator.CMD_GET_INFO_TLV, -97, -107, -92, -108, OtaCommandGenerator.CMD_GET_INFO_TLV, -95, -106, -80, -126, -121, -80, -118, -75, -79, -66, -83, OtaCommandGenerator.CMD_OTA_INFO, -77, -88, -75, -92, -66, ProtocolBytes.SOF, -82, -79, -77, -79, OtaCommandGenerator.CMD_OTA_INFO, -88, -77, -66, -104, -66, OtaCommandGenerator.CMD_NOTIFY_STATUS, -107, 9, 5, 18, 1, -12, 7, -4, 9, -8, 18, 6, 4, 8, -12, 5, -8, 18, -28, 18, -28, -58, -62, -49, -62, -75, -57, -79, -62, -76, -75, -76, -49, -58, -71, -76, -75, -65, -6, -24, -27, -7, -20, -24, -6, 2, -27, -28, -15, -15, -24, -11, 2, TransmissionUnpacked.HD_VAL_MAGIC_LB, -40, -45, -26, -44, -47, -27, -40, -44, -26, -18, -47, -48, -35, -35, -44, -31, -18, -60, -65, TransmissionUnpacked.HD_VAL_MAGIC_HB, -34, -37, -17, -30, -34, TransmissionUnpacked.HD_VAL_MAGIC_HB, -8, -37, -38, -25, -25, -34, -21, -8, -46, -55, -24, -42, -45, -25, -38, -42, -24, TransmissionUnpacked.HD_VAL_MAGIC_HB, -45, -46, -33, -33, -42, -29, TransmissionUnpacked.HD_VAL_MAGIC_HB, -35, -42, -40, -46, -44, -22, -89, -107, OtaCommandGenerator.CMD_GET_INFO_TLV, -90, -103, -107, -89, ProtocolBytes.SOF, -103, -98, -92, -107, -94, -93, -92, -103, -92, -103, OtaCommandGenerator.CMD_GET_INFO, -100, ProtocolBytes.SOF, -104, -97, -94, -103, -86, -97, -98, -92, OtaCommandGenerator.CMD_GET_INFO, -100, -85, -103, -106, -86, -99, -103, -85, -77, -99, -94, -88, -103, -90, -89, -88, -99, -88, -99, -107, OtaCommandGenerator.CMD_OTA_INFO, -77, -88, -107, -106, OtaCommandGenerator.CMD_OTA_INFO, -103, -88, -29, -47, -50, -30, TransmissionUnpacked.HD_VAL_MAGIC_LB, -47, -29, -21, TransmissionUnpacked.HD_VAL_MAGIC_LB, -38, -32, -47, -34, -33, -32, TransmissionUnpacked.HD_VAL_MAGIC_LB, -32, TransmissionUnpacked.HD_VAL_MAGIC_LB, -51, -40, -21, -31, -38, -41, -38, -37, -29, -38, -9, -27, -30, -10, -23, -27, -9, -1, -23, -18, -12, -27, -14, -13, -12, -23, -12, -23, -31, -20, -1, -10, -27, -14, -12, -23, -29, -31, -20};
+    }
+
+    static {
+        A02();
+    }
+
+    V6(int i) {
+        this.A00 = i;
+    }
+
+    public static V6 A00(int i) {
+        for (V6 v6 : values()) {
+            if (v6.A00 == i) {
+                return v6;
+            }
+        }
+        return null;
+    }
+
+    public final int A04() {
+        return this.A00;
+    }
+
+    public final AdPlacementType A05(SQ sq) {
+        switch (this) {
+            case A06:
+            case A0A:
+            case A09:
+            case A0B:
+                return AdPlacementType.NATIVE;
+            case A0E:
+            case A0G:
+            case A0F:
+                return AdPlacementType.BANNER;
+            case A0D:
+                boolean A19 = U7.A19(sq);
+                String[] strArr = A02;
+                if (strArr[2].length() == strArr[0].length()) {
+                    throw new RuntimeException();
+                }
+                A02[3] = "8GdGsJFXCQChVnySau0Thhv7";
+                if (A19) {
+                    return AdPlacementType.MEDIUM_RECTANGLE;
+                }
+                return AdPlacementType.BANNER;
+            case A0H:
+            case A0K:
+            case A0I:
+            case A0J:
+                return AdPlacementType.INTERSTITIAL;
+            case A07:
+            case A0C:
+                return AdPlacementType.REWARDED_VIDEO;
+            default:
+                return AdPlacementType.UNKNOWN;
+        }
+    }
+}

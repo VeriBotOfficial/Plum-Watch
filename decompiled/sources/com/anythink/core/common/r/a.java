@@ -1,0 +1,6 @@
+package com.anythink.core.common.r;
+
+/* loaded from: classes12.dex */
+public interface a {
+    void a(int i, h hVar);
+}

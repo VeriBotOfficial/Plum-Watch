@@ -1,0 +1,16 @@
+package android.javax.sdp;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+
+/* loaded from: classes.dex */
+public interface SdpEncoder {
+    void output(SessionDescription sessionDescription, OutputStream outputStream) throws IOException;
+
+    void setEncoding(String str) throws UnsupportedEncodingException;
+
+    void setRtpmapAttribute(boolean z);
+
+    void setTypedTime(boolean z);
+}

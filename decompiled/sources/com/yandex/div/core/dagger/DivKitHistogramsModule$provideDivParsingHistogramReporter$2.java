@@ -1,0 +1,21 @@
+package com.yandex.div.core.dagger;
+
+import java.util.concurrent.Executor;
+import javax.inject.Provider;
+import kotlin.Metadata;
+import kotlin.jvm.functions.Function0;
+import kotlin.jvm.internal.FunctionReferenceImpl;
+
+/* compiled from: DivKitHistogramsModule.kt */
+@Metadata(k = 3, mv = {1, 8, 0}, xi = 48)
+/* loaded from: classes5.dex */
+/* synthetic */ class DivKitHistogramsModule$provideDivParsingHistogramReporter$2 extends FunctionReferenceImpl implements Function0<Executor> {
+    DivKitHistogramsModule$provideDivParsingHistogramReporter$2(Object obj) {
+        super(0, obj, Provider.class, "get", "get()Ljava/lang/Object;", 0);
+    }
+
+    @Override // kotlin.jvm.functions.Function0
+    public final Executor invoke() {
+        return (Executor) ((Provider) this.receiver).get();
+    }
+}

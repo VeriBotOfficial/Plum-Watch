@@ -1,0 +1,28 @@
+package com.huawei.hms.support.api.entity.core;
+
+import com.huawei.hms.core.aidl.IMessageEntity;
+import com.huawei.hms.core.aidl.annotation.Packed;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import kotlinx.serialization.json.internal.AbstractJsonLexerKt;
+
+/* loaded from: classes14.dex */
+public class ConnectResp implements IMessageEntity {
+
+    @Packed
+    public List<Integer> protocolVersion = Arrays.asList(1, 2);
+
+    @Packed
+    public String sessionId;
+
+    public String toString() {
+        StringBuilder sb = new StringBuilder("protocol version:");
+        Iterator<Integer> it = this.protocolVersion.iterator();
+        while (it.hasNext()) {
+            sb.append(it.next());
+            sb.append(AbstractJsonLexerKt.COMMA);
+        }
+        return sb.toString();
+    }
+}

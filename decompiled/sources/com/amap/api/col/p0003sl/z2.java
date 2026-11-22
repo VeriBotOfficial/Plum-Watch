@@ -1,0 +1,28 @@
+package com.amap.api.col.p0003sl;
+
+/* compiled from: IDownloadListener.java */
+/* loaded from: classes11.dex */
+public interface z2 {
+
+    /* compiled from: IDownloadListener.java */
+    public enum a {
+        amap_exception(-1),
+        network_exception(-1),
+        file_io_exception(0),
+        success_no_exception(1),
+        cancel_no_exception(2);
+
+        a(int i) {
+        }
+    }
+
+    void a(long j, long j2);
+
+    void a(a aVar);
+
+    void g();
+
+    void onCancel();
+
+    void onFinish();
+}

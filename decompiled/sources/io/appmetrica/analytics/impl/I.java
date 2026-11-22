@@ -1,0 +1,22 @@
+package io.appmetrica.analytics.impl;
+
+import android.content.Context;
+import io.appmetrica.analytics.coreapi.internal.backport.Provider;
+
+/* loaded from: classes6.dex */
+public final class I implements Provider {
+
+    /* renamed from: a, reason: collision with root package name */
+    public final /* synthetic */ Context f17894a;
+    public final /* synthetic */ K b;
+
+    public I(K k, Context context) {
+        this.b = k;
+        this.f17894a = context;
+    }
+
+    @Override // io.appmetrica.analytics.coreapi.internal.backport.Provider
+    public final Object get() {
+        return this.b.f17927a.a(this.f17894a);
+    }
+}

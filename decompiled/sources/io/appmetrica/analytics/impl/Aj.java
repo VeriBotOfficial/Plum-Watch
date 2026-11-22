@@ -1,0 +1,9 @@
+package io.appmetrica.analytics.impl;
+
+/* loaded from: classes6.dex */
+public final class Aj implements Xa {
+    @Override // io.appmetrica.analytics.impl.Xa
+    public final void a(Ya ya) {
+        ya.clearAppEnvironment();
+    }
+}

@@ -1,0 +1,576 @@
+package com.wakeup.commonui.chart.lenovo;
+
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.LinearGradient;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RectF;
+import android.graphics.Shader;
+import android.util.AttributeSet;
+import android.view.MotionEvent;
+import android.view.ViewGroup;
+import androidx.core.content.ContextCompat;
+import com.blankj.utilcode.util.CollectionUtils;
+import com.wakeup.common.utils.NumberUtils;
+import com.wakeup.commonui.R;
+import com.wakeup.commonui.chart.IndicatorDrawHelp;
+import com.wakeup.commonui.chart.MyGestureDetector;
+import com.wakeup.commonui.chart.data.SleepData;
+import com.wakeup.commonui.chart.data.SleepTypeData;
+import com.wakeup.commonui.utils.DrawTextUtils;
+import com.wakeup.commonui.utils.UIHelper;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.function.Predicate;
+import oqml.a;
+
+/* loaded from: classes2.dex */
+public class LenovoSleepChart extends ViewGroup {
+    protected float drawPadding;
+    private float drawTextPadding;
+    private final String[] emptyDataLabel;
+    private String endDayText;
+    private String endTimeText;
+    private boolean isDrawIndicator;
+    private float labelOffset;
+    private float labelSpace;
+    private float labelWidth;
+    private int mAwakeColor;
+    private float mConnectLineWidth;
+    private SleepData mData;
+    private float mDataPaintWidth;
+    private int mDeepColor;
+    private final MyGestureDetector mDetector;
+    private final IndicatorDrawHelp mDrawHelp;
+    private float mIndicatorX;
+    private List<SleepDrawRecord> mList;
+    private int mNapColor;
+    private final Paint mPaintAwake;
+    private final Paint mPaintConnect;
+    private final Paint mPaintDeep;
+    private final Paint mPaintNap;
+    private final Paint mPaintRem;
+    private final Paint mPaintShadow;
+    private final Paint mPaintShallow;
+    private final Paint mPaintText;
+    private int mRemColor;
+    private SleepTypeData mSelectData;
+    private OnSelectListener mSelectListener;
+    private int mShallowColor;
+    private int mViewHeight;
+    private int mViewWidth;
+    protected float sleepDrawBottom;
+    protected float sleepDrawRadius;
+    private final LenovoSleepPath sleepPath;
+    protected float sleepRectHeight;
+    protected float sleepShallowY;
+    private String startDayText;
+    private String startTimeText;
+    private int totalMinute;
+
+    public interface OnSelectListener {
+        void onSelect(SleepTypeData sleepTypeData);
+    }
+
+    private float getTextYOffset(float f, float f2) {
+        return 0.0f;
+    }
+
+    @Override // android.view.ViewGroup, android.view.View
+    protected void onLayout(boolean z, int i, int i2, int i3, int i4) {
+    }
+
+    public LenovoSleepChart(Context context) {
+        this(context, null);
+    }
+
+    public LenovoSleepChart(Context context, AttributeSet attributeSet) {
+        this(context, attributeSet, -1);
+    }
+
+    public LenovoSleepChart(Context context, AttributeSet attributeSet, int i) {
+        super(context, attributeSet, i);
+        this.mDetector = new MyGestureDetector();
+        this.mDrawHelp = new IndicatorDrawHelp();
+        this.sleepPath = new LenovoSleepPath(this);
+        this.mAwakeColor = Color.parseColor("#FC8281");
+        this.mShallowColor = Color.parseColor("#C54BE4");
+        this.mDeepColor = Color.parseColor("#892BE2");
+        this.mList = new ArrayList();
+        this.isDrawIndicator = true;
+        this.emptyDataLabel = new String[]{"20:00", "02:00", "08:00", "14:00", "20:00"};
+        this.labelOffset = UIHelper.dp2px(6.0f);
+        setBackgroundColor(-1);
+        this.drawTextPadding = UIHelper.dp2px(12.0f);
+        this.drawPadding = UIHelper.dp2px(24.0f);
+        this.sleepRectHeight = UIHelper.dp2px(16.0f);
+        this.sleepDrawRadius = UIHelper.dp2px(2.0f);
+        this.mConnectLineWidth = UIHelper.dp2px(1.0f);
+        this.mDataPaintWidth = UIHelper.dp2px(1.0f);
+        this.mDeepColor = ContextCompat.getColor(context, R.color.color_sleep_deep);
+        this.mShallowColor = ContextCompat.getColor(context, R.color.color_sleep_shallow);
+        this.mAwakeColor = ContextCompat.getColor(context, R.color.color_sleep_wake);
+        this.mRemColor = ContextCompat.getColor(context, R.color.color_sleep_rem);
+        this.mNapColor = ContextCompat.getColor(context, R.color.color_sleep_nap);
+        Paint paint = new Paint(1);
+        this.mPaintText = paint;
+        paint.setStyle(Paint.Style.FILL);
+        paint.setTextSize(UIHelper.dp2px(10.0f));
+        Paint paint2 = new Paint();
+        this.mPaintDeep = paint2;
+        paint2.setColor(this.mDeepColor);
+        paint2.setStrokeWidth(this.mDataPaintWidth);
+        Paint paint3 = new Paint();
+        this.mPaintShallow = paint3;
+        paint3.setColor(this.mShallowColor);
+        paint3.setStrokeWidth(this.mDataPaintWidth);
+        Paint paint4 = new Paint();
+        this.mPaintAwake = paint4;
+        paint4.setColor(this.mAwakeColor);
+        paint4.setStrokeWidth(this.mDataPaintWidth);
+        Paint paint5 = new Paint();
+        this.mPaintRem = paint5;
+        paint5.setColor(this.mRemColor);
+        paint5.setStrokeWidth(this.mDataPaintWidth);
+        Paint paint6 = new Paint();
+        this.mPaintNap = paint6;
+        paint6.setColor(this.mNapColor);
+        paint6.setStrokeWidth(this.mDataPaintWidth);
+        Paint paint7 = new Paint();
+        this.mPaintShadow = paint7;
+        paint7.setStrokeWidth(this.mDataPaintWidth);
+        Paint paint8 = new Paint(1);
+        this.mPaintConnect = paint8;
+        paint8.setStrokeWidth(this.mConnectLineWidth);
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(10, 20);
+        calendar.set(12, 0);
+        this.startDayText = formatDay(calendar.getTimeInMillis() / 1000);
+        this.startTimeText = formatTime(calendar.getTimeInMillis() / 1000);
+        calendar.add(5, 1);
+        calendar.set(10, 8);
+        calendar.set(12, 0);
+        this.endDayText = formatDay(calendar.getTimeInMillis() / 1000);
+        this.endTimeText = formatTime(calendar.getTimeInMillis() / 1000);
+    }
+
+    @Override // android.view.View
+    protected void onSizeChanged(int i, int i2, int i3, int i4) {
+        super.onSizeChanged(i, i2, i3, i4);
+        this.mViewWidth = i;
+        this.mViewHeight = i2;
+        float dp2px = i2 - UIHelper.dp2px(56.0f);
+        this.sleepDrawBottom = dp2px;
+        this.sleepShallowY = (dp2px / 2.0f) - (this.sleepRectHeight / 2.0f);
+        float textWidth = DrawTextUtils.getTextWidth(this.emptyDataLabel[0], this.mPaintText);
+        this.labelWidth = textWidth;
+        this.labelSpace = (this.mViewWidth - (textWidth * 5.0f)) / 4.0f;
+    }
+
+    @Override // android.view.View
+    public boolean onTouchEvent(MotionEvent motionEvent) {
+        if (!this.isDrawIndicator) {
+            return super.onTouchEvent(motionEvent);
+        }
+        requestDisallowInterceptTouchEvent(this.mDetector.onTouch(motionEvent));
+        float x = motionEvent.getX();
+        this.mIndicatorX = x;
+        float f = this.drawPadding;
+        if (x < f) {
+            this.mIndicatorX = f;
+        } else {
+            int i = this.mViewWidth;
+            if (x > i - f) {
+                this.mIndicatorX = i - f;
+            }
+        }
+        if (motionEvent.getAction() != 0) {
+            checkSelected();
+        }
+        invalidate();
+        return true;
+    }
+
+    @Override // android.view.View
+    protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+        drawSleep(canvas);
+        SleepData sleepData = this.mData;
+        if (sleepData == null || CollectionUtils.isEmpty(sleepData.getDataList())) {
+            drawEmptyLabel(canvas);
+        } else {
+            drawText(canvas);
+        }
+        if (this.isDrawIndicator) {
+            this.mDrawHelp.drawIndicatorLine(canvas, 10.0f, this.mViewHeight - UIHelper.dp2px(46.0f), this.mIndicatorX);
+        }
+    }
+
+    private void drawSleep(Canvas canvas) {
+        boolean z;
+        SleepData sleepData = this.mData;
+        if (sleepData == null) {
+            return;
+        }
+        List<SleepTypeData> dataList = sleepData.getDataList();
+        this.mList.clear();
+        ArrayList arrayList = new ArrayList();
+        for (SleepTypeData sleepTypeData : dataList) {
+            if (getSleepWidth(sleepTypeData.getDuration()) >= 14.0f) {
+                arrayList.add(sleepTypeData);
+            }
+        }
+        if (arrayList.size() > 0) {
+            arrayList.size();
+        }
+        int i = 0;
+        long sleepTime = !dataList.isEmpty() ? dataList.get(0).getSleepTime() : 0L;
+        boolean queryNewSleep = queryNewSleep(dataList);
+        while (i < dataList.size()) {
+            SleepTypeData sleepTypeData2 = dataList.get(i);
+            getSleepWidth(sleepTypeData2.getDuration());
+            float sleepWidth = this.drawPadding + getSleepWidth(((int) (sleepTypeData2.getSleepTime() - sleepTime)) / 60);
+            float sleepWidth2 = getSleepWidth(sleepTypeData2.getDuration()) + sleepWidth;
+            float f = this.sleepDrawBottom - this.sleepShallowY;
+            RectF rectF = new RectF(sleepWidth, 0.0f, sleepWidth2, f);
+            RectF rectF2 = new RectF(sleepWidth, f, sleepWidth2, this.sleepDrawBottom);
+            List<SleepTypeData> list = dataList;
+            if (queryNewSleep) {
+                z = queryNewSleep;
+                int type = sleepTypeData2.getType();
+                if (type == 1) {
+                    canvas.drawRect(rectF, this.mPaintShallow);
+                    this.mPaintShadow.setShader(new LinearGradient(sleepWidth, f, sleepWidth, this.sleepDrawBottom, Color.parseColor("#244663FF"), Color.parseColor("#24FFFFFF"), Shader.TileMode.MIRROR));
+                    canvas.drawRect(rectF2, this.mPaintShadow);
+                } else if (type == 2) {
+                    canvas.drawRect(rectF, this.mPaintDeep);
+                    this.mPaintShadow.setShader(new LinearGradient(sleepWidth, f, sleepWidth, this.sleepDrawBottom, Color.parseColor("#249B56F5"), Color.parseColor("#24FFFFFF"), Shader.TileMode.MIRROR));
+                    canvas.drawRect(rectF2, this.mPaintShadow);
+                } else if (type == 3) {
+                    canvas.drawRect(rectF, this.mPaintRem);
+                    this.mPaintShadow.setShader(new LinearGradient(sleepWidth, f, sleepWidth, this.sleepDrawBottom, Color.parseColor("#24069EFE"), Color.parseColor("#24FFFFFF"), Shader.TileMode.MIRROR));
+                    canvas.drawRect(rectF2, this.mPaintShadow);
+                } else if (type == 4) {
+                    canvas.drawRect(rectF, this.mPaintAwake);
+                    this.mPaintShadow.setShader(new LinearGradient(sleepWidth, f, sleepWidth, this.sleepDrawBottom, Color.parseColor("#2400D7B3"), Color.parseColor("#24FFFFFF"), Shader.TileMode.MIRROR));
+                    canvas.drawRect(rectF2, this.mPaintShadow);
+                } else if (type == 17) {
+                    canvas.drawRect(rectF, this.mPaintNap);
+                    this.mPaintShadow.setShader(new LinearGradient(sleepWidth, f, sleepWidth, this.sleepDrawBottom, Color.parseColor("#24FEB034"), Color.parseColor("#24FFFFFF"), Shader.TileMode.MIRROR));
+                    canvas.drawRect(rectF2, this.mPaintShadow);
+                }
+            } else {
+                z = queryNewSleep;
+                int type2 = sleepTypeData2.getType();
+                if (type2 == 1) {
+                    canvas.drawRect(rectF, this.mPaintShallow);
+                    this.mPaintShadow.setShader(new LinearGradient(sleepWidth, f, sleepWidth, this.sleepDrawBottom, Color.parseColor("#244663FF"), Color.parseColor("#24FFFFFF"), Shader.TileMode.MIRROR));
+                    canvas.drawRect(rectF2, this.mPaintShadow);
+                } else if (type2 == 2) {
+                    canvas.drawRect(rectF, this.mPaintDeep);
+                    this.mPaintShadow.setShader(new LinearGradient(sleepWidth, f, sleepWidth, this.sleepDrawBottom, Color.parseColor("#249B56F5"), Color.parseColor("#24FFFFFF"), Shader.TileMode.MIRROR));
+                    canvas.drawRect(rectF2, this.mPaintShadow);
+                } else if (type2 == 4) {
+                    canvas.drawRect(rectF, this.mPaintAwake);
+                    this.mPaintShadow.setShader(new LinearGradient(sleepWidth, f, sleepWidth, this.sleepDrawBottom, Color.parseColor("#2400D7B3"), Color.parseColor("#24FFFFFF"), Shader.TileMode.MIRROR));
+                    canvas.drawRect(rectF2, this.mPaintShadow);
+                }
+            }
+            this.mList.add(new SleepDrawRecord(sleepWidth, sleepWidth2, sleepTypeData2));
+            i++;
+            dataList = list;
+            queryNewSleep = z;
+        }
+    }
+
+    private int preDataType(int i, List<SleepTypeData> list) {
+        if (i == 0) {
+            return -1;
+        }
+        return list.get(i - 1).getType();
+    }
+
+    private int afterDataType(int i, List<SleepTypeData> list) {
+        if (i == list.size() - 1) {
+            return -1;
+        }
+        return list.get(i + 1).getType();
+    }
+
+    private void drawSleepAwake(Canvas canvas, int i, List<SleepTypeData> list, float f, float f2) {
+        float f3;
+        LinearGradient linearGradient;
+        canvas.drawPath(this.sleepPath.getConvexPath(f, f2, 0.0f), this.mPaintAwake);
+        int afterDataType = afterDataType(i, list);
+        if (afterDataType == -1) {
+            return;
+        }
+        float f4 = (f + f2) - (this.mConnectLineWidth / 2.0f);
+        float f5 = this.sleepRectHeight;
+        if (afterDataType == 1) {
+            f3 = this.sleepShallowY;
+            linearGradient = new LinearGradient(0.0f, f5, 0.0f, f3, this.mAwakeColor, this.mShallowColor, Shader.TileMode.CLAMP);
+        } else {
+            f3 = this.sleepDrawBottom - f5;
+            linearGradient = new LinearGradient(0.0f, f5, 0.0f, f3, this.mAwakeColor, this.mDeepColor, Shader.TileMode.CLAMP);
+        }
+        this.mPaintConnect.setShader(linearGradient);
+        canvas.drawLine(f4, f5, f4, f3, this.mPaintConnect);
+    }
+
+    private void drawSleepShallow(Canvas canvas, int i, List<SleepTypeData> list, float f, float f2) {
+        Path lowUpPath;
+        Path convexPath;
+        Path convexPath2;
+        Path convexPath3;
+        int preDataType = preDataType(i, list);
+        int afterDataType = afterDataType(i, list);
+        if (preDataType == -1) {
+            if (afterDataType == 4) {
+                convexPath3 = this.sleepPath.getConcavePath(f, f2, this.sleepShallowY + this.sleepRectHeight);
+            } else {
+                convexPath3 = this.sleepPath.getConvexPath(f, f2, this.sleepShallowY);
+            }
+            canvas.drawPath(convexPath3, this.mPaintShallow);
+            drawSleepShallowConnectLine(canvas, afterDataType, f, f2);
+            return;
+        }
+        if (afterDataType == -1) {
+            if (preDataType == 4) {
+                convexPath2 = this.sleepPath.getConcavePath(f, f2, this.sleepShallowY + this.sleepRectHeight);
+            } else {
+                convexPath2 = this.sleepPath.getConvexPath(f, f2, this.sleepShallowY);
+            }
+            canvas.drawPath(convexPath2, this.mPaintShallow);
+            drawSleepShallowConnectLine(canvas, afterDataType, f, f2);
+            return;
+        }
+        if (preDataType == afterDataType) {
+            if (preDataType == 4) {
+                convexPath = this.sleepPath.getConcavePath(f, f2, this.sleepShallowY + this.sleepRectHeight);
+            } else {
+                convexPath = this.sleepPath.getConvexPath(f, f2, this.sleepShallowY);
+            }
+            canvas.drawPath(convexPath, this.mPaintShallow);
+            drawSleepShallowConnectLine(canvas, afterDataType, f, f2);
+            return;
+        }
+        if (preDataType == 4 && afterDataType == 2) {
+            lowUpPath = this.sleepPath.getUpLowPath(f, f2, this.sleepShallowY);
+        } else {
+            lowUpPath = this.sleepPath.getLowUpPath(f, f2, this.sleepShallowY);
+        }
+        canvas.drawPath(lowUpPath, this.mPaintShallow);
+        drawSleepShallowConnectLine(canvas, afterDataType, f, f2);
+    }
+
+    private void drawSleepShallowConnectLine(Canvas canvas, int i, float f, float f2) {
+        float f3;
+        float f4;
+        LinearGradient linearGradient;
+        if (i == -1) {
+            return;
+        }
+        float f5 = (f + f2) - (this.mConnectLineWidth / 2.0f);
+        if (i == 4) {
+            f3 = this.sleepShallowY;
+            f4 = this.sleepRectHeight;
+            linearGradient = new LinearGradient(0.0f, f3, 0.0f, f4, this.mShallowColor, this.mAwakeColor, Shader.TileMode.CLAMP);
+        } else {
+            float f6 = this.sleepShallowY;
+            float f7 = this.sleepRectHeight;
+            f3 = f6 + f7;
+            f4 = this.sleepDrawBottom - f7;
+            linearGradient = new LinearGradient(0.0f, f3, 0.0f, f4, this.mShallowColor, this.mDeepColor, Shader.TileMode.CLAMP);
+        }
+        this.mPaintConnect.setShader(linearGradient);
+        canvas.drawLine(f5, f3, f5, f4, this.mPaintConnect);
+    }
+
+    private void drawSleepDeep(Canvas canvas, int i, List<SleepTypeData> list, float f, float f2) {
+        LinearGradient linearGradient;
+        float f3;
+        canvas.drawPath(this.sleepPath.getConcavePath(f, f2, this.sleepDrawBottom), this.mPaintDeep);
+        int afterDataType = afterDataType(i, list);
+        if (afterDataType == -1) {
+            return;
+        }
+        float f4 = (f + f2) - (this.mConnectLineWidth / 2.0f);
+        float f5 = this.sleepDrawBottom;
+        float f6 = this.sleepRectHeight;
+        float f7 = f5 - f6;
+        if (afterDataType == 1) {
+            float f8 = this.sleepShallowY + f6;
+            linearGradient = new LinearGradient(0.0f, f7, 0.0f, f8, this.mDeepColor, this.mShallowColor, Shader.TileMode.CLAMP);
+            f3 = f8;
+        } else {
+            LinearGradient linearGradient2 = new LinearGradient(0.0f, f7, 0.0f, f6, this.mDeepColor, this.mAwakeColor, Shader.TileMode.CLAMP);
+            f7 = f7;
+            linearGradient = linearGradient2;
+            f3 = f6;
+        }
+        this.mPaintConnect.setShader(linearGradient);
+        canvas.drawLine(f4, f7, f4, f3, this.mPaintConnect);
+    }
+
+    private float getSleepWidth(int i) {
+        return NumberUtils.formatNumber((i * (this.mViewWidth - (this.drawPadding * 2.0f))) / this.totalMinute, 2);
+    }
+
+    private void drawEmptyLabel(Canvas canvas) {
+        float f = this.labelWidth / 2.0f;
+        float dp2px = this.mViewHeight - UIHelper.dp2px(30.0f);
+        float textHeight = DrawTextUtils.getTextHeight(this.mPaintText);
+        float f2 = this.drawTextPadding;
+        float textYOffset = getTextYOffset(f2, this.labelWidth + f2);
+        float f3 = dp2px - textYOffset;
+        this.mPaintText.setColor(Color.parseColor(textYOffset > 0.0f ? "#333333" : a.C1008a.f18760a));
+        String str = this.startDayText;
+        canvas.drawText(str, (this.drawTextPadding + f) - (DrawTextUtils.getTextWidth(str, this.mPaintText) / 2.0f), f3 - textHeight, this.mPaintText);
+        int i = this.mViewWidth;
+        float f4 = this.drawTextPadding;
+        float textYOffset2 = getTextYOffset((i - f4) - this.labelWidth, i - f4);
+        float f5 = dp2px - textYOffset2;
+        float f6 = this.labelWidth / 2.0f;
+        this.mPaintText.setColor(Color.parseColor(textYOffset2 > 0.0f ? "#333333" : a.C1008a.f18760a));
+        String str2 = this.endDayText;
+        canvas.drawText(str2, ((this.mViewWidth - this.drawTextPadding) - this.labelWidth) + (f6 - (DrawTextUtils.getTextWidth(str2, this.mPaintText) / 2.0f)), f5 - textHeight, this.mPaintText);
+        int i2 = 0;
+        while (true) {
+            if (i2 >= this.emptyDataLabel.length) {
+                return;
+            }
+            float f7 = this.labelSpace;
+            float f8 = this.labelWidth;
+            float f9 = (f7 + f8) * i2;
+            if (i2 == 0) {
+                f9 += this.drawTextPadding;
+            }
+            if (i2 == r1.length - 1) {
+                f9 = (this.mViewWidth - f8) - this.drawTextPadding;
+            }
+            float textYOffset3 = getTextYOffset(f9, f8 + f9);
+            this.mPaintText.setColor(Color.parseColor(textYOffset3 > 0.0f ? "#333333" : a.C1008a.f18760a));
+            canvas.drawText(this.emptyDataLabel[i2], f9, dp2px - textYOffset3, this.mPaintText);
+            i2++;
+        }
+    }
+
+    private void drawText(Canvas canvas) {
+        float f;
+        float dp2px = this.mViewHeight - UIHelper.dp2px(30.0f);
+        float textHeight = DrawTextUtils.getTextHeight(this.mPaintText);
+        float textWidth = DrawTextUtils.getTextWidth(this.startTimeText, this.mPaintText);
+        float textWidth2 = DrawTextUtils.getTextWidth(this.endTimeText, this.mPaintText);
+        if (this.isDrawIndicator) {
+            float f2 = this.drawTextPadding;
+            f = getTextYOffset(f2, f2 + textWidth);
+        } else {
+            f = 0.0f;
+        }
+        float f3 = dp2px - f;
+        if (f > 0.0f) {
+            this.mPaintText.setColor(Color.parseColor("#333333"));
+        } else {
+            this.mPaintText.setColor(Color.parseColor(a.C1008a.f18760a));
+        }
+        String str = this.startDayText;
+        canvas.drawText(str, (this.drawTextPadding + (textWidth / 2.0f)) - (DrawTextUtils.getTextWidth(str, this.mPaintText) / 2.0f), f3 - textHeight, this.mPaintText);
+        canvas.drawText(this.startTimeText, this.drawTextPadding, f3, this.mPaintText);
+        int i = this.mViewWidth;
+        float f4 = this.drawTextPadding;
+        float textYOffset = getTextYOffset((i - f4) - textWidth2, i - f4);
+        float f5 = dp2px - textYOffset;
+        if (textYOffset > 0.0f) {
+            this.mPaintText.setColor(Color.parseColor("#333333"));
+        } else {
+            this.mPaintText.setColor(Color.parseColor(a.C1008a.f18760a));
+        }
+        String str2 = this.endDayText;
+        canvas.drawText(str2, ((this.mViewWidth - this.drawTextPadding) - textWidth2) + ((textWidth2 / 2.0f) - (DrawTextUtils.getTextWidth(str2, this.mPaintText) / 2.0f)), f5 - textHeight, this.mPaintText);
+        canvas.drawText(this.endTimeText, (this.mViewWidth - this.drawTextPadding) - textWidth2, f5, this.mPaintText);
+    }
+
+    private void checkSelected() {
+        OnSelectListener onSelectListener;
+        for (SleepDrawRecord sleepDrawRecord : this.mList) {
+            if (this.mIndicatorX >= sleepDrawRecord.mStartX && this.mIndicatorX <= sleepDrawRecord.mEndX) {
+                if (sleepDrawRecord.mData == this.mSelectData || (onSelectListener = this.mSelectListener) == null) {
+                    return;
+                }
+                onSelectListener.onSelect(sleepDrawRecord.mData);
+                this.mSelectData = sleepDrawRecord.mData;
+                return;
+            }
+        }
+    }
+
+    public void setData(SleepData sleepData) {
+        this.mData = sleepData;
+        initTimeStr(sleepData);
+        this.totalMinute = ((int) (this.mData.getEndTime() - this.mData.getStartTime())) / 60;
+        this.mIndicatorX = this.mViewWidth - this.drawPadding;
+        invalidate();
+    }
+
+    public void setDrawIndicator(boolean z) {
+        this.isDrawIndicator = z;
+    }
+
+    public SleepData getData() {
+        return this.mData;
+    }
+
+    private void initTimeStr(SleepData sleepData) {
+        this.startDayText = formatDay(sleepData.getStartTime());
+        this.startTimeText = "入睡 " + formatTime(sleepData.getStartTime());
+        this.endDayText = formatDay(sleepData.getEndTime());
+        this.endTimeText = "醒来 " + formatTime(sleepData.getEndTime());
+    }
+
+    public void setSelectListener(OnSelectListener onSelectListener) {
+        this.mSelectListener = onSelectListener;
+    }
+
+    public void setIndicatorColor(int i) {
+        this.mDrawHelp.setIndicatorColor(i);
+    }
+
+    private String formatDay(long j) {
+        return new SimpleDateFormat("MM/dd").format(new Date(j * 1000));
+    }
+
+    private String formatTime(long j) {
+        return new SimpleDateFormat("HH:mm").format(new Date(j * 1000));
+    }
+
+    private static final class SleepDrawRecord {
+        private final SleepTypeData mData;
+        private final float mEndX;
+        private final float mStartX;
+
+        private SleepDrawRecord(float f, float f2, SleepTypeData sleepTypeData) {
+            this.mStartX = f;
+            this.mEndX = f2;
+            this.mData = sleepTypeData;
+        }
+    }
+
+    static /* synthetic */ boolean lambda$queryNewSleep$0(SleepTypeData sleepTypeData) {
+        return sleepTypeData.getType() == 3 || sleepTypeData.getType() == 17;
+    }
+
+    private boolean queryNewSleep(List<SleepTypeData> list) {
+        return list.stream().anyMatch(new Predicate() { // from class: com.wakeup.commonui.chart.lenovo.LenovoSleepChart$$ExternalSyntheticLambda0
+            @Override // java.util.function.Predicate
+            public final boolean test(Object obj) {
+                return LenovoSleepChart.lambda$queryNewSleep$0((SleepTypeData) obj);
+            }
+        });
+    }
+}

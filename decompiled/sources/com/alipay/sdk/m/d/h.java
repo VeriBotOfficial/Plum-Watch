@@ -1,0 +1,19 @@
+package com.alipay.sdk.m.d;
+
+import android.content.Context;
+
+/* loaded from: classes11.dex */
+public class h implements com.alipay.sdk.m.c.b {
+    @Override // com.alipay.sdk.m.c.b
+    public String a(Context context) {
+        if (context == null) {
+            return null;
+        }
+        boolean c = com.alipay.sdk.m.u0.e.c(context);
+        com.alipay.sdk.m.e.a.b("getOAID", "isSupported", Boolean.valueOf(c));
+        if (c) {
+            return com.alipay.sdk.m.u0.e.a(context);
+        }
+        return null;
+    }
+}

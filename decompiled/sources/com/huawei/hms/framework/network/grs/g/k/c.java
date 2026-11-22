@@ -1,0 +1,82 @@
+package com.huawei.hms.framework.network.grs.g.k;
+
+import android.content.Context;
+import com.huawei.hms.framework.common.Logger;
+import com.huawei.hms.framework.network.grs.GrsBaseInfo;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+/* loaded from: classes14.dex */
+public class c {
+
+    /* renamed from: a, reason: collision with root package name */
+    private final GrsBaseInfo f10377a;
+    private final Context b;
+    private final Set<String> c = new HashSet();
+
+    public c(GrsBaseInfo grsBaseInfo, Context context) {
+        this.f10377a = grsBaseInfo;
+        this.b = context;
+    }
+
+    private String e() {
+        Set<String> b = com.huawei.hms.framework.network.grs.f.b.a(this.b.getPackageName(), this.f10377a).b();
+        if (b.isEmpty()) {
+            return "";
+        }
+        JSONObject jSONObject = new JSONObject();
+        JSONArray jSONArray = new JSONArray();
+        Iterator<String> it = b.iterator();
+        while (it.hasNext()) {
+            jSONArray.put(it.next());
+        }
+        try {
+            jSONObject.put("services", jSONArray);
+            Logger.i("GrsRequestInfo", "post service list is:%s", jSONObject.toString());
+            return jSONObject.toString();
+        } catch (JSONException unused) {
+            return "";
+        }
+    }
+
+    private String f() {
+        Logger.v("GrsRequestInfo", "getGeoipService enter");
+        JSONObject jSONObject = new JSONObject();
+        JSONArray jSONArray = new JSONArray();
+        Iterator<String> it = this.c.iterator();
+        while (it.hasNext()) {
+            jSONArray.put(it.next());
+        }
+        try {
+            jSONObject.put("services", jSONArray);
+            Logger.v("GrsRequestInfo", "post query service list is:%s", jSONObject.toString());
+            return jSONObject.toString();
+        } catch (JSONException unused) {
+            return "";
+        }
+    }
+
+    public Context a() {
+        return this.b;
+    }
+
+    public void a(String str) {
+        this.c.add(str);
+    }
+
+    public GrsBaseInfo b() {
+        return this.f10377a;
+    }
+
+    public String c() {
+        return this.c.size() == 0 ? e() : f();
+    }
+
+    public Set<String> d() {
+        return this.c;
+    }
+}

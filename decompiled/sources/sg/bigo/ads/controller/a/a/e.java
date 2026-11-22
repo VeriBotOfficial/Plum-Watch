@@ -1,0 +1,135 @@
+package sg.bigo.ads.controller.a.a;
+
+import android.os.Parcel;
+import android.webkit.URLUtil;
+import com.unity3d.ads.core.data.datasource.AndroidStaticDeviceInfoDataSource;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.xmind.core.ICloneData;
+import sg.bigo.ads.common.n;
+import sg.bigo.ads.common.utils.r;
+import sg.bigo.ads.controller.a.k;
+
+/* loaded from: classes9.dex */
+public final class e extends g implements sg.bigo.ads.common.f {
+
+    /* renamed from: a, reason: collision with root package name */
+    public static final long f19806a = r.d.a(1);
+    public static final long b = r.b.a(30);
+    private long g;
+    private long h;
+    private List<a> f = c();
+    private long d = f19806a;
+    private long e = b;
+
+    private static List<a> c() {
+        ArrayList arrayList = new ArrayList();
+        arrayList.add(new a(AndroidStaticDeviceInfoDataSource.STORE_GOOGLE, "https://drive.google.com/uc?export=download&id=1ms4F7Cn_aInE9oFMMaZEiwMIuMKt1DZc", true));
+        return arrayList;
+    }
+
+    @Override // sg.bigo.ads.controller.a.a.g
+    public final k a(String str) {
+        a a2;
+        synchronized (this) {
+            if (sg.bigo.ads.common.utils.k.a((Collection) this.f) || ((a2 = a((List<a>) sg.bigo.ads.common.utils.k.a(this.f, new Comparable<a>() { // from class: sg.bigo.ads.controller.a.a.e.1
+                @Override // java.lang.Comparable
+                public final /* bridge */ /* synthetic */ int compareTo(a aVar) {
+                    a aVar2 = aVar;
+                    return (aVar2 == null || !aVar2.d || aVar2.b) ? 0 : 1;
+                }
+            }))) == null && (a2 = a((List<a>) sg.bigo.ads.common.utils.k.a(this.f, new Comparable<a>() { // from class: sg.bigo.ads.controller.a.a.e.2
+                @Override // java.lang.Comparable
+                public final /* bridge */ /* synthetic */ int compareTo(a aVar) {
+                    a aVar2 = aVar;
+                    return (aVar2 != null && aVar2.d && aVar2.b) ? 1 : 0;
+                }
+            }))) == null)) {
+                return null;
+            }
+            return a2;
+        }
+    }
+
+    @Override // sg.bigo.ads.common.f
+    public final void a(Parcel parcel) {
+        synchronized (this) {
+            parcel.writeLong(this.d);
+            parcel.writeLong(this.e);
+            n.a(parcel, this.f);
+            parcel.writeLong(this.g);
+            parcel.writeLong(this.h);
+        }
+    }
+
+    public final void a(JSONObject jSONObject) {
+        synchronized (this) {
+            long max = Math.max(jSONObject.optLong("suc_interval", f19806a / 1000) * 1000, c);
+            long max2 = Math.max(jSONObject.optLong("fail_interval", b / 1000) * 1000, c);
+            List<a> c = c();
+            JSONArray optJSONArray = jSONObject.optJSONArray(ICloneData.URLS);
+            if (optJSONArray != null) {
+                for (int i = 0; i < optJSONArray.length(); i++) {
+                    JSONObject optJSONObject = optJSONArray.optJSONObject(i);
+                    String optString = optJSONObject.optString("name", "");
+                    String optString2 = optJSONObject.optString("url", "");
+                    if (URLUtil.isNetworkUrl(optString2)) {
+                        c.add(new a(optString, optString2, false));
+                    }
+                }
+            }
+            this.d = max;
+            this.e = max2;
+            this.f = c;
+        }
+    }
+
+    @Override // sg.bigo.ads.controller.a.a.g
+    public final void a(boolean z) {
+        super.a(z);
+        if (z) {
+            this.h = System.currentTimeMillis();
+        }
+    }
+
+    public final boolean a() {
+        long j = this.g;
+        long j2 = this.h;
+        if (j == j2) {
+            return true;
+        }
+        long currentTimeMillis = System.currentTimeMillis();
+        return j > j2 ? Math.abs(currentTimeMillis - this.g) > this.e : Math.abs(currentTimeMillis - this.h) > this.d;
+    }
+
+    public final void b() {
+        this.g = System.currentTimeMillis();
+        synchronized (this) {
+            if (!sg.bigo.ads.common.utils.k.a((Collection) this.f)) {
+                Iterator<a> it = this.f.iterator();
+                while (it.hasNext()) {
+                    it.next().d = true;
+                }
+            }
+        }
+    }
+
+    @Override // sg.bigo.ads.common.f
+    public final void b(Parcel parcel) {
+        synchronized (this) {
+            this.d = n.a(parcel, f19806a);
+            this.e = n.a(parcel, b);
+            List<a> a2 = n.a(parcel, a.c);
+            this.f = a2;
+            if (sg.bigo.ads.common.utils.k.a((Collection) a2)) {
+                this.f = c();
+            }
+            this.g = n.a(parcel, 0L);
+            this.h = n.a(parcel, 0L);
+        }
+    }
+}

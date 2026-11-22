@@ -1,0 +1,10 @@
+package com.facebook.react.viewmanagers;
+
+import android.view.View;
+
+/* loaded from: classes14.dex */
+public interface RNSStackScreenManagerInterface<T extends View> {
+    void setMaxLifecycleState(T t, int i);
+
+    void setScreenKey(T t, String str);
+}

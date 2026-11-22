@@ -1,0 +1,246 @@
+package com.wakeup.module.religion;
+
+/* loaded from: classes4.dex */
+public final class R {
+
+    public static final class drawable {
+        public static int bg_pray_green = 0x7f080339;
+        public static int bg_religion = 0x7f08033f;
+        public static int bg_religion_clear = 0x7f080340;
+        public static int bg_religion_setting = 0x7f080341;
+        public static int bg_scene = 0x7f080346;
+        public static int ic_bottom_play = 0x7f0805cf;
+        public static int ic_bottom_stop = 0x7f0805d0;
+        public static int ic_checkbox_normal = 0x7f080620;
+        public static int ic_checkbox_select = 0x7f080621;
+        public static int ic_close_religion = 0x7f08062d;
+        public static int ic_collect_n = 0x7f080634;
+        public static int ic_collect_s = 0x7f080636;
+        public static int ic_compass_arrow = 0x7f080645;
+        public static int ic_compass_bg = 0x7f080646;
+        public static int ic_compass_kaaba = 0x7f080647;
+        public static int ic_history_green = 0x7f080897;
+        public static int ic_iqibla_add = 0x7f0808fc;
+        public static int ic_iqibla_sub = 0x7f0808fd;
+        public static int ic_koran_p = 0x7f080919;
+        public static int ic_koran_player = 0x7f08091a;
+        public static int ic_location_none = 0x7f080940;
+        public static int ic_loop_play_all = 0x7f080942;
+        public static int ic_loop_play_singe = 0x7f080943;
+        public static int ic_muslim_koran_word = 0x7f0809d7;
+        public static int ic_no_content = 0x7f0809fd;
+        public static int ic_order_number = 0x7f080a1d;
+        public static int ic_play_left = 0x7f080a75;
+        public static int ic_play_right = 0x7f080a7b;
+        public static int ic_play_state = 0x7f080a7d;
+        public static int ic_remind_close = 0x7f080aa9;
+        public static int ic_remind_close_white = 0x7f080aaa;
+        public static int ic_remind_normal = 0x7f080aab;
+        public static int ic_remind_white = 0x7f080aac;
+        public static int ic_table_data = 0x7f080bcb;
+        public static int ic_table_data_normal = 0x7f080bcc;
+        public static int ic_table_koran_n = 0x7f080bcd;
+        public static int ic_table_koran_s = 0x7f080bce;
+        public static int ic_table_pray = 0x7f080bcf;
+        public static int ic_table_pray_normal = 0x7f080bd0;
+        public static int ic_table_scene_n = 0x7f080bd1;
+        public static int ic_table_scene_s = 0x7f080bd2;
+        public static int ic_table_setting = 0x7f080bd3;
+        public static int ic_table_setting_normal = 0x7f080bd4;
+        public static int ic_weather_1 = 0x7f080c5d;
+        public static int ic_weather_2 = 0x7f080c5e;
+        public static int ic_weather_3 = 0x7f080c5f;
+        public static int ic_weather_5 = 0x7f080c60;
+        public static int ic_weather_6 = 0x7f080c61;
+        public static int ic_zanzhu_chuan = 0x7f080c82;
+        public static int img_scenes_1 = 0x7f080da9;
+        public static int img_scenes_10 = 0x7f080daa;
+        public static int img_scenes_11 = 0x7f080dab;
+        public static int img_scenes_12 = 0x7f080dac;
+        public static int img_scenes_2 = 0x7f080dad;
+        public static int img_scenes_3 = 0x7f080dae;
+        public static int img_scenes_4 = 0x7f080daf;
+        public static int img_scenes_5 = 0x7f080db0;
+        public static int img_scenes_6 = 0x7f080db1;
+        public static int img_scenes_7 = 0x7f080db2;
+        public static int img_scenes_8 = 0x7f080db3;
+        public static int img_scenes_9 = 0x7f080db4;
+        public static int tab_indicator_shape = 0x7f081298;
+
+        private drawable() {
+        }
+    }
+
+    public static final class id {
+        public static int cl_container = 0x7f0a051b;
+        public static int content_container_layout = 0x7f0a05d6;
+        public static int data_no_content_iv = 0x7f0a0638;
+        public static int float_player_iv = 0x7f0a0891;
+        public static int float_player_layout = 0x7f0a0892;
+        public static int fragment_my_rv = 0x7f0a08b5;
+        public static int fragment_scene_parent = 0x7f0a08b6;
+        public static int fragment_scene_rv = 0x7f0a08b7;
+        public static int fragment_scene_search_rv = 0x7f0a08b8;
+        public static int history_content_layout = 0x7f0a0940;
+        public static int history_data_rv = 0x7f0a0941;
+        public static int history_data_title = 0x7f0a0942;
+        public static int history_no_content_iv = 0x7f0a0945;
+        public static int history_no_content_layout = 0x7f0a0946;
+        public static int history_no_content_tv = 0x7f0a0947;
+        public static int history_title = 0x7f0a0949;
+        public static int item_adjust_prayer_add = 0x7f0a0ad8;
+        public static int item_adjust_prayer_layout = 0x7f0a0ad9;
+        public static int item_adjust_prayer_minute = 0x7f0a0ada;
+        public static int item_adjust_prayer_sub = 0x7f0a0adb;
+        public static int item_adjust_prayer_weather_iv = 0x7f0a0adc;
+        public static int item_adjust_prayer_weather_tv = 0x7f0a0add;
+        public static int item_collect_state = 0x7f0a0afb;
+        public static int item_koran_all = 0x7f0a0b20;
+        public static int item_koran_all_iv = 0x7f0a0b21;
+        public static int item_koran_content = 0x7f0a0b22;
+        public static int item_koran_content_tv = 0x7f0a0b23;
+        public static int item_koran_frameLayout = 0x7f0a0b24;
+        public static int item_koran_order_number = 0x7f0a0b25;
+        public static int item_koran_order_number_tv = 0x7f0a0b26;
+        public static int item_koran_play_state = 0x7f0a0b27;
+        public static int item_koran_tv = 0x7f0a0b28;
+        public static int item_koran_tv2 = 0x7f0a0b29;
+        public static int item_pray_scene_iv = 0x7f0a0b4b;
+        public static int item_pray_scene_sura = 0x7f0a0b4c;
+        public static int item_pray_scene_title = 0x7f0a0b4d;
+        public static int item_prayer_layout = 0x7f0a0b4e;
+        public static int item_prayer_remind_iv = 0x7f0a0b4f;
+        public static int item_prayer_time_tv = 0x7f0a0b50;
+        public static int item_prayer_weather_iv = 0x7f0a0b51;
+        public static int item_prayer_weather_tv = 0x7f0a0b52;
+        public static int item_scene_content_tv = 0x7f0a0b54;
+        public static int item_scene_frameLayout = 0x7f0a0b55;
+        public static int item_scene_order_number = 0x7f0a0b56;
+        public static int item_scene_right = 0x7f0a0b57;
+        public static int item_scene_tv = 0x7f0a0b58;
+        public static int item_search_scene_tv = 0x7f0a0b59;
+        public static int item_search_tv = 0x7f0a0b5a;
+        public static int item_tasibh_date = 0x7f0a0b6b;
+        public static int item_tasibh_num = 0x7f0a0b6c;
+        public static int iv_arrow = 0x7f0a0c07;
+        public static int iv_bg = 0x7f0a0c19;
+        public static int iv_kaaba = 0x7f0a0cc5;
+        public static int koran_list_rv = 0x7f0a0dda;
+        public static int koran_list_title = 0x7f0a0ddb;
+        public static int koran_play_current_time = 0x7f0a0ddc;
+        public static int koran_play_duration_time = 0x7f0a0ddd;
+        public static int koran_play_left = 0x7f0a0dde;
+        public static int koran_play_model = 0x7f0a0ddf;
+        public static int koran_play_progress = 0x7f0a0de0;
+        public static int koran_play_right = 0x7f0a0de1;
+        public static int koran_play_right_layout = 0x7f0a0de2;
+        public static int koran_play_seek_bar = 0x7f0a0de3;
+        public static int koran_play_state = 0x7f0a0de4;
+        public static int koran_play_state_iv = 0x7f0a0de5;
+        public static int koran_rv = 0x7f0a0de6;
+        public static int koran_search = 0x7f0a0de7;
+        public static int koran_title = 0x7f0a0de8;
+        public static int no_location_iv = 0x7f0a12ab;
+        public static int notify_setting_title = 0x7f0a12c6;
+        public static int notify_setting_tv = 0x7f0a12c7;
+        public static int notify_setting_unopened = 0x7f0a12c8;
+        public static int notify_setting_unopened_iv = 0x7f0a12c9;
+        public static int pull_refresh_layout = 0x7f0a1396;
+        public static int qibla_view = 0x7f0a1399;
+        public static int refresh_layout = 0x7f0a140d;
+        public static int religion_bottom_five = 0x7f0a1413;
+        public static int religion_bottom_four = 0x7f0a1414;
+        public static int religion_bottom_navigate = 0x7f0a1415;
+        public static int religion_bottom_one = 0x7f0a1416;
+        public static int religion_bottom_three = 0x7f0a1417;
+        public static int religion_bottom_two = 0x7f0a1418;
+        public static int religion_content_view = 0x7f0a1419;
+        public static int religion_data_bottom_layout = 0x7f0a141a;
+        public static int religion_data_chart = 0x7f0a141b;
+        public static int religion_data_count = 0x7f0a141c;
+        public static int religion_data_count_title = 0x7f0a141d;
+        public static int religion_data_des = 0x7f0a141e;
+        public static int religion_data_history = 0x7f0a141f;
+        public static int religion_data_iv = 0x7f0a1420;
+        public static int religion_data_max = 0x7f0a1421;
+        public static int religion_data_zanzhu = 0x7f0a1422;
+        public static int religion_data_zanzhu_layout = 0x7f0a1423;
+        public static int religion_koran_five = 0x7f0a1424;
+        public static int religion_koran_four = 0x7f0a1425;
+        public static int religion_koran_one = 0x7f0a1426;
+        public static int religion_koran_three = 0x7f0a1427;
+        public static int religion_koran_two = 0x7f0a1428;
+        public static int religion_parent_layout = 0x7f0a1429;
+        public static int religion_pray_angle = 0x7f0a142a;
+        public static int religion_pray_distance = 0x7f0a142b;
+        public static int religion_pray_rv = 0x7f0a142c;
+        public static int religion_pray_tv = 0x7f0a142d;
+        public static int religion_setting_adjust = 0x7f0a142e;
+        public static int religion_setting_adjust_time = 0x7f0a142f;
+        public static int religion_setting_calculation = 0x7f0a1430;
+        public static int religion_setting_calculation_content = 0x7f0a1431;
+        public static int religion_setting_calculation_iv = 0x7f0a1432;
+        public static int religion_setting_method = 0x7f0a1433;
+        public static int religion_setting_pray = 0x7f0a1434;
+        public static int religion_setting_pray_iv = 0x7f0a1435;
+        public static int religion_setting_pray_time = 0x7f0a1436;
+        public static int religion_setting_pray_time_content = 0x7f0a1437;
+        public static int religion_setting_rv = 0x7f0a1438;
+        public static int religion_setting_switch = 0x7f0a1439;
+        public static int religion_title = 0x7f0a143a;
+        public static int religion_user_head = 0x7f0a143b;
+        public static int religion_user_head_layout = 0x7f0a143c;
+        public static int scene_data_title = 0x7f0a1586;
+        public static int scene_data_viewpager = 0x7f0a1587;
+        public static int scene_rv = 0x7f0a158b;
+        public static int scene_search = 0x7f0a158c;
+        public static int scene_subtitle = 0x7f0a158e;
+        public static int scene_title = 0x7f0a158f;
+        public static int search_et = 0x7f0a15cc;
+        public static int search_tv = 0x7f0a15d9;
+        public static int time_school_iv = 0x7f0a17ae;
+        public static int time_school_layout = 0x7f0a17af;
+        public static int time_school_tv = 0x7f0a17b0;
+        public static int time_title = 0x7f0a17b1;
+
+        private id() {
+        }
+    }
+
+    public static final class layout {
+        public static int activity_history = 0x7f0d010b;
+        public static int activity_koran = 0x7f0d0121;
+        public static int activity_koran_list = 0x7f0d0122;
+        public static int activity_notify_setting = 0x7f0d0165;
+        public static int activity_religion = 0x7f0d0189;
+        public static int activity_scene = 0x7f0d0191;
+        public static int activity_scene_list = 0x7f0d0192;
+        public static int activity_time = 0x7f0d01cf;
+        public static int float_player = 0x7f0d04a3;
+        public static int fragment_my = 0x7f0d0507;
+        public static int fragment_religion_data = 0x7f0d051d;
+        public static int fragment_religion_koran = 0x7f0d051e;
+        public static int fragment_religion_pray = 0x7f0d051f;
+        public static int fragment_religion_scene = 0x7f0d0520;
+        public static int fragment_religion_setting = 0x7f0d0521;
+        public static int fragment_scene = 0x7f0d0526;
+        public static int include_school = 0x7f0d055f;
+        public static int include_search = 0x7f0d0560;
+        public static int item_adjust_prayer_time = 0x7f0d056d;
+        public static int item_koran_content = 0x7f0d0629;
+        public static int item_koran_view = 0x7f0d062a;
+        public static int item_pray_scene = 0x7f0d0663;
+        public static int item_prayer_time = 0x7f0d0664;
+        public static int item_scene_content = 0x7f0d066d;
+        public static int item_scene_view = 0x7f0d066e;
+        public static int item_search_scene = 0x7f0d0670;
+        public static int item_tasbih = 0x7f0d0688;
+        public static int view_qibla = 0x7f0d0874;
+
+        private layout() {
+        }
+    }
+
+    private R() {
+    }
+}

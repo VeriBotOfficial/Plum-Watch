@@ -1,0 +1,73 @@
+package com.baidu.platform.comapi.wnplatform.p;
+
+import android.R;
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Rect;
+import android.view.View;
+
+/* compiled from: ScreenUtils.java */
+/* loaded from: classes13.dex */
+public class h {
+
+    /* renamed from: a, reason: collision with root package name */
+    private static float f8948a = 0.0f;
+    private static int b = 0;
+    public static int c = 124;
+    public static int d = 133;
+
+    public static float a(Context context) {
+        if (f8948a == 0.0f) {
+            f8948a = context.getResources().getDisplayMetrics().density;
+        }
+        return f8948a;
+    }
+
+    public static int b(Context context) {
+        if (context != null) {
+            return context.getResources().getDisplayMetrics().heightPixels;
+        }
+        return 0;
+    }
+
+    public static int c(Context context) {
+        if (context != null) {
+            return context.getResources().getDisplayMetrics().widthPixels;
+        }
+        return 0;
+    }
+
+    public static int d(Context context) {
+        Rect rect = new Rect();
+        ((Activity) context).getWindow().getDecorView().getWindowVisibleDisplayFrame(rect);
+        return rect.top;
+    }
+
+    public static int e(Context context) {
+        int b2;
+        int d2;
+        if (context == null) {
+            return 0;
+        }
+        int i = b;
+        if (i > 0) {
+            return i;
+        }
+        if (context instanceof Activity) {
+            View findViewById = ((Activity) context).getWindow().getDecorView().findViewById(R.id.content);
+            if (findViewById != null && findViewById.getHeight() > 0) {
+                return findViewById.getHeight();
+            }
+            b2 = b(context);
+            d2 = d(context);
+        } else {
+            b2 = b(context);
+            d2 = d(context);
+        }
+        return b2 - d2;
+    }
+
+    public static int a(Context context, int i) {
+        return (int) ((a(context) * i) + 0.5f);
+    }
+}

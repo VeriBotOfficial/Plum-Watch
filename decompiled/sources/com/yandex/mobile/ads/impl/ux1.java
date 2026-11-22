@@ -1,0 +1,28 @@
+package com.yandex.mobile.ads.impl;
+
+import java.util.Iterator;
+import javax.annotation.CheckForNull;
+
+/* loaded from: classes5.dex */
+final class ux1 extends k<Object> {
+    final Iterator<Object> d;
+    final /* synthetic */ vx1 e;
+
+    ux1(vx1 vx1Var) {
+        this.e = vx1Var;
+        this.d = vx1Var.b.iterator();
+    }
+
+    @Override // com.yandex.mobile.ads.impl.k
+    @CheckForNull
+    protected final Object a() {
+        while (this.d.hasNext()) {
+            Object next = this.d.next();
+            if (this.e.c.contains(next)) {
+                return next;
+            }
+        }
+        b();
+        return null;
+    }
+}

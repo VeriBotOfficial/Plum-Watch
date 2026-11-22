@@ -1,0 +1,21 @@
+package io.appmetrica.analytics.gpllibrary.internal;
+
+import android.location.Location;
+import android.location.LocationListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+
+/* loaded from: classes6.dex */
+class GplOnSuccessListener implements OnSuccessListener<Location> {
+
+    /* renamed from: a, reason: collision with root package name */
+    private final LocationListener f17742a;
+
+    GplOnSuccessListener(LocationListener locationListener) {
+        this.f17742a = locationListener;
+    }
+
+    @Override // com.google.android.gms.tasks.OnSuccessListener
+    public void onSuccess(Location location) {
+        this.f17742a.onLocationChanged(location);
+    }
+}

@@ -1,0 +1,23 @@
+package com.beken.iot.smartsdk.options;
+
+import kotlin.Metadata;
+
+/* compiled from: Params.kt */
+@Metadata(d1 = {"\u0000\u0012\n\u0002\u0018\u0002\n\u0002\u0010\u0010\n\u0000\n\u0002\u0010\b\n\u0002\b\b\b\u0086\u0001\u0018\u00002\b\u0012\u0004\u0012\u00020\u00000\u0001B\u000f\b\u0002\u0012\u0006\u0010\u0002\u001a\u00020\u0003¢\u0006\u0002\u0010\u0004R\u0011\u0010\u0002\u001a\u00020\u0003¢\u0006\b\n\u0000\u001a\u0004\b\u0005\u0010\u0006j\u0002\b\u0007j\u0002\b\bj\u0002\b\tj\u0002\b\n¨\u0006\u000b"}, d2 = {"Lcom/beken/iot/smartsdk/options/Rotate;", "", "rotate", "", "(Ljava/lang/String;II)V", "getRotate", "()I", "ROTATE_0", "ROTATE_90", "ROTATE_180", "ROTATE_270", "iotsdk_release"}, k = 1, mv = {1, 8, 0}, xi = 48)
+/* loaded from: classes13.dex */
+public enum Rotate {
+    ROTATE_0(0),
+    ROTATE_90(90),
+    ROTATE_180(180),
+    ROTATE_270(270);
+
+    private final int rotate;
+
+    Rotate(int i) {
+        this.rotate = i;
+    }
+
+    public final int getRotate() {
+        return this.rotate;
+    }
+}

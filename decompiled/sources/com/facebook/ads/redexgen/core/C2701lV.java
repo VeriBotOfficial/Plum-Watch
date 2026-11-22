@@ -1,0 +1,42 @@
+package com.facebook.ads.redexgen.core;
+
+/* renamed from: com.facebook.ads.redexgen.X.lV, reason: case insensitive filesystem */
+/* loaded from: assets/audience_network.dex */
+public class C2701lV implements InterfaceC1535Gw {
+    public final long A00;
+    public final long A01;
+    public final long A02;
+    public final long A03;
+    public final long A04;
+    public final long A05;
+    public final GL A06;
+
+    public C2701lV(GL gl, long j, long j2, long j3, long j4, long j5, long j6) {
+        this.A06 = gl;
+        this.A03 = j;
+        this.A05 = j2;
+        this.A02 = j3;
+        this.A04 = j4;
+        this.A01 = j5;
+        this.A00 = j6;
+    }
+
+    public final long A05(long j) {
+        return this.A06.AJf(j);
+    }
+
+    @Override // com.facebook.ads.redexgen.core.InterfaceC1535Gw
+    public final long A7l() {
+        return this.A03;
+    }
+
+    @Override // com.facebook.ads.redexgen.core.InterfaceC1535Gw
+    public final C1534Gv A8t(long j) {
+        return new C1534Gv(new C1536Gx(j, GK.A05(this.A06.AJf(j), this.A05, this.A02, this.A04, this.A01, this.A00)));
+    }
+
+    @Override // com.facebook.ads.redexgen.core.InterfaceC1535Gw
+    public final boolean AAa() {
+        return true;
+    }
+}

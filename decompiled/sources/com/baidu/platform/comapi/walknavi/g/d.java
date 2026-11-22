@@ -1,0 +1,25 @@
+package com.baidu.platform.comapi.walknavi.g;
+
+import com.baidu.mapapi.walknavi.model.RouteGuideKind;
+
+/* compiled from: INpcTriggerListener.java */
+/* loaded from: classes13.dex */
+public interface d {
+    void a();
+
+    boolean a(RouteGuideKind routeGuideKind);
+
+    void b();
+
+    boolean b(RouteGuideKind routeGuideKind);
+
+    void c();
+
+    void d();
+
+    void e();
+
+    void f();
+
+    void g();
+}

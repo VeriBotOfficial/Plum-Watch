@@ -1,0 +1,142 @@
+package sg.bigo.ads.controller.a;
+
+import com.alipay.android.phone.mrpc.core.af;
+import com.autonavi.aps.amapapi.config.Const;
+import com.baidu.ar.ae;
+import com.baidu.ar.sa;
+import com.facebook.hermes.intl.Constants;
+import com.mbridge.msdk.foundation.download.core.DownloadCommon;
+import com.umeng.analytics.pro.ak;
+import com.unity3d.services.ads.gmascar.utils.ScarConstants;
+import java.util.HashMap;
+import java.util.Map;
+import sg.bigo.ads.common.utils.q;
+
+/* loaded from: classes9.dex */
+public final class i {
+
+    /* renamed from: a, reason: collision with root package name */
+    private static final Map<String, String> f19830a;
+
+    static {
+        HashMap hashMap = new HashMap();
+        f19830a = hashMap;
+        hashMap.put(af.f1272a, "asia");
+        hashMap.put("al", "asia");
+        hashMap.put("az", "asia");
+        hashMap.put(ae.f, "asia");
+        hashMap.put("bh", "asia");
+        hashMap.put(com.anythink.expressad.foundation.g.a.P, "asia");
+        hashMap.put("bt", "asia");
+        hashMap.put(ScarConstants.BN_SIGNAL_KEY, "asia");
+        hashMap.put("cn", "asia");
+        hashMap.put("cy", "asia");
+        hashMap.put("hk", "asia");
+        hashMap.put("in", "asia");
+        hashMap.put("id", "asia");
+        hashMap.put("ir", "asia");
+        hashMap.put("iq", "asia");
+        hashMap.put("il", "asia");
+        hashMap.put("jp", "asia");
+        hashMap.put("jo", "asia");
+        hashMap.put("kz", "asia");
+        hashMap.put("kp", "asia");
+        hashMap.put("kr", "asia");
+        hashMap.put("kh", "asia");
+        hashMap.put("kw", "asia");
+        hashMap.put("la", "asia");
+        hashMap.put("lb", "asia");
+        hashMap.put("lu", "asia");
+        hashMap.put("mo", "asia");
+        hashMap.put("my", "asia");
+        hashMap.put("mv", "asia");
+        hashMap.put("mn", "asia");
+        hashMap.put("np", "asia");
+        hashMap.put("om", "asia");
+        hashMap.put("pk", "asia");
+        hashMap.put("ph", "asia");
+        hashMap.put("qa", "asia");
+        hashMap.put(sa.e, "asia");
+        hashMap.put("sg", "asia");
+        hashMap.put("sy", "asia");
+        hashMap.put("tw", "asia");
+        hashMap.put("tj", "asia");
+        hashMap.put("th", "asia");
+        hashMap.put("tm", "asia");
+        hashMap.put("va", "asia");
+        hashMap.put(com.anythink.expressad.foundation.g.a.L, "asia");
+        hashMap.put("ye", "asia");
+        hashMap.put("au", "asia");
+        hashMap.put("ck", "asia");
+        hashMap.put("fj", "asia");
+        hashMap.put("gu", "asia");
+        hashMap.put("nz", "asia");
+        hashMap.put(ak.aA, "asia");
+        hashMap.put("to", "asia");
+        hashMap.put(com.anythink.expressad.f.a.b.cZ, "europe");
+        hashMap.put("be", "europe");
+        hashMap.put("bg", "europe");
+        hashMap.put("ch", "europe");
+        hashMap.put("cz", "europe");
+        hashMap.put(ak.bn, "europe");
+        hashMap.put("de", "europe");
+        hashMap.put("es", "europe");
+        hashMap.put("ee", "europe");
+        hashMap.put("fi", "europe");
+        hashMap.put("fr", "europe");
+        hashMap.put("gr", "europe");
+        hashMap.put("gb", "europe");
+        hashMap.put("hr", "europe");
+        hashMap.put("hu", "europe");
+        hashMap.put(ak.ae, "europe");
+        hashMap.put("ie", "europe");
+        hashMap.put("it", "europe");
+        hashMap.put("lv", "europe");
+        hashMap.put("lt", "europe");
+        hashMap.put("mt", "europe");
+        hashMap.put("md", "europe");
+        hashMap.put(ak.A, "europe");
+        hashMap.put("nl", "europe");
+        hashMap.put("no", "europe");
+        hashMap.put(ak.az, "europe");
+        hashMap.put("pt", "europe");
+        hashMap.put("ro", "europe");
+        hashMap.put(com.anythink.expressad.video.dynview.a.a.Y, "europe");
+        hashMap.put("sm", "europe");
+        hashMap.put("sk", "europe");
+        hashMap.put("se", "europe");
+        hashMap.put("ua", "europe");
+        hashMap.put("uk", "europe");
+        hashMap.put("yu", "europe");
+        hashMap.put("bs", "america");
+        hashMap.put("bm", "america");
+        hashMap.put("ca", "america");
+        hashMap.put("cr", "america");
+        hashMap.put("cu", "america");
+        hashMap.put("gd", "america");
+        hashMap.put("gt", "america");
+        hashMap.put(DownloadCommon.DOWNLOAD_REPORT_HOST, "america");
+        hashMap.put("hn", "america");
+        hashMap.put("jm", "america");
+        hashMap.put("mx", "america");
+        hashMap.put("ni", "america");
+        hashMap.put(com.alipay.sdk.m.n.b.k, "america");
+        hashMap.put("us", "america");
+        hashMap.put("ve", "america");
+        hashMap.put(com.anythink.expressad.video.dynview.a.a.X, "america");
+        hashMap.put("bo", "america");
+        hashMap.put("br", "america");
+        hashMap.put(Const.SP_KEY_CONTINUE_LOCATION, "america");
+        hashMap.put(Constants.COLLATION_EXTENSION_KEY_SHORT, "america");
+        hashMap.put("ec", "america");
+        hashMap.put("gy", "america");
+        hashMap.put("py", "america");
+        hashMap.put("pe", "america");
+        hashMap.put("uy", "america");
+    }
+
+    public static String a(String str) {
+        String str2;
+        return (q.a((CharSequence) str) || (str2 = f19830a.get(str.toLowerCase())) == null) ? "" : str2;
+    }
+}
