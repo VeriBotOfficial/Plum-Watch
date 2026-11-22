@@ -4,7 +4,7 @@
 
 A watchface's background and resource filenames do not reliably describe its clock layout. SiFli packages can contain split-row digital clocks, one-row digital clocks, analogue hands, and other module-defined elements. The existence of `time_num` assets alone is not sufficient evidence to place them.
 
-The catalogue renderer therefore uses per-watchface layout profiles. A profile is added only after inspecting that watchface's own module and recovering its rendering calls, offsets, alignment, resource mapping, and dimensions. Unknown layouts are published with the original background preview rather than receiving a guessed or borrowed clock overlay. This is intentional: an incomplete background preview is preferable to a misleading preview showing the wrong clock.
+The catalogue renderer therefore uses per-watchface layout profiles resolved from the package's internal SiFli module ID, not the ZIP filename. ZIP filenames are user-facing names and can change; the internal module/resource ID remains inside the archive. A profile is added only after inspecting that watchface's own module and recovering its rendering calls, offsets, alignment, resource mapping, and dimensions. Unknown layouts are published with the original background preview rather than receiving a guessed or borrowed clock overlay. This is intentional: an incomplete background preview is preferable to a misleading preview showing the wrong clock.
 
 ## Red John profile
 
@@ -19,7 +19,7 @@ The two `lv_obj_align` call sites pass alignment value 1 (top-left) and these of
 | Hour | 38 | 42 |
 | Minute | 32 | 258 |
 
-The Red John profile renders a static sample time as two rows, using the native glyph canvases. It does not add a colon or resize/crop the assets.
+The Red John profile is keyed to the internal module ID `wf_clock1003` (including its paired resource module), not to the archive name `Red John.zip`. Renaming that ZIP therefore does not disable the clock profile. It renders a static sample time as two rows, using the native glyph canvases. It does not add a colon or resize/crop the assets.
 
 ## Known limitations
 
