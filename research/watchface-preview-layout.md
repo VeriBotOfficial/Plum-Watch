@@ -24,3 +24,8 @@ The Red John profile is keyed to the internal module ID `wf_clock1003` (includin
 ## Known limitations
 
 Red John's profile must not be reused for any other face. One-row digital and analogue faces still need their own module analysis and renderer profile. Until then, the catalogue deliberately leaves their original background untouched. Pixel-for-pixel comparison against a photograph of each physical watchface is also still needed to validate renderer-specific padding and composition.
+
+
+## Additional native formats
+
+Some analog modules store their hand sprites as raw format-5 RGB565-plus-alpha buffers with an 8-byte prefix, rather than compressed EZIP streams. The decoder recognizes this resource form directly before attempting the standard and legacy compressed paths. This is required for the `wf_clock932` and `wf_clock933` hour, minute, and second hands; without it, the background decodes while all three hands are silently omitted. The same format handling applies to later analog modules that use the same native resource encoding.

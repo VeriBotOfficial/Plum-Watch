@@ -303,6 +303,11 @@ def _pixels_to_image(raw: bytes, width: int, height: int, resource_format: int):
 def decode_ezip_bytes(data: bytes) -> Image.Image:
     """Decode one SiFli .bin image resource into a Pillow image."""
     resource_format, width, height = _resource_header(data)
+    # Analog hand sprites in several SiFli modules use a compact raw format-5
+    # payload: an 8-byte prefix followed by RGB565 + alpha triplets. They are
+    # not DEFLATE streams and must be decoded before trying either EZIP path.
+    if resource_format == 5 and len(data) == 8 + width * height * 3:
+        return _pixels_to_image(data[8:], width, height, resource_format)
     try:
         decoded, block_rows, has_filters, strict = _standard_stream(data[4:], width, height)
     except Exception as standard_error:

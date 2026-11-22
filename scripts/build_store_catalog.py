@@ -211,7 +211,8 @@ def _render_analog(background: Image.Image, assets: dict[str, Image.Image]) -> t
     angles = (hour % 12 * 30 + minute * 0.5, minute * 6, second * 6)
     for hand, angle in zip(hands, angles):
         rotated = hand.rotate(-angle, resample=Image.Resampling.BICUBIC, expand=True)
-        # Native hand artwork is pivoted at its lower center.
+        # Native hand artwork is pivoted just above its lower edge; keep the
+        # pivot proportional so the same composition works across resolutions.
         pivot_x, pivot_y = hand.width / 2, hand.height * 0.88
         pivot_offset = pivot_y - hand.height / 2
         radians = __import__("math").radians(angle)
