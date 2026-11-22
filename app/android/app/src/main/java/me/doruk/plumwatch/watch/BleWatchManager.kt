@@ -91,6 +91,9 @@ data class BleUiState(
     val batteryPercent: Int? = null,
     val heartRateBpm: Int? = null,
     val bloodOxygenPercent: Int? = null,
+    val cameraRequestSequence: Int = 0,
+    val cameraShutterSequence: Int = 0,
+    val cameraSwitchSequence: Int = 0,
     val supportsBattery: Boolean = false,
     val supportsHeartRate: Boolean = false,
     val supportsBloodOxygen: Boolean = false,
@@ -732,22 +735,26 @@ class BleWatchManager(context: Context) {
                 return
             }
 
-            // Wearfit measurement responses use command 0x31. The first data
-            // byte selects the measurement (9=heart rate, 17=SpO2), and the
-            // next byte contains the returned one-byte value.
-            if (commandId == 0x31 && cmd.size >= 7) {
-                val measurementType = cmd[5].toInt() and 0xFF
-                val reading = cmd[6].toInt() and 0xFF
-                when (measurementType) {
-                    9 -> if (reading in 1..255) {
-                        mutableState.update {
-                            it.copy(heartRateBpm = reading, supportsHeartRate = true)
-                        }
+            // CameraControlAnalyzer: command 0x15, subcommand 1 means switch
+            // front/rear camera. Other subcommands carry state at byte 6; state 1
+            // is a shutter request and state 2 toggles the selected camera.
+            if (commandId == 0x15 && cmd.size >= 6) {
+                val subcommand = cmd[5].toInt() and 0xFF
+                if (subcommand == 1) {
+                    mutableState.update {
+                        it.copy(
+                            cameraRequestSequence = it.cameraRequestSequence + 1,
+                            cameraSwitchSequence = it.cameraSwitchSequence + 1
+                        )
                     }
-                    17 -> if (reading in 1..100) {
-                        mutableState.update {
-                            it.copy(bloodOxygenPercent = reading, supportsBloodOxygen = true)
-                        }
+                } else if (cmd.size >= 7) {
+                    val cameraState = cmd[6].toInt() and 0xFF
+                    mutableState.update {
+                        it.copy(
+                            cameraRequestSequence = it.cameraRequestSequence + 1,
+                            cameraShutterSequence = it.cameraShutterSequence + if (cameraState == 1) 1 else 0,
+                            cameraSwitchSequence = it.cameraSwitchSequence + if (cameraState == 2) 1 else 0
+                        )
                     }
                 }
                 return
@@ -773,8 +780,10 @@ class BleWatchManager(context: Context) {
     }
 
 
-    private fun dispatchPhoneMediaCommand(command: Int) {
-        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+    fun controlPhoneMedia(command: Int): Boolean = dispatchPhoneMediaCommand(command)
+
+    private fun dispatchPhoneMediaCommand(command: Int): Boolean {
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
         val keyCode = when (command) {
             1 -> KeyEvent.KEYCODE_MEDIA_PLAY
             2 -> KeyEvent.KEYCODE_MEDIA_PAUSE
@@ -782,12 +791,17 @@ class BleWatchManager(context: Context) {
             4 -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
             5 -> {
                 audioManager.adjustVolume(AudioManager.ADJUST_RAISE, 0)
-                return
+                return true
             }
-            else -> return
+            6 -> {
+                audioManager.adjustVolume(AudioManager.ADJUST_LOWER, 0)
+                return true
+            }
+            else -> return false
         }
-        audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
-        audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+        val down = audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+        val up = audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+        return down || up
     }
 
     @SuppressLint("MissingPermission")
@@ -1313,6 +1327,16 @@ class BleWatchManager(context: Context) {
         }
     }
 
+    private fun sendWearfitPacket(packet: ByteArray): Boolean {
+        val gatt = bluetoothGatt ?: return false
+        val characteristic = wearfitWriteCharacteristic ?: return false
+        val queued = sendProprietaryCommand(gatt, characteristic, packet)
+        mutableState.update {
+            it.copy(errorMessage = if (queued) null else "Android could not queue the watch command.")
+        }
+        return queued
+    }
+
     /** Queue Wearfit commands so Android never has overlapping characteristic writes. */
     @SuppressLint("MissingPermission")
     private fun sendProprietaryCommand(
@@ -1472,17 +1496,7 @@ class BleWatchManager(context: Context) {
         marker: Int = 0xAB,
         separator: Int = 0xFF
     ): Boolean {
-        val gatt = bluetoothGatt ?: return false
-        val characteristic = wearfitWriteCharacteristic ?: return false
-        val queued = sendProprietaryCommand(
-            gatt,
-            characteristic,
-            WearfitProtocol.packet(commandId, data, marker, separator)
-        )
-        mutableState.update {
-            it.copy(errorMessage = if (queued) null else "Android could not queue the watch setting.")
-        }
-        return queued
+        return sendWearfitPacket(WearfitProtocol.packet(commandId, data, marker, separator))
     }
 
     fun setWatchLanguage(languageCode: Int): Boolean {
@@ -1502,14 +1516,12 @@ class BleWatchManager(context: Context) {
     fun setShakeToPhoto(enabled: Boolean): Boolean =
         sendWearfitSetting(0x79, byteArrayOf(0x80.toByte(), if (enabled) 1 else 0))
 
-    /** Wearfit's real-time camera preview mode; distinct from its shake-to-photo toggle. */
+    /** Wearfit's CameraControlAnalyzer switches preview/capture through command 0x15. */
     fun setCameraPreviewState(enabled: Boolean): Boolean =
-        sendWearfitSetting(
-            commandId = 0x15,
-            data = byteArrayOf(0x04, if (enabled) 1 else 0),
-            marker = 0xEA,
-            separator = 0x00
-        )
+        sendWearfitPacket(WearfitProtocol.cameraPreviewState(enabled))
+
+    fun sendCameraPhotoState(first: Int, second: Int, third: Int): Boolean =
+        sendWearfitPacket(WearfitProtocol.cameraPhotoState(first, second, third))
 
     fun startCamera(): Boolean {
         val shakeReady = setShakeToPhoto(true)
@@ -1523,27 +1535,20 @@ class BleWatchManager(context: Context) {
         return previewStopped && shakeStopped
     }
 
-    /** One-shot measurement requests decoded from Wearfit Pro's Health screen callers. */
+    /** Exact Wearfit single/real-time requests: HR=(9,0), SpO2=(17,0). */
     fun requestHeartRateMeasurement(realtime: Boolean = false): Boolean =
         sendWearfitSetting(0x31, byteArrayOf(0x09, if (realtime) 1 else 0))
 
     fun requestBloodOxygenMeasurement(realtime: Boolean = false): Boolean =
         sendWearfitSetting(0x31, byteArrayOf(0x11, if (realtime) 1 else 0))
 
-    /**
-     * Generic app-notification message used by Wearfit's own notification listener.
-     * Message ID 34 is the generic fallback found in the supplied APK. App-specific
-     * icon IDs are not yet mapped, so all selected apps use this generic watch icon.
-     */
+    /** Sends Wearfit's separate notification-content packet through its 19-byte split queue. */
     fun sendAppNotification(title: String, text: String): Boolean {
         val content = listOf(title.trim(), text.trim())
             .filter { it.isNotEmpty() }
             .joinToString(": ")
-            .take(280)
         if (content.isBlank()) return false
-        val body = byteArrayOf(0x80.toByte(), 0x02, 0x22) +
-            content.toByteArray(Charsets.UTF_8)
-        return sendWearfitSetting(0x72, body)
+        return sendWearfitPacket(WearfitProtocol.notificationContent(content))
     }
 
     fun setBodyTemperatureMeasurement(enabled: Boolean): Boolean =
