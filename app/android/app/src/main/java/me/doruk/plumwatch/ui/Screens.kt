@@ -1530,7 +1530,11 @@ fun HealthScreen(onBack: () -> Unit) {
     }
     var feedback by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) { manager.refreshHealth() }
+    // Read standard HR as soon as the link is up, then retry Wearfit one-shot
+    // requests once its proprietary command/notification handshake is ready.
+    LaunchedEffect(state.isConnected, state.supportsProprietaryCommands) {
+        if (state.isConnected) manager.refreshHealth()
+    }
     LaunchedEffect(state.heartRateUpdatedAt) {
         val timestamp = state.heartRateUpdatedAt ?: return@LaunchedEffect
         val value = state.heartRateBpm ?: return@LaunchedEffect
