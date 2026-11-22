@@ -22,6 +22,41 @@ class WearfitProtocolTest {
     }
 
     @Test
+    fun buildsCameraPreviewStatePacket() {
+        assertArrayEquals(
+            byteArrayOf(0xEA.toByte(), 0, 4, 0, 0x15, 4, 1),
+            WearfitProtocol.cameraPreviewState(true)
+        )
+    }
+
+    @Test
+    fun buildsCameraPhotoStatePacket() {
+        assertArrayEquals(
+            byteArrayOf(0xEA.toByte(), 0, 6, 0, 0x15, 3, 3, 1, 0),
+            WearfitProtocol.cameraPhotoState(first = 3, second = 1, third = 0)
+        )
+    }
+
+    @Test
+    fun buildsSplitNotificationContentPacket() {
+        assertArrayEquals(
+            byteArrayOf(
+                0xAB.toByte(), 0, 11, 0xFF.toByte(), 0x72, 0x80.toByte(),
+                34, 2, 0x48, 0x69, 0x20, 0x77, 0x61, 0x74, 0x63, 0x68
+            ),
+            WearfitProtocol.notificationContent("Hi watch")
+        )
+    }
+
+    @Test
+    fun notificationContentTruncationDoesNotSplitUtf8Characters() {
+        val packet = WearfitProtocol.notificationContent("é".repeat(400))
+        val body = packet.copyOfRange(8, packet.size)
+        assertEquals(320, body.size)
+        assertEquals(0, body.size % 2)
+    }
+
+    @Test
     fun buildsSleepModePacketWithEaMarker() {
         assertArrayEquals(
             byteArrayOf(0xEA.toByte(), 0, 7, 0xFF.toByte(), 0x7F, 1, 1, 2, 1, 1),
