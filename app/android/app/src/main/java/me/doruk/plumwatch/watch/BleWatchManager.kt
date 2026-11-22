@@ -743,14 +743,13 @@ class BleWatchManager(context: Context) {
                 val directEvent = cmd[5].toInt() and 0xFF
                 mutableState.update { current ->
                     current.copy(
-                        cameraSwitchSequence = current.cameraSwitchSequence +
-                            if (directEvent == 1) 1 else 0,
                         cameraRequestSequence = current.cameraRequestSequence +
                             if (cmd.size >= 7) 1 else 0,
                         cameraShutterSequence = current.cameraShutterSequence +
                             if (cmd.size >= 7 && (cmd[6].toInt() and 0xFF) == 1) 1 else 0,
                         cameraSwitchSequence = current.cameraSwitchSequence +
-                            if (cmd.size >= 7 && (cmd[6].toInt() and 0xFF) == 2) 1 else 0
+                            (if (directEvent == 1) 1 else 0) +
+                            (if (cmd.size >= 7 && (cmd[6].toInt() and 0xFF) == 2) 1 else 0)
                     )
                 }
                 return
