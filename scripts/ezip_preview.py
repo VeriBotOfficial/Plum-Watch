@@ -44,6 +44,140 @@ def _standard_stream(stream: bytes, width: int, height: int):
     return decoded, block_rows, has_filters, True
 
 
+def _decode_shared_huffman(data: bytes) -> bytes:
+    """Decode SiFli's shared-table DEFLATE-like stream variant."""
+    class BitReader:
+        def __init__(self, payload):
+            self.data = payload
+            self.position = 0
+
+        def read_bit(self):
+            if self.position >= len(self.data) * 8:
+                raise ValueError("unexpected end of shared-Huffman stream")
+            bit = (self.data[self.position >> 3] >> (self.position & 7)) & 1
+            self.position += 1
+            return bit
+
+        def read_bits(self, count):
+            value = 0
+            for shift in range(count):
+                value |= self.read_bit() << shift
+            return value
+
+        def align_word(self):
+            byte_index = (self.position + 7) >> 3
+            byte_index = (byte_index + 3) & ~3
+            self.position = byte_index * 8
+
+    def make_tree(lengths):
+        maximum = max(lengths) if lengths else 0
+        counts = [0] * (maximum + 1)
+        for length in lengths:
+            if length:
+                counts[length] += 1
+        next_code = [0] * (maximum + 1)
+        code = 0
+        for bits in range(1, maximum + 1):
+            code = (code + counts[bits - 1]) << 1
+            next_code[bits] = code
+        tree = {}
+        for symbol, length in enumerate(lengths):
+            if length:
+                tree[(length, next_code[length])] = symbol
+                next_code[length] += 1
+        return tree
+
+    def symbol(reader, tree):
+        code = 0
+        for length in range(1, 16):
+            code = (code << 1) | reader.read_bit()
+            result = tree.get((length, code))
+            if result is not None:
+                return result
+        raise ValueError("invalid shared-Huffman code")
+
+    length_base = (3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258)
+    length_extra = (0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0)
+    distance_base = (1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577)
+    distance_extra = (0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13)
+    code_order = (16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15)
+
+    reader = BitReader(data)
+    literal_count = reader.read_bits(5) + 257
+    distance_count = reader.read_bits(5) + 1
+    code_count = reader.read_bits(4) + 4
+    code_lengths = [0] * 19
+    for index in range(code_count):
+        code_lengths[code_order[index]] = reader.read_bits(3)
+    code_tree = make_tree(code_lengths)
+
+    lengths = []
+    required = literal_count + distance_count
+    while len(lengths) < required:
+        value = symbol(reader, code_tree)
+        if value <= 15:
+            lengths.append(value)
+        elif value == 16:
+            if not lengths:
+                raise ValueError("repeat code appears before first code length")
+            lengths.extend([lengths[-1]] * (reader.read_bits(2) + 3))
+        elif value == 17:
+            lengths.extend([0] * (reader.read_bits(3) + 3))
+        elif value == 18:
+            lengths.extend([0] * (reader.read_bits(7) + 11))
+        else:
+            raise ValueError("invalid code-length symbol")
+        if len(lengths) > required:
+            raise ValueError("shared-Huffman code-length table overflows")
+    literal_tree = make_tree(lengths[:literal_count])
+    distance_tree = make_tree(lengths[literal_count:])
+    reader.align_word()
+
+    output = bytearray()
+    while True:
+        final_block = reader.read_bit()
+        block_type = reader.read_bits(2)
+        if block_type == 0:
+            reader.position = (reader.position + 7) & ~7
+            offset = reader.position >> 3
+            if offset + 4 > len(data):
+                raise ValueError("truncated stored shared-Huffman block")
+            size = data[offset] | (data[offset + 1] << 8)
+            payload_start = offset + 4
+            payload_end = payload_start + size
+            if payload_end > len(data):
+                raise ValueError("stored shared-Huffman block exceeds input")
+            output.extend(data[payload_start:payload_end])
+            reader.position = payload_end * 8
+        elif block_type in (1, 2):
+            while True:
+                value = symbol(reader, literal_tree)
+                if value < 256:
+                    output.append(value)
+                elif value == 256:
+                    break
+                else:
+                    index = value - 257
+                    if index < 0 or index >= len(length_base):
+                        raise ValueError("invalid shared-Huffman length symbol")
+                    length = length_base[index] + reader.read_bits(length_extra[index])
+                    distance_symbol = symbol(reader, distance_tree)
+                    if distance_symbol >= len(distance_base):
+                        raise ValueError("invalid shared-Huffman distance symbol")
+                    distance = distance_base[distance_symbol] + reader.read_bits(distance_extra[distance_symbol])
+                    if distance <= 0 or distance > len(output):
+                        raise ValueError("invalid shared-Huffman back-reference")
+                    for _ in range(length):
+                        output.append(output[-distance])
+        else:
+            raise ValueError("reserved shared-Huffman block type")
+
+        reader.align_word()
+        if final_block:
+            break
+    return bytes(output)
+
+
 def _legacy_block_stream(data: bytes):
     if len(data) < 24:
         raise ValueError("short legacy EZIP resource")
@@ -56,27 +190,30 @@ def _legacy_block_stream(data: bytes):
     table_size = 4 * (block_count + 1)
     if len(comp_data) < table_size:
         raise ValueError("truncated legacy block table")
-    if ((control >> 4) > 2) and ((control >> 4) != 5):
-        raise ValueError("legacy shared-Huffman stream is not supported yet")
 
     raw_stream = comp_data[table_size:]
-    offsets = []
-    for index in range(block_count):
-        offset = struct.unpack_from(">I", comp_data, 4 + index * 4)[0]
-        if index == 0:
-            offset &= 0x00FFFFFF
-        offsets.append(offset)
-    offsets.append(len(raw_stream) + table_size + 16)
+    shared_huffman = ((control >> 4) > 2) and ((control >> 4) != 5)
+    if shared_huffman:
+        decoded = _decode_shared_huffman(raw_stream)
+    else:
+        offsets = []
+        for index in range(block_count):
+            offset = struct.unpack_from(">I", comp_data, 4 + index * 4)[0]
+            if index == 0:
+                offset &= 0x00FFFFFF
+            offsets.append(offset)
+        offsets.append(len(raw_stream) + table_size + 16)
 
-    decoded = bytearray()
-    for index in range(block_count):
-        start = offsets[index] - 16 - table_size
-        end = offsets[index + 1] - 16 - table_size
-        if start < 0 or end < start or end > len(raw_stream):
-            raise ValueError("legacy EZIP block offset is outside the stream")
-        decoded.extend(zlib.decompress(raw_stream[start:end], -15))
-    return bytes(decoded), row_size, has_filters, False
+        output = bytearray()
+        for index in range(block_count):
+            start = offsets[index] - 16 - table_size
+            end = offsets[index + 1] - 16 - table_size
+            if start < 0 or end < start or end > len(raw_stream):
+                raise ValueError("legacy EZIP block offset is outside the stream")
+            output.extend(zlib.decompress(raw_stream[start:end], -15))
+        decoded = bytes(output)
 
+    return decoded, row_size, has_filters, False
 
 def _unfilter_rows(data: bytes, width: int, height: int, bpp: int, block_rows: int, has_filters: bool, strict: bool):
     stride = width * bpp

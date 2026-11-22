@@ -31,7 +31,7 @@ If `previewFile` is omitted, the publisher looks for a file named `preview`, `co
 
 ## Preview support
 
-PNG, JPEG, WebP and GIF are supported automatically. The publisher does not guess at proprietary binary image formats. Some SiFli EZIP watchfaces store frames in binary resources and need a compatible EZIP decoder before a faithful preview can be generated. Those entries remain listed and are marked as needing EZIP preview support.
+PNG, JPEG, WebP and GIF are supported automatically. The publisher also decodes SiFli EZIP background resources and can assemble numbered background frames into an animated GIF. For multi-frame EZIP packages, preview timing defaults to 120 ms per frame unless `previewFrameDurationMs` is set in metadata. The decoder rejects unsupported or malformed variants rather than creating a misleading preview.
 
 ## Compatibility
 
