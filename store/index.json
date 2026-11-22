@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T18:58:03.314265+00:00",
+  "generatedAt": "2026-11-22T18:59:47.377535+00:00",
   "watchfaces": [
     {
       "id": "21540_4_dial",
@@ -71,26 +71,6 @@
       },
       "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21553_4_dial.png",
       "animatedPreviewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21553_4_dial.gif",
-      "previewFrameCount": 15,
-      "previewStatus": "rendered"
-    },
-    {
-      "id": "21560_4_dial",
-      "name": "21560_4_dial",
-      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/21560_4_dial.zip",
-      "archiveSizeBytes": 967370,
-      "rendering": {
-        "type": "digital_split",
-        "modules": [
-          "wf_clock1003"
-        ],
-        "features": [
-          "animated_backgrounds",
-          "time_num"
-        ]
-      },
-      "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21560_4_dial.png",
-      "animatedPreviewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21560_4_dial.gif",
       "previewFrameCount": 15,
       "previewStatus": "rendered"
     },
