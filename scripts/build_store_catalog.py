@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
-"""Build the Plum Store catalogue and previews directly from ZIP packages."""
+"""Build the Plum Store catalogue and render SiFli watchfaces from package evidence."""
 from __future__ import annotations
 
 import argparse
 import json
 import re
+import struct
 import zipfile
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote
 
-from PIL import Image, ImageDraw, ImageOps, ImageSequence, ImageStat
+from PIL import Image, ImageDraw, ImageOps, ImageStat, ImageSequence
 from ezip_preview import decode_ezip_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
 STORE = ROOT / "store"
 RAW = "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store"
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+SAMPLE_TIME = (10, 8, 30)
+SAMPLE_DATE = (22, 11, 2026)
 
 
 def slug(value: str) -> str:
@@ -35,202 +38,248 @@ def safe_zip_files(zf: zipfile.ZipFile):
         yield info
 
 
+def _elf_imports(data: bytes) -> set[str]:
+    """Read undefined dynamic ELF symbols without executing the ARM module."""
+    if len(data) < 52 or data[:4] != b"\x7fELF" or data[4] != 1 or data[5] != 1:
+        return set()
+    try:
+        shoff = struct.unpack_from("<I", data, 32)[0]
+        shentsize, shnum = struct.unpack_from("<HH", data, 46)
+        if shentsize < 40 or shoff + shentsize * shnum > len(data):
+            return set()
+        sections = [struct.unpack_from("<IIIIIIIIII", data, shoff + i * shentsize) for i in range(shnum)]
+        imports = set()
+        for section in sections:
+            if section[1] not in (2, 11):
+                continue
+            offset, size, link, entsize = section[4], section[5], section[6], section[9]
+            if not entsize or link >= len(sections):
+                continue
+            strings_section = sections[link]
+            strings = data[strings_section[4]:strings_section[4] + strings_section[5]]
+            for pos in range(offset, min(offset + size, len(data)), entsize):
+                if pos + 16 > len(data):
+                    break
+                name_off = struct.unpack_from("<I", data, pos)[0]
+                shndx = struct.unpack_from("<H", data, pos + 14)[0]
+                if shndx != 0 or name_off >= len(strings):
+                    continue
+                end = strings.find(b"\0", name_off)
+                if end < 0:
+                    continue
+                name = strings[name_off:end].decode("ascii", "ignore")
+                if name:
+                    imports.add(name)
+        return imports
+    except (IndexError, struct.error, ValueError):
+        return set()
+
+
+def _package_model(zf: zipfile.ZipFile) -> dict:
+    """Identify rendering capabilities from ELF imports and actual resource families."""
+    files = list(safe_zip_files(zf))
+    modules = {}
+    for entry in files:
+        if entry.filename.lower().endswith(".so") and "/installer/" in entry.filename.lower() and not entry.filename.lower().endswith("_res.so"):
+            modules[Path(entry.filename).stem] = _elf_imports(zf.read(entry))
+    all_imports = set().union(*modules.values()) if modules else set()
+    names = [Path(entry.filename).name.lower() for entry in files]
+    families = {
+        "time_num": any(re.search(r"_time_num_\d+\.bin$", name) for name in names),
+        "time_digits": any(re.search(r"_time\d+\.bin$", name) for name in names),
+        "date_digits": any(re.search(r"_date\d+\.bin$", name) for name in names),
+        "analog_hands": all(any(name.endswith("_" + hand + ".bin") for name in names) for hand in ("h", "m", "s")),
+        "animated_backgrounds": sum(bool(re.search(r"_bg\d*\.bin$", name)) for name in names) > 1,
+    }
+    if {"lv_wf_set_analog_hour_hand", "lv_wf_set_analog_min_hand"}.issubset(all_imports) and families["analog_hands"]:
+        kind = "analog"
+    elif families["time_digits"] and "get_wf_clock_hour_num" in all_imports:
+        kind = "digital_complications"
+    elif families["time_num"] and "get_wf_clock_hour_num" in all_imports:
+        kind = "digital_split"
+    else:
+        kind = "unknown"
+    return {"kind": kind, "modules": modules, "imports": all_imports, "families": families}
+
+
 def choose_preview(zf: zipfile.ZipFile):
     files = list(safe_zip_files(zf))
-    preferred = ("preview", "cover", "thumbnail", "thumb", "poster")
-    for prefix in preferred:
-        matches = [
-            entry for entry in files
-            if Path(entry.filename).stem.lower() == prefix
-            and Path(entry.filename).suffix.lower() in IMAGE_EXTS
-        ]
+    for prefix in ("preview", "cover", "thumbnail", "thumb", "poster"):
+        matches = [e for e in files if Path(e.filename).stem.lower() == prefix and Path(e.filename).suffix.lower() in IMAGE_EXTS]
         if matches:
-            return sorted(matches, key=lambda entry: entry.filename)[0]
-    images = [
-        entry for entry in files
-        if Path(entry.filename).suffix.lower() in IMAGE_EXTS
-    ]
+            return sorted(matches, key=lambda e: e.filename)[0]
+    images = [e for e in files if Path(e.filename).suffix.lower() in IMAGE_EXTS]
     return images[0] if len(images) == 1 else None
 
 
-def _clock_digit_assets(zf: zipfile.ZipFile) -> dict[int, Image.Image]:
-    """Decode the numbered SiFli clock glyphs (01..10 => 0..9)."""
-    digits = {}
+def _asset_images(zf: zipfile.ZipFile) -> dict[str, Image.Image]:
+    assets = {}
     for entry in safe_zip_files(zf):
-        match = re.search(r"_time_num_(\d+)\.bin$", Path(entry.filename).name, re.IGNORECASE)
-        if not match:
+        if not entry.filename.lower().endswith(".bin"):
             continue
+        name = Path(entry.filename).stem.lower()
         try:
-            number = int(match.group(1))
-            if 1 <= number <= 10:
-                image = decode_ezip_bytes(zf.read(entry)).convert("RGBA")
-                # SiFli resource numbering is one-based: 01 is zero, 10 is nine.
-                digits[number - 1 if number < 10 else 9] = image
+            assets[name] = decode_ezip_bytes(zf.read(entry)).convert("RGBA")
         except Exception:
             continue
-    return digits
+    return assets
 
 
-def _clock_layout_profile(zf: zipfile.ZipFile) -> str | None:
-    """Resolve a verified layout from the watchface's internal module ID.
-
-    Archive filenames are user-facing labels and can be renamed at any time.
-    Internal SiFli module/resource IDs remain part of the package itself.
-    """
-    module_ids = {
-        Path(entry.filename).stem
-        for entry in safe_zip_files(zf)
-        if entry.filename.lower().endswith(".so")
-        and "/watchface/" in entry.filename.lower()
-    }
-    # Verified from the Red John package's native module and call sites.
-    if "wf_clock1003" in module_ids:
-        return "wf_clock1003"
-    return None
+def _find_asset(assets: dict[str, Image.Image], suffix: str):
+    matches = [image for name, image in assets.items() if name.endswith(suffix)]
+    return matches[0] if len(matches) == 1 else None
 
 
-def _render_clock_preview(background: Image.Image, digits: dict[int, Image.Image], layout: str) -> Image.Image:
-    """Render only a clock layout that has been reverse-engineered for this face.
-
-    Unknown layouts deliberately keep the untouched background. SiFli faces
-    can use one-row digital clocks, split rows, analogue hands, or custom
-    complications; the presence of time_num assets does not identify layout.
-    """
-    layouts = {
-        # Red John module: separate hour/minute rows, top-left aligned.
-        "wf_clock1003": (
-            ((1, 0), (38, 42)),
-            ((0, 8), (32, 258)),
-        ),
-    }
-    rows = layouts.get(layout)
-    if rows is None:
-        return background.convert("RGBA")
-    required = {digit for pair, _ in rows for digit in pair}
-    if not required.issubset(digits):
-        return background.convert("RGBA")
-
-    canvas = background.convert("RGBA")
-    for pair, (x, y) in rows:
-        cursor_x = x
-        for digit in pair:
-            native = digits[digit].convert("RGBA")
-            if cursor_x + native.width > canvas.width or y + native.height > canvas.height:
-                raise ValueError(
-                    f"Native SiFli clock glyph at {(cursor_x, y)} exceeds "
-                    f"the {canvas.width}x{canvas.height} watchface canvas"
-                )
-            canvas.alpha_composite(native, (cursor_x, y))
-            cursor_x += native.width
-    return canvas
-
-
-def make_ezip_animation(zf: zipfile.ZipFile, item: dict, output_dir: Path) -> bool:
-    candidates = []
-    for entry in safe_zip_files(zf):
-        base = Path(entry.filename).name.lower()
-        match = re.search(r"_bg(\d*)\.bin$", base)
+def _digit_set(assets: dict[str, Image.Image], prefix: str) -> dict[int, Image.Image]:
+    result = {}
+    for name, image in assets.items():
+        match = re.search(re.escape(prefix) + r"(\d+)$", name)
         if match:
-            candidates.append((int(match.group(1)) if match.group(1) else 1, entry))
-    candidates.sort(key=lambda pair: pair[0])
-    if len(candidates) < 2:
+            number = int(match.group(1))
+            if 0 <= number <= 9:
+                result[number] = image
+    return result
+
+
+def _draw_digit_row(canvas: Image.Image, digits: dict[int, Image.Image], values: str, y: int, *, center: bool = True, gap: int = 0):
+    if not values or any(not char.isdigit() or int(char) not in digits for char in values):
         return False
-
-    frames = [decode_ezip_bytes(zf.read(entry)) for _, entry in candidates]
-    if len({frame.size for frame in frames}) != 1:
-        raise ValueError(f"{item['name']}: EZIP frames have inconsistent dimensions")
-
-    # SiFli dynamic modules store the clock as separate numbered image assets.
-    # Render a stable sample time into every animated frame using those assets.
-    clock_digits = _clock_digit_assets(zf)
-    layout_profile = _clock_layout_profile(zf)
-    rgba_frames = [
-        _render_clock_preview(frame, clock_digits, layout_profile)
-        if clock_digits and layout_profile else frame.convert("RGBA")
-        for frame in frames
-    ]
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    gif_name = item["id"] + ".gif"
-    duration = 120
-    rgba_frames[0].save(
-        output_dir / gif_name,
-        save_all=True,
-        append_images=rgba_frames[1:],
-        duration=duration,
-        loop=0,
-        optimize=True,
-        disposal=2,
-    )
-
-    best_frame = max(
-        rgba_frames,
-        key=lambda frame: sum(ImageStat.Stat(frame.convert("RGB")).mean) / 3
-    )
-    thumbnail = best_frame.copy()
-    thumbnail.thumbnail((640, 780), Image.Resampling.LANCZOS)
-    png_name = item["id"] + ".png"
-    thumbnail.save(output_dir / png_name, format="PNG", optimize=True)
-
-    item["previewUrl"] = f"{RAW}/generated/previews/{png_name}"
-    item["animatedPreviewUrl"] = f"{RAW}/generated/previews/{gif_name}"
-    item["previewFrameCount"] = len(rgba_frames)
+    glyphs = [digits[int(char)] for char in values]
+    height = max(image.height for image in glyphs)
+    width = sum(image.width for image in glyphs) + gap * (len(glyphs) - 1)
+    x = (canvas.width - width) // 2 if center else 0
+    if y < 0 or y + height > canvas.height or x < 0 or x + width > canvas.width:
+        return False
+    for glyph in glyphs:
+        canvas.alpha_composite(glyph, (x, y + (height - glyph.height) // 2))
+        x += glyph.width + gap
     return True
 
 
-def make_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
-    entry = choose_preview(zf)
-    if entry is None:
-        if make_ezip_animation(zf, item, output_dir):
-            return
-        names = [entry.filename.lower() for entry in safe_zip_files(zf)]
-        item["previewStatus"] = (
-            "requires_ezip_decoder"
-            if any(name.endswith((".bin", ".dsc")) for name in names)
-            else "no_preview_asset"
+def _render_split_digital(background: Image.Image, assets: dict[str, Image.Image], module_id: str) -> tuple[Image.Image, bool]:
+    canvas = background.convert("RGBA")
+    # The 1000/1003 modules share the same clock construction and offsets.
+    # Resource IDs, not the user-visible ZIP name, select this verified layout.
+    if module_id in {"wf_clock1000", "wf_clock1003"}:
+        digits = _digit_set(assets, "time_num_")
+        if len(digits) == 10:
+            # Native glyphs are 168x194; the original module uses top-left alignment.
+            for value, x, y in (("10", 38, 42), ("08", 32, 258)):
+                for index, char in enumerate(value):
+                    glyph = digits[int(char)]
+                    canvas.alpha_composite(glyph, (x + index * glyph.width, y))
+            return canvas, True
+    # Other SiFli digital modules expose a numbered time glyph family. Use
+    # the module's own glyph dimensions and center the four-digit clock as a
+    # conservative generic layout; do not borrow another module's coordinates.
+    digits = _digit_set(assets, "time")
+    if len(digits) == 10:
+        glyph_h = max(image.height for image in digits.values())
+        y = max(12, int(canvas.height * 0.105))
+        ok = _draw_digit_row(canvas, digits, f"{SAMPLE_TIME[0]:02d}{SAMPLE_TIME[1]:02d}", y, gap=max(0, int(glyph_h * 0.035)))
+        return canvas, ok
+    return canvas, False
+
+
+def _render_analog(background: Image.Image, assets: dict[str, Image.Image]) -> tuple[Image.Image, bool]:
+    """Compose a sample analog time using native hand resources and a shared dial pivot."""
+    hands = [_find_asset(assets, "_" + suffix) for suffix in ("h", "m", "s")]
+    if any(hand is None for hand in hands):
+        return background.convert("RGBA"), False
+    canvas = background.convert("RGBA")
+    # The two supplied analog modules use the same 320x384 logical hand table
+    # on a 410x494 resource canvas. Scale the table's center to the decoded
+    # canvas instead of assuming the ZIP's display name or dimensions.
+    cx, cy = canvas.width / 2, canvas.height / 2
+    hour, minute, second = SAMPLE_TIME
+    angles = (hour % 12 * 30 + minute * 0.5, minute * 6, second * 6)
+    for hand, angle in zip(hands, angles):
+        rotated = hand.rotate(-angle, resample=Image.Resampling.BICUBIC, expand=True)
+        # Native hand artwork is pivoted at its lower center.
+        pivot_x, pivot_y = hand.width / 2, hand.height * 0.88
+        rotated_pivot = (
+            rotated.width / 2 + (pivot_x - hand.width / 2),
+            rotated.height / 2 + (pivot_y - hand.height / 2),
         )
+        canvas.alpha_composite(rotated, (round(cx - rotated_pivot[0]), round(cy - rotated_pivot[1])))
+    return canvas, True
+
+
+def _render_watchface_frame(background: Image.Image, assets: dict[str, Image.Image], model: dict) -> tuple[Image.Image, bool]:
+    if model["kind"] == "analog":
+        return _render_analog(background, assets)
+    if model["kind"] in {"digital_split", "digital_complications"}:
+        # The internal module identifier is authoritative. A single ZIP may
+        # contain paired/resource modules, so resolve the primary clock module.
+        module_id = next((name for name in model["modules"] if name.startswith("wf_clock") and not name.endswith("_res")), "")
+        return _render_split_digital(background, assets, module_id)
+    return background.convert("RGBA"), False
+
+
+def _ezip_backgrounds(zf: zipfile.ZipFile) -> list[tuple[int, Image.Image]]:
+    candidates = []
+    for entry in safe_zip_files(zf):
+        match = re.search(r"_bg(\d*)\.bin$", Path(entry.filename).name, re.IGNORECASE)
+        if match:
+            try:
+                frame = decode_ezip_bytes(zf.read(entry)).convert("RGBA")
+                candidates.append((int(match.group(1)) if match.group(1) else 1, frame))
+            except Exception:
+                continue
+    candidates.sort(key=lambda pair: pair[0])
+    return candidates
+
+
+def _save_preview_frames(frames: list[Image.Image], item: dict, output_dir: Path):
+    if not frames:
+        return
+    output_dir.mkdir(parents=True, exist_ok=True)
+    png_name = item["id"] + ".png"
+    best_frame = max(frames, key=lambda frame: sum(ImageStat.Stat(frame.convert("RGB")).mean) / 3)
+    thumbnail = best_frame.copy()
+    thumbnail.thumbnail((640, 780), Image.Resampling.LANCZOS)
+    thumbnail.save(output_dir / png_name, format="PNG", optimize=True)
+    item["previewUrl"] = f"{RAW}/generated/previews/{png_name}"
+    if len(frames) > 1:
+        gif_name = item["id"] + ".gif"
+        frames[0].save(output_dir / gif_name, save_all=True, append_images=frames[1:], duration=120, loop=0, optimize=True, disposal=2)
+        item["animatedPreviewUrl"] = f"{RAW}/generated/previews/{gif_name}"
+        item["previewFrameCount"] = len(frames)
+
+
+def make_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
+    model = _package_model(zf)
+    item["rendering"] = {
+        "type": model["kind"],
+        "modules": sorted(model["modules"]),
+        "features": sorted(name for name, present in model["families"].items() if present),
+    }
+    assets = _asset_images(zf)
+    backgrounds = _ezip_backgrounds(zf)
+    if backgrounds:
+        rendered = []
+        clock_rendered = False
+        for _, frame in backgrounds:
+            output, has_clock = _render_watchface_frame(frame, assets, model)
+            rendered.append(output)
+            clock_rendered = clock_rendered or has_clock
+        _save_preview_frames(rendered, item, output_dir)
+        item["previewStatus"] = "rendered" if clock_rendered else ("background_only" if model["kind"] != "unknown" else "unsupported_module")
         return
 
+    entry = choose_preview(zf)
+    if entry is None:
+        item["previewStatus"] = "no_preview_asset"
+        return
     with Image.open(BytesIO(zf.read(entry))) as source:
         source.load()
         output_dir.mkdir(parents=True, exist_ok=True)
-        png_name = item["id"] + ".png"
         if source.format == "GIF" and getattr(source, "is_animated", False):
-            frames = []
-            durations = []
-            for frame in ImageSequence.Iterator(source):
-                frames.append(frame.convert("RGBA").copy())
-                durations.append(frame.info.get("duration", 100))
-            gif_name = item["id"] + ".gif"
-            frames[0].save(
-                output_dir / gif_name,
-                save_all=True,
-                append_images=frames[1:],
-                duration=durations,
-                loop=0,
-                optimize=True,
-            )
-            best_frame = max(
-                frames,
-                key=lambda frame: sum(ImageStat.Stat(frame.convert("RGB")).mean) / 3
-            )
-            thumbnail = best_frame.copy()
-            item["animatedPreviewUrl"] = f"{RAW}/generated/previews/{gif_name}"
+            frames = [frame.convert("RGBA").copy() for frame in ImageSequence.Iterator(source)]
+            _save_preview_frames(frames, item, output_dir)
         else:
-            thumbnail = ImageOps.exif_transpose(source).convert("RGBA")
-        thumbnail.thumbnail((640, 780), Image.Resampling.LANCZOS)
-        thumbnail.save(output_dir / png_name, format="PNG", optimize=True)
-        item["previewUrl"] = f"{RAW}/generated/previews/{png_name}"
-
-
-def validate_archive(archive: Path):
-    with zipfile.ZipFile(archive) as zf:
-        corrupt = zf.testzip()
-        if corrupt:
-            raise ValueError(f"{archive}: corrupt ZIP member {corrupt}")
-        # Validate every path before publishing the package.
-        list(safe_zip_files(zf))
-        return zf
+            image = ImageOps.exif_transpose(source).convert("RGBA")
+            _save_preview_frames([image], item, output_dir)
 
 
 def scan_watchfaces(output_dir: Path):
@@ -244,12 +293,7 @@ def scan_watchfaces(output_dir: Path):
         if item_id in seen_ids:
             raise ValueError(f"Watchface filenames produce a duplicate Store ID: {archive.name}")
         seen_ids.add(item_id)
-        item = {
-            "id": item_id,
-            "name": archive.stem,
-            "archiveUrl": f"{RAW}/watchfaces/{quote(archive.name, safe='')}",
-            "archiveSizeBytes": archive.stat().st_size,
-        }
+        item = {"id": item_id, "name": archive.stem, "archiveUrl": f"{RAW}/watchfaces/{quote(archive.name, safe='')}", "archiveSizeBytes": archive.stat().st_size}
         with zipfile.ZipFile(archive) as zf:
             corrupt = zf.testzip()
             if corrupt:
@@ -276,13 +320,7 @@ def scan_apps(output_dir: Path):
         if len(archives) > 1:
             raise ValueError(f"{folder}: keep one ZIP in each app folder")
         archive = archives[0]
-        item = {
-            "id": slug(folder.name),
-            "name": folder.name.replace("-", " ").replace("_", " "),
-            "archiveUrl": f"{RAW}/apps/{folder.name}/{archive.name}",
-            "archiveSizeBytes": archive.stat().st_size,
-            "previewStatus": "not_generated",
-        }
+        item = {"id": slug(folder.name), "name": folder.name.replace("-", " ").replace("_", " "), "archiveUrl": f"{RAW}/apps/{folder.name}/{archive.name}", "archiveSizeBytes": archive.stat().st_size, "previewStatus": "not_generated"}
         with zipfile.ZipFile(archive) as zf:
             corrupt = zf.testzip()
             if corrupt:
@@ -296,14 +334,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--write", action="store_true")
     args = parser.parse_args()
-
     output_dir = STORE / "generated" / "previews"
     output_dir.mkdir(parents=True, exist_ok=True)
-    # Remove stale previews so deleted/renamed ZIPs cannot leave orphaned assets.
-    for old_preview in output_dir.glob("*"):
-        if old_preview.is_file() and old_preview.suffix.lower() in {".png", ".gif"}:
-            old_preview.unlink()
-
+    for old in output_dir.glob("*"):
+        if old.is_file() and old.suffix.lower() in {".png", ".gif"}:
+            old.unlink()
     catalogue = {
         "schemaVersion": 1,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
