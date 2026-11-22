@@ -656,6 +656,7 @@ private fun WatchfaceArtwork(
     url: String?,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val bytes by produceState<ByteArray?>(initialValue = null, key1 = url) {
         value = if (url.isNullOrBlank()) null else loadCachedWatchfacePreview(context, url)
     }
