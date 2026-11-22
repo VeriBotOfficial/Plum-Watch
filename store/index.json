@@ -1,7 +1,116 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T18:56:11.951102+00:00",
+  "generatedAt": "2026-11-22T18:58:03.314265+00:00",
   "watchfaces": [
+    {
+      "id": "21540_4_dial",
+      "name": "21540_4_dial",
+      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/21540_4_dial.zip",
+      "archiveSizeBytes": 153427,
+      "rendering": {
+        "type": "analog",
+        "modules": [
+          "wf_clock932"
+        ],
+        "features": [
+          "analog_hands"
+        ]
+      },
+      "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21540_4_dial.png",
+      "previewStatus": "background_only"
+    },
+    {
+      "id": "21541_4_dial",
+      "name": "21541_4_dial",
+      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/21541_4_dial.zip",
+      "archiveSizeBytes": 153669,
+      "rendering": {
+        "type": "analog",
+        "modules": [
+          "wf_clock933"
+        ],
+        "features": [
+          "analog_hands"
+        ]
+      },
+      "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21541_4_dial.png",
+      "previewStatus": "background_only"
+    },
+    {
+      "id": "21543_4_dial",
+      "name": "21543_4_dial",
+      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/21543_4_dial.zip",
+      "archiveSizeBytes": 213122,
+      "rendering": {
+        "type": "digital_complications",
+        "modules": [
+          "wf_clock935"
+        ],
+        "features": [
+          "date_digits",
+          "time_digits"
+        ]
+      },
+      "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21543_4_dial.png",
+      "previewStatus": "rendered"
+    },
+    {
+      "id": "21553_4_dial",
+      "name": "21553_4_dial",
+      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/21553_4_dial.zip",
+      "archiveSizeBytes": 965393,
+      "rendering": {
+        "type": "digital_split",
+        "modules": [
+          "wf_clock1000"
+        ],
+        "features": [
+          "animated_backgrounds",
+          "time_num"
+        ]
+      },
+      "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21553_4_dial.png",
+      "animatedPreviewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21553_4_dial.gif",
+      "previewFrameCount": 15,
+      "previewStatus": "rendered"
+    },
+    {
+      "id": "21560_4_dial",
+      "name": "21560_4_dial",
+      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/21560_4_dial.zip",
+      "archiveSizeBytes": 967370,
+      "rendering": {
+        "type": "digital_split",
+        "modules": [
+          "wf_clock1003"
+        ],
+        "features": [
+          "animated_backgrounds",
+          "time_num"
+        ]
+      },
+      "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21560_4_dial.png",
+      "animatedPreviewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21560_4_dial.gif",
+      "previewFrameCount": 15,
+      "previewStatus": "rendered"
+    },
+    {
+      "id": "21563_4_dial",
+      "name": "21563_4_dial",
+      "archiveUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/watchfaces/21563_4_dial.zip",
+      "archiveSizeBytes": 117797,
+      "rendering": {
+        "type": "analog",
+        "modules": [
+          "wf_clock1004"
+        ],
+        "features": [
+          "analog_hands"
+        ]
+      },
+      "previewUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/store/generated/previews/21563_4_dial.png",
+      "previewStatus": "background_only"
+    },
     {
       "id": "black-liquid",
       "name": "Black Liquid",
