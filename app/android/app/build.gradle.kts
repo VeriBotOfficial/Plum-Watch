@@ -76,6 +76,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.core:core-ktx:1.18.0")
+    implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("androidx.camera:camera-camera2:1.7.0")
     implementation("androidx.camera:camera-lifecycle:1.7.0")
     implementation("androidx.camera:camera-view:1.7.0")

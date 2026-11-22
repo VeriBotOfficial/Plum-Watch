@@ -170,7 +170,8 @@ fun PlumDownloadButton(
     modifier: Modifier = Modifier,
     showActivityIndicator: Boolean = false,
     downloadingLabel: String = "Downloading…",
-    successLabel: String = "Downloaded"
+    successLabel: String = "Downloaded",
+    attention: Boolean = false
 ) {
     val shape = RoundedCornerShape(18.dp)
     val targetProgress = when {
@@ -187,6 +188,7 @@ fun PlumDownloadButton(
         targetValue = when {
             downloaded -> Color(0xFF248B55)
             downloading -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f)
+            attention -> MaterialTheme.colorScheme.primary.copy(alpha = 0.23f)
             else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
         },
         animationSpec = tween(520, easing = FastOutSlowInEasing),
@@ -194,6 +196,7 @@ fun PlumDownloadButton(
     )
     val foregroundColor = when {
         downloaded -> Color.White
+        attention -> MaterialTheme.colorScheme.primary
         downloading || showActivityIndicator -> MaterialTheme.colorScheme.onSurface
         else -> MaterialTheme.colorScheme.primary
     }
@@ -951,6 +954,8 @@ fun SettingsScreen(
                 uiStyle = uiStyle,
                 colorPalette = colorPalette,
                 appVersion = appVersion,
+                updateAvailable = availableUpdate != null,
+                updateVersion = availableUpdate?.versionName,
                 onOpenCategory = { selectedCategory = it }
             )
         } else {
@@ -981,6 +986,8 @@ private fun SettingsHomeScreen(
     uiStyle: String,
     colorPalette: String,
     appVersion: String,
+    updateAvailable: Boolean,
+    updateVersion: String?,
     onOpenCategory: (SettingsCategory) -> Unit
 ) {
     val themeLabel = when (themeMode) {
@@ -1017,7 +1024,7 @@ private fun SettingsHomeScreen(
                     SettingsRowDivider()
                     SettingsCategoryRow(
                         category = SettingsCategory.UPDATES,
-                        value = appVersion,
+                        value = if (updateAvailable) "Update available · ${updateVersion ?: ""}" else appVersion,
                         onClick = { onOpenCategory(SettingsCategory.UPDATES) }
                     )
                 }
@@ -1375,12 +1382,24 @@ private fun UpdateSettingsContent(
                     downloaded = isDownloaded,
                     enabled = !updateBusy && !isDownloaded,
                     showActivityIndicator = checkingUpdates,
+                    attention = availableUpdate != null,
                     onClick = {
                         val update = availableUpdate
                         if (update != null) onInstallUpdate(update) else onCheckUpdates()
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (availableUpdate != null) {
+                    TextButton(
+                        onClick = onCheckUpdates,
+                        enabled = !updateBusy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Check again")
+                    }
+                }
                 val visibleMessage = downloadState.errorMessage ?: updateMessage.takeUnless {
                     downloadState.isDownloading || downloadState.isOpeningInstaller || isDownloaded
                 }
@@ -1414,18 +1433,19 @@ private fun AboutSettingsContent(appVersion: String) {
             ) {
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(64.dp)
                         .background(
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                            RoundedCornerShape(15.dp)
+                            RoundedCornerShape(19.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
+                    Image(
                         painter = painterResource(me.doruk.plumwatch.R.drawable.ic_launcher_foreground),
                         contentDescription = "Plum Watch",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(23.dp)
+                        contentScale = ContentScale.Fit,
+                        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.size(48.dp)
                     )
                 }
                 Spacer(Modifier.width(12.dp))

@@ -128,12 +128,6 @@ fun PlumWatchApp(
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
     val scope = rememberCoroutineScope()
-    var showLaunchScreen by remember { mutableStateOf(true) }
-
-    LaunchedEffect(Unit) {
-        delay(620L)
-        showLaunchScreen = false
-    }
 
     LaunchedEffect(currentVersionCode) {
         checkingUpdates = true
@@ -164,12 +158,12 @@ fun PlumWatchApp(
         ) {
             scope.launch {
                 checkingUpdates = true
-                availableUpdate = null
                 updateMessage = "Checking GitHub…"
                 try {
                     delay(Random.nextLong(200L, 401L))
                     when (val result = AppUpdateRepository.check(currentVersionName, currentVersionCode)) {
                         is AppUpdateCheckResult.UpToDate -> {
+                            availableUpdate = null
                             updateMessage = "You're up to date"
                         }
                         is AppUpdateCheckResult.UpdateAvailable -> {
@@ -328,7 +322,7 @@ fun PlumWatchApp(
                         }
                     }
                     AnimatedVisibility(
-                        visible = showLaunchScreen,
+                        visible = false,
                         modifier = Modifier.fillMaxSize().zIndex(2f),
                         enter = fadeIn(tween(260)) + scaleIn(
                             initialScale = 0.92f,
@@ -359,7 +353,7 @@ fun PlumWatchApp(
                 }
             },
             overlay = {
-                if (!showLaunchScreen) FloatingNavigationBar(
+                FloatingNavigationBar(
                     selectedPage = page,
                     onSelect = { page = it },
                     useGlass = uiStyle == "glass",
