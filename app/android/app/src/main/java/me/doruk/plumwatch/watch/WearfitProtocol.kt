@@ -67,7 +67,13 @@ internal object WearfitProtocol {
     }
 
     private fun truncateUtf8(value: String, maxBytes: Int): ByteArray {
+        val complete = value.toByteArray(Charsets.UTF_8)
+        if (complete.size <= maxBytes) return complete
+
+        // Wearfit appends an ellipsis when its 321-byte content limit is reached.
+        val marker = "...".toByteArray(Charsets.UTF_8)
         val output = java.io.ByteArrayOutputStream()
+        val contentLimit = (maxBytes - marker.size).coerceAtLeast(0)
         var index = 0
         while (index < value.length) {
             val charCount = if (
@@ -76,10 +82,11 @@ internal object WearfitProtocol {
                 Character.isLowSurrogate(value[index + 1])
             ) 2 else 1
             val next = value.substring(index, index + charCount).toByteArray(Charsets.UTF_8)
-            if (output.size() + next.size > maxBytes) break
+            if (output.size() + next.size > contentLimit) break
             output.write(next)
             index += charCount
         }
+        output.write(marker)
         return output.toByteArray()
     }
 
