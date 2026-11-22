@@ -91,6 +91,8 @@ data class BleUiState(
     val batteryPercent: Int? = null,
     val heartRateBpm: Int? = null,
     val bloodOxygenPercent: Int? = null,
+    val heartRateUpdatedAt: Long? = null,
+    val bloodOxygenUpdatedAt: Long? = null,
     val cameraRequestSequence: Int = 0,
     val cameraShutterSequence: Int = 0,
     val cameraSwitchSequence: Int = 0,
@@ -369,6 +371,8 @@ class BleWatchManager(context: Context) {
                             batteryPercent = null,
                             heartRateBpm = null,
                              bloodOxygenPercent = null,
+                             heartRateUpdatedAt = null,
+                             bloodOxygenUpdatedAt = null,
                              supportsBloodOxygen = false,
                             supportsBattery = false,
                             supportsHeartRate = false,
@@ -704,6 +708,8 @@ class BleWatchManager(context: Context) {
                     current.copy(
                         heartRateBpm = measurement.heartRateBpm ?: current.heartRateBpm,
                         bloodOxygenPercent = measurement.bloodOxygenPercent ?: current.bloodOxygenPercent,
+                        heartRateUpdatedAt = if (measurement.heartRateBpm != null) System.currentTimeMillis() else current.heartRateUpdatedAt,
+                        bloodOxygenUpdatedAt = if (measurement.bloodOxygenPercent != null) System.currentTimeMillis() else current.bloodOxygenUpdatedAt,
                         supportsHeartRate = current.supportsHeartRate || measurement.heartRateBpm != null,
                         supportsBloodOxygen = current.supportsBloodOxygen ||
                             measurement.bloodOxygenPercent != null
@@ -759,34 +765,41 @@ class BleWatchManager(context: Context) {
                 when (measurementType) {
                     9, 10 -> if (reading in 1..255) {
                         mutableState.update {
-                            it.copy(heartRateBpm = reading, supportsHeartRate = true)
+                            it.copy(
+                                heartRateBpm = reading,
+                                heartRateUpdatedAt = System.currentTimeMillis(),
+                                supportsHeartRate = true
+                            )
                         }
                     }
                     17, 18 -> if (reading in 1..100) {
                         mutableState.update {
-                            it.copy(bloodOxygenPercent = reading, supportsBloodOxygen = true)
+                            it.copy(
+                                bloodOxygenPercent = reading,
+                                bloodOxygenUpdatedAt = System.currentTimeMillis(),
+                                supportsBloodOxygen = true
+                            )
                         }
                     }
                 }
                 return
             }
 
-            // CameraControlAnalyzer accepts EA / command 0x15.
-            // Byte 5 == 1 emits a direct front/rear-switch event. When the
-            // packet also contains byte 6, that byte is the state from the
-            // analyzer's JSON event: 1 = take photo, 2 = toggle facing.
-            if (commandId == 0x15 && cmd.size >= 6) {
-                val directEvent = cmd[5].toInt() and 0xFF
-                mutableState.update { current ->
-                    current.copy(
-                        cameraRequestSequence = current.cameraRequestSequence +
-                            if (cmd.size >= 7) 1 else 0,
-                        cameraShutterSequence = current.cameraShutterSequence +
-                            if (cmd.size >= 7 && (cmd[6].toInt() and 0xFF) == 1) 1 else 0,
-                        cameraSwitchSequence = current.cameraSwitchSequence +
-                            (if (directEvent == 1) 1 else 0) +
-                            (if (cmd.size >= 7 && (cmd[6].toInt() and 0xFF) == 2) 1 else 0)
-                    )
+            // Match Wearfit's CameraControlAnalyzer exactly:
+            // EA ... 15 02 = direct lens switch.
+            // EA ... 15 01 <state> [width:2] [height:2], state 1=shutter, 2=lens switch.
+            if (commandId == 0x15 && marker == 0xEA) {
+                WearfitProtocol.parseCameraControlEvent(cmd)?.let { event ->
+                    mutableState.update { current ->
+                        current.copy(
+                            cameraRequestSequence = current.cameraRequestSequence +
+                                if (event.requestsCamera) 1 else 0,
+                            cameraShutterSequence = current.cameraShutterSequence +
+                                if (event.takePhoto) 1 else 0,
+                            cameraSwitchSequence = current.cameraSwitchSequence +
+                                if (event.switchCamera) 1 else 0
+                        )
+                    }
                 }
                 return
             }
@@ -1328,7 +1341,9 @@ class BleWatchManager(context: Context) {
                 } else {
                     value[1].toInt() and 0xFF
                 }
-                if (bpm in 1..65535) mutableState.update { it.copy(heartRateBpm = bpm) }
+                if (bpm in 1..65535) mutableState.update {
+                    it.copy(heartRateBpm = bpm, heartRateUpdatedAt = System.currentTimeMillis())
+                }
             }
         }
     }
@@ -1583,14 +1598,17 @@ class BleWatchManager(context: Context) {
         sendWearfitPacket(WearfitProtocol.cameraPhotoState(first, second, third))
 
     fun startCamera(): Boolean {
-        val shakeReady = setShakeToPhoto(true)
-        val previewReady = setCameraPreviewState(true)
-        return shakeReady && previewReady
+        // Do not send until service discovery, command notifications and the
+        // Wearfit handshake have completed. The UI retries when readiness changes.
+        if (!mutableState.value.isConnected ||
+            !mutableState.value.supportsProprietaryCommands ||
+            !wearfitNotificationsReady
+        ) return false
+        return setCameraPreviewState(true)
     }
 
     fun stopCamera(): Boolean {
-        val previewStopped = setCameraPreviewState(false)
-        val shakeStopped = setShakeToPhoto(false)
+        val stopped = setCameraPreviewState(false)
         mutableState.update {
             it.copy(
                 cameraRequestSequence = 0,
@@ -1598,7 +1616,7 @@ class BleWatchManager(context: Context) {
                 cameraSwitchSequence = 0
             )
         }
-        return previewStopped && shakeStopped
+        return stopped
     }
 
     /** Exact Wearfit single/real-time requests: HR=(9,0), SpO2=(17,0). */
