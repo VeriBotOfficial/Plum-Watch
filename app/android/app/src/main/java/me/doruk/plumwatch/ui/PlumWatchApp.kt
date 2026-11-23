@@ -37,6 +37,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.BatteryFull
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GridView
@@ -89,6 +91,8 @@ private enum class AppPage(val label: String) {
     WATCH_SETTINGS("Other Settings"),
     ALARMS("Alarms"),
     HEALTH("Health"),
+    BATTERY("Battery"),
+    DEVICE_INFO("Device information"),
     NOTIFICATIONS("Notifications"),
     CAMERA("Camera"),
     MUSIC("Music")
@@ -286,6 +290,8 @@ fun PlumWatchApp(
                                 onFindWatch = watchManager::findWatch,
                                 onOpenAlarms = { page = AppPage.ALARMS },
                                 onOpenHealth = { page = AppPage.HEALTH },
+                                onOpenBattery = { page = AppPage.BATTERY },
+                                onOpenDeviceInfo = { page = AppPage.DEVICE_INFO },
                                 onOpenNotifications = { page = AppPage.NOTIFICATIONS },
                                 onOpenCamera = { page = AppPage.CAMERA },
                                 onOpenMusic = { page = AppPage.MUSIC }
@@ -311,6 +317,8 @@ fun PlumWatchApp(
                             )
                             AppPage.ALARMS -> AlarmsScreen(onBack = { page = AppPage.WATCH })
                             AppPage.HEALTH -> HealthScreen(onBack = { page = AppPage.WATCH })
+                            AppPage.BATTERY -> BatteryHistoryScreen(onBack = { page = AppPage.WATCH })
+                            AppPage.DEVICE_INFO -> DeviceInfoScreen(onBack = { page = AppPage.WATCH })
                             AppPage.NOTIFICATIONS -> NotificationsScreen(onBack = { page = AppPage.WATCH })
                             AppPage.CAMERA -> CameraScreen(
                                 watchManager = watchManager,
