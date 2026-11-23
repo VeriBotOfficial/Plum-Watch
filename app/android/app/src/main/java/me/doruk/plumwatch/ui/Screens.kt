@@ -33,6 +33,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +46,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -65,6 +67,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -114,10 +117,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -127,6 +132,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -333,16 +341,23 @@ fun MyWatchScreen(
     }
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showDashboardEditor by remember { mutableStateOf(false) }
+    val allQuickFeatureNames = listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store")
     var quickOrder by remember {
         mutableStateOf(
-            dashboardPreferences.getString("quick_order", null)
+            (dashboardPreferences.getString("quick_order", null)
                 ?.split("|")?.filter { it.isNotBlank() }
-                ?: listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store")
+                .orEmpty().filter { it in allQuickFeatureNames } +
+                allQuickFeatureNames.filter {
+                    it !in dashboardPreferences.getString("quick_order", null).orEmpty().split("|")
+                })
         )
     }
     var hiddenQuickFeatures by remember {
         mutableStateOf(dashboardPreferences.getStringSet("hidden_quick_features", emptySet()).orEmpty())
     }
+    val quickControlBounds = remember { mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>() }
+    val latestQuickOrder by rememberUpdatedState(quickOrder)
+    var draggingQuickFeature by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -542,50 +557,101 @@ fun MyWatchScreen(
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            title = { Text("Customize dashboard") },
+            title = { Text("Customize controls") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 460.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
                     Text(
-                        "Choose which shortcuts appear and arrange their order.",
+                        "Hold and drag to reorder. Toggle to show or hide.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
-                    val allNames = listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store")
-                    allNames.forEach { name ->
+                    val orderedNames = quickOrder.filter { it in allQuickFeatureNames } +
+                        allQuickFeatureNames.filter { it !in quickOrder }
+                    orderedNames.forEach { name ->
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onGloballyPositioned { quickControlBounds[name] = it.boundsInRoot() }
+                                .pointerInput(name) {
+                                    var lastHoveredName: String? = null
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = {
+                                            draggingQuickFeature = name
+                                            lastHoveredName = name
+                                        },
+                                        onDragEnd = { draggingQuickFeature = null },
+                                        onDragCancel = { draggingQuickFeature = null },
+                                        onDrag = { change, _ ->
+                                            change.consume()
+                                            val rowBounds = quickControlBounds[name]
+                                                ?: return@detectDragGesturesAfterLongPress
+                                            val pointerY = rowBounds.top + change.position.y
+                                            val targetName = latestQuickOrder.firstOrNull { candidate ->
+                                                val targetBounds = quickControlBounds[candidate]
+                                                targetBounds != null &&
+                                                    pointerY >= targetBounds.top &&
+                                                    pointerY <= targetBounds.bottom
+                                            }
+                                            if (targetName == null || targetName == name) {
+                                                lastHoveredName = name
+                                            } else if (targetName != lastHoveredName) {
+                                                val fromIndex = latestQuickOrder.indexOf(name)
+                                                val toIndex = latestQuickOrder.indexOf(targetName)
+                                                if (fromIndex >= 0 && toIndex >= 0) {
+                                                    quickOrder = latestQuickOrder.toMutableList().apply {
+                                                        removeAt(fromIndex)
+                                                        add(toIndex, name)
+                                                    }
+                                                    dashboardPreferences.edit()
+                                                        .putString("quick_order", quickOrder.joinToString("|"))
+                                                        .apply()
+                                                }
+                                                lastHoveredName = targetName
+                                            }
+                                        }
+                                    )
+                                }
+                                .background(
+                                    if (draggingQuickFeature == name) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                    } else Color.Transparent,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 5.dp, vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Checkbox(
                                 checked = name !in hiddenQuickFeatures,
                                 onCheckedChange = { visible ->
-                                    hiddenQuickFeatures = if (visible) hiddenQuickFeatures - name else hiddenQuickFeatures + name
+                                    hiddenQuickFeatures = if (visible) {
+                                        hiddenQuickFeatures - name
+                                    } else {
+                                        hiddenQuickFeatures + name
+                                    }
                                     dashboardPreferences.edit()
                                         .putStringSet("hidden_quick_features", hiddenQuickFeatures)
                                         .apply()
                                 }
                             )
-                            Text(name, modifier = Modifier.weight(1f), fontSize = 13.sp)
-                            TextButton(onClick = {
-                                val index = quickOrder.indexOf(name).takeIf { it >= 0 } ?: quickOrder.size
-                                if (index > 0) {
-                                    quickOrder = quickOrder.toMutableList().apply {
-                                        val item = removeAt(index)
-                                        add(index - 1, item)
-                                    }
-                                    dashboardPreferences.edit().putString("quick_order", quickOrder.joinToString("|")).apply()
-                                }
-                            }, enabled = quickOrder.indexOf(name) > 0) { Text("↑") }
-                            TextButton(onClick = {
-                                val index = quickOrder.indexOf(name).takeIf { it >= 0 } ?: quickOrder.size
-                                if (index < quickOrder.lastIndex) {
-                                    quickOrder = quickOrder.toMutableList().apply {
-                                        val item = removeAt(index)
-                                        add(index + 1, item)
-                                    }
-                                    dashboardPreferences.edit().putString("quick_order", quickOrder.joinToString("|")).apply()
-                                }
-                            }, enabled = quickOrder.indexOf(name) in 0 until quickOrder.lastIndex) { Text("↓") }
+                            Text(
+                                name,
+                                modifier = Modifier.weight(1f),
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Icon(
+                                Icons.Outlined.DragHandle,
+                                contentDescription = "Hold and drag to reorder",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
@@ -595,9 +661,12 @@ fun MyWatchScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
-                    quickOrder = listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store")
+                    quickOrder = allQuickFeatureNames
                     hiddenQuickFeatures = emptySet()
-                    dashboardPreferences.edit().remove("quick_order").remove("hidden_quick_features").apply()
+                    dashboardPreferences.edit()
+                        .remove("quick_order")
+                        .remove("hidden_quick_features")
+                        .apply()
                 }) { Text("Reset") }
             }
         )
@@ -964,7 +1033,7 @@ private fun QuickFeatureTile(
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             feature.onClick()
         },
-        modifier = modifier.height(100.dp),
+        modifier = modifier.height(110.dp),
         shape = RoundedCornerShape(22.dp),
         enabled = feature.enabled
     ) {
@@ -1004,13 +1073,18 @@ private fun QuickFeatureTile(
                     color = if (feature.enabled) MaterialTheme.colorScheme.onSurface
                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     feature.subtitle,
                     color = if (feature.enabled) MaterialTheme.colorScheme.onSurfaceVariant
                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    fontSize = 11.sp
+                    fontSize = 10.sp,
+                    lineHeight = 13.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -2007,8 +2081,16 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
         "30D" -> 30L * 24L * 60L * 60L * 1000L
         else -> 24L * 60L * 60L * 1000L
     }
+    val windowStart = now - duration
     val orderedSamples = samples.sortedBy { it.timestamp }
-    val visibleSamples = orderedSamples.filter { it.timestamp >= now - duration }
+    val visibleSamples = orderedSamples.filter { it.timestamp in windowStart..now }
+    val currentSample = state.batteryPercent?.let { percent ->
+        state.batteryUpdatedAt?.let { timestamp -> BatteryHistorySample(timestamp, percent) }
+    }?.takeIf { it.timestamp in windowStart..now }
+    val chartSamples = (
+        visibleSamples.filterNot { it.timestamp == currentSample?.timestamp } +
+            listOfNotNull(currentSample)
+        ).sortedBy { it.timestamp }
     val latest = state.batteryPercent ?: orderedSamples.lastOrNull()?.percent
     val updatedAt = state.batteryUpdatedAt ?: orderedSamples.lastOrNull()?.timestamp
     val batteryColor = when {
@@ -2016,8 +2098,17 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
         latest <= 20 -> MaterialTheme.colorScheme.error
         else -> Color(0xFF39B978)
     }
-    val chartColor = if (latest != null && latest <= 20) MaterialTheme.colorScheme.error else Color(0xFF39B978)
-    val chartGrid = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    val chartColor = if (latest != null && latest <= 20) {
+        MaterialTheme.colorScheme.error
+    } else {
+        Color(0xFF39B978)
+    }
+    val chartGrid = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.48f)
+    val timeLabels = when (range) {
+        "7D" -> listOf("7d ago", "3.5d", "Now")
+        "30D" -> listOf("30d ago", "15d", "Now")
+        else -> listOf("24h ago", "12h", "Now")
+    }
 
     Column(
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
@@ -2133,65 +2224,118 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
                         }
                     }
                 }
-                androidx.compose.foundation.Canvas(
-                    Modifier.fillMaxWidth().height(172.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f))
-                        .padding(horizontal = 10.dp, vertical = 12.dp)
-                ) {
-                    for (step in 1..3) {
-                        val y = size.height * step / 4f
-                        drawLine(
-                            chartGrid,
-                            androidx.compose.ui.geometry.Offset(0f, y),
-                            androidx.compose.ui.geometry.Offset(size.width, y),
-                            strokeWidth = 1.dp.toPx()
-                        )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        modifier = Modifier.width(38.dp).height(184.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("100%", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
+                        Text("50%", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
+                        Text("0%", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
                     }
-                    if (visibleSamples.isEmpty()) return@Canvas
-                    val firstTime = visibleSamples.first().timestamp
-                    val lastTime = visibleSamples.last().timestamp
-                    val span = (lastTime - firstTime).coerceAtLeast(1L).toFloat()
-                    val line = androidx.compose.ui.graphics.Path()
-                    val area = androidx.compose.ui.graphics.Path()
-                    var lastPoint = androidx.compose.ui.geometry.Offset.Zero
-                    visibleSamples.forEachIndexed { index, sample ->
-                        val x = ((sample.timestamp - firstTime).toFloat() / span) * size.width
-                        val y = size.height - (sample.percent.coerceIn(0, 100) / 100f) * size.height
-                        val point = androidx.compose.ui.geometry.Offset(x, y)
-                        if (index == 0) {
-                            line.moveTo(x, y)
-                            area.moveTo(x, y)
-                        } else {
-                            line.lineTo(x, y)
-                            area.lineTo(x, y)
+                    androidx.compose.foundation.Canvas(
+                        Modifier.weight(1f).height(184.dp)
+                            .clip(RoundedCornerShape(15.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f))
+                            .padding(horizontal = 8.dp, vertical = 10.dp)
+                    ) {
+                        val axisFractions = listOf(0f, 0.5f, 1f)
+                        axisFractions.forEach { fraction ->
+                            val y = size.height * fraction
+                            drawLine(
+                                chartGrid,
+                                androidx.compose.ui.geometry.Offset(0f, y),
+                                androidx.compose.ui.geometry.Offset(size.width, y),
+                                strokeWidth = 1.dp.toPx()
+                            )
                         }
-                        lastPoint = point
+                        axisFractions.forEach { fraction ->
+                            val x = size.width * fraction
+                            drawLine(
+                                chartGrid.copy(alpha = 0.55f),
+                                androidx.compose.ui.geometry.Offset(x, 0f),
+                                androidx.compose.ui.geometry.Offset(x, size.height),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                        }
+
+                        if (chartSamples.isNotEmpty()) {
+                            val points = chartSamples.map { sample ->
+                                val elapsed = (sample.timestamp - windowStart).toDouble()
+                                val x = (elapsed / duration.toDouble()).toFloat().coerceIn(0f, 1f) * size.width
+                                val y = size.height -
+                                    (sample.percent.coerceIn(0, 100) / 100f) * size.height
+                                androidx.compose.ui.geometry.Offset(x, y)
+                            }
+                            val linePath = androidx.compose.ui.graphics.Path().apply {
+                                moveTo(points.first().x, points.first().y)
+                                for (index in 0 until points.lastIndex) {
+                                    val previous = points[(index - 1).coerceAtLeast(0)]
+                                    val current = points[index]
+                                    val next = points[index + 1]
+                                    val after = points[(index + 2).coerceAtMost(points.lastIndex)]
+                                    val controlOneX = (current.x + (next.x - previous.x) / 6f)
+                                        .coerceIn(current.x, next.x)
+                                    val controlTwoX = (next.x - (after.x - current.x) / 6f)
+                                        .coerceIn(current.x, next.x)
+                                    val controlOneY = (current.y + (next.y - previous.y) / 6f)
+                                        .coerceIn(0f, size.height)
+                                    val controlTwoY = (next.y - (after.y - current.y) / 6f)
+                                        .coerceIn(0f, size.height)
+                                    cubicTo(
+                                        controlOneX, controlOneY,
+                                        controlTwoX, controlTwoY,
+                                        next.x, next.y
+                                    )
+                                }
+                            }
+                            val areaPath = androidx.compose.ui.graphics.Path().apply {
+                                addPath(linePath)
+                                lineTo(points.last().x, size.height)
+                                lineTo(points.first().x, size.height)
+                                close()
+                            }
+                            drawPath(areaPath, chartColor.copy(alpha = 0.12f))
+                            drawPath(
+                                linePath,
+                                chartColor,
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                    width = 2.8.dp.toPx(),
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                                )
+                            )
+                            drawCircle(
+                                chartColor,
+                                radius = 4.dp.toPx(),
+                                center = points.last()
+                            )
+                        }
                     }
-                    area.lineTo(lastPoint.x, size.height)
-                    area.lineTo(0f, size.height)
-                    area.close()
-                    drawPath(area, chartColor.copy(alpha = 0.10f))
-                    drawPath(
-                        line,
-                        chartColor,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                            width = 3.dp.toPx(),
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                            join = androidx.compose.ui.graphics.StrokeJoin.Round
-                        )
-                    )
-                    drawCircle(chartColor, radius = 4.dp.toPx(), center = lastPoint)
                 }
-                if (visibleSamples.isEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 38.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    timeLabels.forEach { label ->
+                        Text(
+                            label,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 9.sp
+                        )
+                    }
+                }
+
+                if (chartSamples.isEmpty()) {
                     Text(
-                        "No history yet",
+                        "No readings in this period",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
                 } else {
-                    val low = visibleSamples.minOf { it.percent }
-                    val high = visibleSamples.maxOf { it.percent }
+                    val low = chartSamples.minOf { it.percent }
+                    val high = chartSamples.maxOf { it.percent }
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -2206,7 +2350,7 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text("READINGS", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp)
-                            Text("${visibleSamples.size}", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text("${chartSamples.size}", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -2214,6 +2358,7 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
         }
     }
 }
+
 @Composable
 fun DeviceInfoScreen(onBack: () -> Unit) {
     BackHandler(onBack = onBack)

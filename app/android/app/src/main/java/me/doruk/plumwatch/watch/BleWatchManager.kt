@@ -2306,7 +2306,7 @@ class BleWatchManager(context: Context) {
         private const val KEY_BATTERY_PERCENT = "battery-percent"
         private const val KEY_BATTERY_UPDATED_AT = "battery-updated-at"
         private const val KEY_BATTERY_HISTORY = "battery-history"
-        private const val MAX_BATTERY_HISTORY_SAMPLES = 2016
+        private const val MAX_BATTERY_HISTORY_SAMPLES = 8640
         private const val AUTO_SYNC_INITIAL_DELAY_MS = 5_000L
         private const val AUTO_SYNC_BATTERY_INTERVAL_MS = 5 * 60 * 1_000L
         private const val AUTO_SYNC_HEALTH_INTERVAL_MS = 15 * 60 * 1_000L
