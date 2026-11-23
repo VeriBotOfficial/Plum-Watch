@@ -484,6 +484,8 @@ private fun IconsForPage(page: AppPage): ImageVector = when (page) {
     AppPage.WATCH_SETTINGS -> Icons.Outlined.Settings
     AppPage.ALARMS -> Icons.Outlined.Alarm
     AppPage.HEALTH -> Icons.Outlined.FavoriteBorder
+    AppPage.BATTERY -> Icons.Outlined.BatteryFull
+    AppPage.DEVICE_INFO -> Icons.Outlined.Info
     AppPage.NOTIFICATIONS -> Icons.Outlined.Notifications
     AppPage.CAMERA -> Icons.Outlined.CameraAlt
     AppPage.MUSIC -> Icons.Outlined.MusicNote
