@@ -116,6 +116,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.key
@@ -356,8 +357,10 @@ fun MyWatchScreen(
         mutableStateOf(dashboardPreferences.getStringSet("hidden_quick_features", emptySet()).orEmpty())
     }
     val quickControlBounds = remember { mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>() }
-    val latestQuickOrder by rememberUpdatedState(quickOrder)
+    val quickDragHandleBounds = remember { mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>() }
+    var dragPointerY by remember { mutableFloatStateOf(0f) }
     var draggingQuickFeature by remember { mutableStateOf<String?>(null) }
+    var dragTargetQuickFeature by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -560,119 +563,75 @@ fun MyWatchScreen(
             title = { Text("Customize controls") },
             text = {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 460.dp)
-                        .verticalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    Text(
-                        "Hold and drag to reorder. Toggle to show or hide.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp
-                    )
-                    val orderedNames = quickOrder.filter { it in allQuickFeatureNames } +
-                        allQuickFeatureNames.filter { it !in quickOrder }
+                    Text("Hold a handle, drag to the position you want, then release.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    val orderedNames = quickOrder.filter { it in allQuickFeatureNames } + allQuickFeatureNames.filter { it !in quickOrder }
                     orderedNames.forEach { name ->
+                        val isDragging = draggingQuickFeature == name
+                        val isDropTarget = dragTargetQuickFeature == name && draggingQuickFeature != name
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth()
                                 .onGloballyPositioned { quickControlBounds[name] = it.boundsInRoot() }
-                                .pointerInput(name) {
-                                    var lastHoveredName: String? = null
-                                    detectDragGesturesAfterLongPress(
-                                        onDragStart = {
-                                            draggingQuickFeature = name
-                                            lastHoveredName = name
-                                        },
-                                        onDragEnd = { draggingQuickFeature = null },
-                                        onDragCancel = { draggingQuickFeature = null },
-                                        onDrag = { change, _ ->
-                                            change.consume()
-                                            val rowBounds = quickControlBounds[name]
-                                                ?: return@detectDragGesturesAfterLongPress
-                                            val pointerY = rowBounds.top + change.position.y
-                                            val targetName = latestQuickOrder.firstOrNull { candidate ->
-                                                val targetBounds = quickControlBounds[candidate]
-                                                targetBounds != null &&
-                                                    pointerY >= targetBounds.top &&
-                                                    pointerY <= targetBounds.bottom
-                                            }
-                                            if (targetName == null || targetName == name) {
-                                                lastHoveredName = name
-                                            } else if (targetName != lastHoveredName) {
-                                                val fromIndex = latestQuickOrder.indexOf(name)
-                                                val toIndex = latestQuickOrder.indexOf(targetName)
-                                                if (fromIndex >= 0 && toIndex >= 0) {
-                                                    quickOrder = latestQuickOrder.toMutableList().apply {
-                                                        removeAt(fromIndex)
-                                                        add(toIndex, name)
-                                                    }
-                                                    dashboardPreferences.edit()
-                                                        .putString("quick_order", quickOrder.joinToString("|"))
-                                                        .apply()
-                                                }
-                                                lastHoveredName = targetName
-                                            }
-                                        }
-                                    )
-                                }
-                                .background(
-                                    if (draggingQuickFeature == name) {
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                                    } else Color.Transparent,
-                                    RoundedCornerShape(12.dp)
-                                )
+                                .background(when { isDragging -> MaterialTheme.colorScheme.primary.copy(alpha = 0.13f); isDropTarget -> MaterialTheme.colorScheme.primary.copy(alpha = 0.08f); else -> Color.Transparent }, RoundedCornerShape(12.dp))
                                 .padding(horizontal = 5.dp, vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Checkbox(
-                                checked = name !in hiddenQuickFeatures,
-                                onCheckedChange = { visible ->
-                                    hiddenQuickFeatures = if (visible) {
-                                        hiddenQuickFeatures - name
-                                    } else {
-                                        hiddenQuickFeatures + name
-                                    }
-                                    dashboardPreferences.edit()
-                                        .putStringSet("hidden_quick_features", hiddenQuickFeatures)
-                                        .apply()
-                                }
-                            )
-                            Text(
-                                name,
-                                modifier = Modifier.weight(1f),
-                                fontSize = 13.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Icon(
-                                Icons.Outlined.DragHandle,
-                                contentDescription = "Hold and drag to reorder",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Checkbox(checked = name !in hiddenQuickFeatures, onCheckedChange = { visible ->
+                                hiddenQuickFeatures = if (visible) hiddenQuickFeatures - name else hiddenQuickFeatures + name
+                                dashboardPreferences.edit().putStringSet("hidden_quick_features", hiddenQuickFeatures).apply()
+                            })
+                            Text(name, modifier = Modifier.weight(1f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Box(
+                                modifier = Modifier.size(width = 42.dp, height = 42.dp)
+                                    .onGloballyPositioned { quickDragHandleBounds[name] = it.boundsInRoot() }
+                                    .pointerInput(name) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                draggingQuickFeature = name
+                                                dragTargetQuickFeature = name
+                                                dragPointerY = quickDragHandleBounds[name]?.center?.y ?: 0f
+                                            },
+                                            onDragEnd = {
+                                                val from = quickOrder.indexOf(name)
+                                                val to = quickOrder.indexOf(dragTargetQuickFeature)
+                                                if (from >= 0 && to >= 0 && from != to) {
+                                                    quickOrder = quickOrder.toMutableList().apply { removeAt(from); add(to, name) }
+                                                    dashboardPreferences.edit().putString("quick_order", quickOrder.joinToString("|")).apply()
+                                                }
+                                                draggingQuickFeature = null
+                                                dragTargetQuickFeature = null
+                                            },
+                                            onDragCancel = { draggingQuickFeature = null; dragTargetQuickFeature = null },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                dragPointerY += dragAmount.y
+                                                dragTargetQuickFeature = quickOrder.minByOrNull { candidate ->
+                                                    val bounds = quickControlBounds[candidate]
+                                                    if (bounds == null) Float.MAX_VALUE else kotlin.math.abs(bounds.center.y - dragPointerY)
+                                                }
+                                            }
+                                        )
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Outlined.DragHandle, contentDescription = "Drag to reorder", tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+                            }
                         }
                     }
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { showDashboardEditor = false }) { Text("Done") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    quickOrder = allQuickFeatureNames
-                    hiddenQuickFeatures = emptySet()
-                    dashboardPreferences.edit()
-                        .remove("quick_order")
-                        .remove("hidden_quick_features")
-                        .apply()
-                }) { Text("Reset") }
-            }
+            confirmButton = { TextButton(onClick = { showDashboardEditor = false }) { Text("Done") } },
+            dismissButton = { TextButton(onClick = {
+                quickOrder = allQuickFeatureNames
+                hiddenQuickFeatures = emptySet()
+                dashboardPreferences.edit().remove("quick_order").remove("hidden_quick_features").apply()
+            }) { Text("Reset") } }
         )
     }
 
-    if (showRemoveDialog) {
+        if (showRemoveDialog) {
         AppAlertDialog(
             onDismissRequest = { showRemoveDialog = false },
             title = {
