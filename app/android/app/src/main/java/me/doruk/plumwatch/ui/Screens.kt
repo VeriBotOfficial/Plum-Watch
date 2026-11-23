@@ -54,6 +54,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Bluetooth
@@ -319,6 +320,8 @@ fun MyWatchScreen(
     onFindWatch: () -> Unit,
     onOpenAlarms: () -> Unit,
     onOpenHealth: () -> Unit,
+    onOpenBattery: () -> Unit,
+    onOpenDeviceInfo: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenCamera: () -> Unit,
     onOpenMusic: () -> Unit
@@ -333,7 +336,7 @@ fun MyWatchScreen(
         mutableStateOf(
             dashboardPreferences.getString("quick_order", null)
                 ?.split("|")?.filter { it.isNotBlank() }
-                ?: listOf("Find Watch", "Alarms", "Health", "Notifications", "Camera", "Music", "Store")
+                ?: listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store")
         )
     }
     var hiddenQuickFeatures by remember {
@@ -447,6 +450,16 @@ fun MyWatchScreen(
                     enabled = state.isConnected && state.supportsProprietaryCommands,
                     onClick = onOpenHealth
                 ),
+                QuickFeature("Battery", Icons.Outlined.BatteryFull,
+                    subtitle = "Battery history",
+                    enabled = true,
+                    onClick = onOpenBattery
+                ),
+                QuickFeature("Device info", Icons.Outlined.Info,
+                    subtitle = "Watch details and capabilities",
+                    enabled = state.savedDevice != null,
+                    onClick = onOpenDeviceInfo
+                ),
                 QuickFeature("Notifications", Icons.Outlined.Notifications,
                     subtitle = "Choose app alerts",
                     enabled = state.isConnected && state.supportsProprietaryCommands,
@@ -532,7 +545,7 @@ fun MyWatchScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
-                    val allNames = listOf("Find Watch", "Alarms", "Health", "Notifications", "Camera", "Music", "Store")
+                    val allNames = listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store")
                     allNames.forEach { name ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -577,7 +590,7 @@ fun MyWatchScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
-                    quickOrder = listOf("Find Watch", "Alarms", "Health", "Notifications", "Camera", "Music", "Store")
+                    quickOrder = listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store")
                     hiddenQuickFeatures = emptySet()
                     dashboardPreferences.edit().remove("quick_order").remove("hidden_quick_features").apply()
                 }) { Text("Reset") }
