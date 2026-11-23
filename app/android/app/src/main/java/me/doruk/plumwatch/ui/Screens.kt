@@ -333,7 +333,6 @@ fun MyWatchScreen(
     }
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showDashboardEditor by remember { mutableStateOf(false) }
-    var showRecentActivity by remember { mutableStateOf(dashboardPreferences.getBoolean("show_recent_activity", true)) }
     var quickOrder by remember {
         mutableStateOf(
             dashboardPreferences.getString("quick_order", null)
@@ -374,7 +373,8 @@ fun MyWatchScreen(
                         batteryPercent = state.batteryPercent,
                         supportsBattery = state.supportsBattery,
                         supportsTimeSync = state.supportsTimeSync,
-                        lastTimeSyncAt = state.lastTimeSyncAt
+                        lastTimeSyncAt = state.lastTimeSyncAt,
+                        onOpenBattery = onOpenBattery
                     )
                 }
                 "connecting" -> ConnectingWatchCard(
@@ -391,40 +391,6 @@ fun MyWatchScreen(
                     scanning = state.isScanning,
                     onClick = if (state.isScanning) onStopScan else onStartScan
                 )
-            }
-        }
-
-        if (showRecentActivity) {
-            AppSurface(
-                modifier = Modifier.fillMaxWidth().clickable { onOpenBattery() },
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Recent activity", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("View battery", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Battery", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-                            Text(state.batteryPercent?.let { "$it%" } ?: "—", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Heart rate", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-                            Text(state.heartRateBpm?.let { "$it bpm" } ?: "—", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("SpO₂", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-                            Text(state.bloodOxygenPercent?.let { "$it%" } ?: "—", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                    Text(
-                        state.batteryUpdatedAt?.let { "Battery updated " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)) }
-                            ?: "Waiting for battery data",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
-                    )
-                }
             }
         }
 
@@ -573,6 +539,9 @@ fun MyWatchScreen(
     if (showDashboardEditor) {
         MaterialAlertDialog(
             onDismissRequest = { showDashboardEditor = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("Customize dashboard") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -581,16 +550,6 @@ fun MyWatchScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = showRecentActivity,
-                            onCheckedChange = {
-                                showRecentActivity = it
-                                dashboardPreferences.edit().putBoolean("show_recent_activity", it).apply()
-                            }
-                        )
-                        Text("Recent activity card", fontSize = 13.sp)
-                    }
                     val allNames = listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store")
                     allNames.forEach { name ->
                         Row(
@@ -828,7 +787,8 @@ private fun ConnectedWatchCard(
     batteryPercent: Int?,
     supportsBattery: Boolean,
     supportsTimeSync: Boolean,
-    lastTimeSyncAt: Long?
+    lastTimeSyncAt: Long?,
+    onOpenBattery: () -> Unit
 ) {
     val level = batteryPercent?.coerceIn(0, 100)
     val tint = if (level != null && level <= 20) Color(0xFFE05252) else Color(0xFF36B66A)
@@ -846,7 +806,15 @@ private fun ConnectedWatchCard(
                     Text("Connected", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
             }
-            Row(Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f), RoundedCornerShape(10.dp)).padding(horizontal = 8.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f))
+                    .clickable(onClick = onOpenBattery)
+                    .padding(horizontal = 8.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
                 Box(Modifier.width(22.dp).height(12.dp).border(1.dp, MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(3.dp)).padding(2.dp)) {
                     Box(Modifier.fillMaxWidth((level ?: 0) / 100f).fillMaxSize().background(if (level == null) MaterialTheme.colorScheme.onSurfaceVariant else tint, RoundedCornerShape(1.dp)))
                 }
@@ -2039,10 +2007,17 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
         "30D" -> 30L * 24L * 60L * 60L * 1000L
         else -> 24L * 60L * 60L * 1000L
     }
-    val visibleSamples = samples.filter { it.timestamp >= now - duration }
-    val latest = state.batteryPercent ?: samples.lastOrNull()?.percent
-    val batteryUpdatedAt = state.batteryUpdatedAt
-    val chartColor = MaterialTheme.colorScheme.primary
+    val orderedSamples = samples.sortedBy { it.timestamp }
+    val visibleSamples = orderedSamples.filter { it.timestamp >= now - duration }
+    val latest = state.batteryPercent ?: orderedSamples.lastOrNull()?.percent
+    val updatedAt = state.batteryUpdatedAt ?: orderedSamples.lastOrNull()?.timestamp
+    val batteryColor = when {
+        latest == null -> MaterialTheme.colorScheme.onSurfaceVariant
+        latest <= 20 -> MaterialTheme.colorScheme.error
+        else -> Color(0xFF39B978)
+    }
+    val chartColor = if (latest != null && latest <= 20) MaterialTheme.colorScheme.error else Color(0xFF39B978)
+    val chartGrid = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
 
     Column(
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
@@ -2055,52 +2030,150 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
             Text("My Watch")
         }
         PageTitle("Battery")
-        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Current charge", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(latest?.let { "$it" } ?: "—", fontSize = 42.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                    Text(if (latest != null) "%" else "", fontSize = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp)) {
+            Column(
+                Modifier.fillMaxWidth().padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            "CURRENT LEVEL",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.sp
+                        )
+                        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(
+                                latest?.toString() ?: "—",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 48.sp,
+                                lineHeight = 52.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = (-2).sp
+                            )
+                            if (latest != null) {
+                                Text("%", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 22.sp)
+                            }
+                        }
+                    }
+                    Box(
+                        Modifier.size(58.dp).clip(CircleShape)
+                            .background(batteryColor.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Outlined.BatteryFull,
+                            contentDescription = null,
+                            tint = batteryColor,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
-                Text(
-                    when {
-                        !state.isConnected -> "Watch disconnected · showing last saved reading"
-                        batteryUpdatedAt != null -> "Updated " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(batteryUpdatedAt))
-                        else -> "Waiting for the first battery reading"
-                    },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp
-                )
+                Box(
+                    Modifier.fillMaxWidth().height(8.dp).clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    if (latest != null) {
+                        Box(
+                            Modifier.fillMaxWidth(latest.coerceIn(0, 100) / 100f).fillMaxSize()
+                                .background(batteryColor, CircleShape)
+                        )
+                    }
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        when {
+                            !state.isConnected -> "Disconnected"
+                            latest == null -> "Waiting for reading"
+                            else -> "Connected"
+                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                    if (updatedAt != null) {
+                        Text(
+                            "Updated " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(updatedAt)),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("24H", "7D", "30D").forEach { option ->
-                FilterChip(selected = range == option, onClick = { range = option }, label = { Text(option) })
-            }
-        }
-        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Battery level", fontWeight = FontWeight.SemiBold)
-                    Text("${visibleSamples.size} readings", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+            Column(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("History", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("24H", "7D", "30D").forEach { option ->
+                            FilterChip(
+                                selected = range == option,
+                                onClick = { range = option },
+                                label = { Text(option, fontSize = 10.sp) }
+                            )
+                        }
+                    }
                 }
                 androidx.compose.foundation.Canvas(
-                    Modifier.fillMaxWidth().height(180.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .28f), RoundedCornerShape(16.dp))
-                        .padding(12.dp)
+                    Modifier.fillMaxWidth().height(172.dp)
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f))
+                        .padding(horizontal = 10.dp, vertical = 12.dp)
                 ) {
-                    if (visibleSamples.isEmpty()) return@Canvas
-                    val minTime = visibleSamples.first().timestamp
-                    val maxTime = visibleSamples.last().timestamp
-                    val span = (maxTime - minTime).coerceAtLeast(1L).toFloat()
-                    val path = androidx.compose.ui.graphics.Path()
-                    visibleSamples.forEachIndexed { index, sample ->
-                        val x = ((sample.timestamp - minTime).toFloat() / span) * size.width
-                        val y = size.height - (sample.percent / 100f) * size.height
-                        if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    for (step in 1..3) {
+                        val y = size.height * step / 4f
+                        drawLine(
+                            chartGrid,
+                            androidx.compose.ui.geometry.Offset(0f, y),
+                            androidx.compose.ui.geometry.Offset(size.width, y),
+                            strokeWidth = 1.dp.toPx()
+                        )
                     }
+                    if (visibleSamples.isEmpty()) return@Canvas
+                    val firstTime = visibleSamples.first().timestamp
+                    val lastTime = visibleSamples.last().timestamp
+                    val span = (lastTime - firstTime).coerceAtLeast(1L).toFloat()
+                    val line = androidx.compose.ui.graphics.Path()
+                    val area = androidx.compose.ui.graphics.Path()
+                    var lastPoint = androidx.compose.ui.geometry.Offset.Zero
+                    visibleSamples.forEachIndexed { index, sample ->
+                        val x = ((sample.timestamp - firstTime).toFloat() / span) * size.width
+                        val y = size.height - (sample.percent.coerceIn(0, 100) / 100f) * size.height
+                        val point = androidx.compose.ui.geometry.Offset(x, y)
+                        if (index == 0) {
+                            line.moveTo(x, y)
+                            area.moveTo(x, y)
+                        } else {
+                            line.lineTo(x, y)
+                            area.lineTo(x, y)
+                        }
+                        lastPoint = point
+                    }
+                    area.lineTo(lastPoint.x, size.height)
+                    area.lineTo(0f, size.height)
+                    area.close()
+                    drawPath(area, chartColor.copy(alpha = 0.10f))
                     drawPath(
-                        path,
+                        line,
                         chartColor,
                         style = androidx.compose.ui.graphics.drawscope.Stroke(
                             width = 3.dp.toPx(),
@@ -2108,25 +2181,39 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
                             join = androidx.compose.ui.graphics.StrokeJoin.Round
                         )
                     )
+                    drawCircle(chartColor, radius = 4.dp.toPx(), center = lastPoint)
                 }
                 if (visibleSamples.isEmpty()) {
-                    Text("Battery history will appear as Plum receives readings.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text(
+                        "No history yet",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp
+                    )
                 } else {
-                    val high = visibleSamples.maxOf { it.percent }
                     val low = visibleSamples.minOf { it.percent }
-                    Text("Highest $high%  ·  Lowest $low%", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    val high = visibleSamples.maxOf { it.percent }
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("LOW", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp)
+                            Text("$low%", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("HIGH", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp)
+                            Text("$high%", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("READINGS", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp)
+                            Text("${visibleSamples.size}", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
             }
         }
-        Text(
-            "History begins when this version receives battery readings. Older readings cannot be reconstructed.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 11.sp,
-            lineHeight = 16.sp
-        )
     }
 }
-
 @Composable
 fun DeviceInfoScreen(onBack: () -> Unit) {
     BackHandler(onBack = onBack)
@@ -2502,8 +2589,30 @@ private fun AlarmRow(
     if (showTimePicker) {
         MaterialAlertDialog(
             onDismissRequest = { showTimePicker = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("Alarm time") },
-            text = { androidx.compose.material3.TimePicker(state = timePickerState) },
+            text = {
+                androidx.compose.material3.TimePicker(
+                    state = timePickerState,
+                    colors = androidx.compose.material3.TimePickerDefaults.colors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        clockDialColor = MaterialTheme.colorScheme.surfaceVariant,
+                        selectorColor = MaterialTheme.colorScheme.primary,
+                        clockDialSelectedContentColor = MaterialTheme.colorScheme.onPrimary,
+                        clockDialContentColor = MaterialTheme.colorScheme.onSurface,
+                        periodSelectorSelectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        periodSelectorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        periodSelectorSelectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        periodSelectorContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        timeSelectorSelectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        timeSelectorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        timeSelectorSelectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        timeSelectorContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
