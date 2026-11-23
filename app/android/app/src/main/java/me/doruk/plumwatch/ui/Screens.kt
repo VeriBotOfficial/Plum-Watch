@@ -2597,19 +2597,20 @@ private fun AlarmRow(
                 androidx.compose.material3.TimePicker(
                     state = timePickerState,
                     colors = androidx.compose.material3.TimePickerDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surface,
                         clockDialColor = MaterialTheme.colorScheme.surfaceVariant,
-                        selectorColor = MaterialTheme.colorScheme.primary,
                         clockDialSelectedContentColor = MaterialTheme.colorScheme.onPrimary,
-                        clockDialContentColor = MaterialTheme.colorScheme.onSurface,
+                        clockDialUnselectedContentColor = MaterialTheme.colorScheme.onSurface,
+                        selectorColor = MaterialTheme.colorScheme.primary,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        periodSelectorBorderColor = MaterialTheme.colorScheme.outline,
                         periodSelectorSelectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        periodSelectorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        periodSelectorUnselectedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         periodSelectorSelectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        periodSelectorContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        periodSelectorUnselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         timeSelectorSelectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        timeSelectorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        timeSelectorUnselectedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         timeSelectorSelectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        timeSelectorContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        timeSelectorUnselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
             },
