@@ -2218,7 +2218,8 @@ class BleWatchManager(context: Context) {
     fun hasSavedDevice(): Boolean = mutableState.value.savedDevice != null
 
     fun ensureBackgroundSync() {
-        if (!hasSavedDevice()) return
+        // Read persisted pairing state as connect() may call this before its StateFlow update.
+        if (readSavedDevice() == null) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             appContext.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
         ) return
