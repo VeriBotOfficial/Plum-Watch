@@ -37,6 +37,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -121,6 +123,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -319,7 +323,22 @@ fun MyWatchScreen(
     onOpenCamera: () -> Unit,
     onOpenMusic: () -> Unit
 ) {
+    val context = LocalContext.current
+    val dashboardPreferences = remember(context) {
+        context.getSharedPreferences("plum_watch_dashboard", Context.MODE_PRIVATE)
+    }
     var showRemoveDialog by remember { mutableStateOf(false) }
+    var showDashboardEditor by remember { mutableStateOf(false) }
+    var quickOrder by remember {
+        mutableStateOf(
+            dashboardPreferences.getString("quick_order", null)
+                ?.split("|")?.filter { it.isNotBlank() }
+                ?: listOf("Find Watch", "Alarms", "Health", "Notifications", "Camera", "Music", "Store")
+        )
+    }
+    var hiddenQuickFeatures by remember {
+        mutableStateOf(dashboardPreferences.getStringSet("hidden_quick_features", emptySet()).orEmpty())
+    }
 
     Column(
         modifier = Modifier
@@ -401,7 +420,16 @@ fun MyWatchScreen(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SectionHeading("Quick controls")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionHeading("Quick controls")
+                TextButton(onClick = { showDashboardEditor = true }) {
+                    Text("Customize", fontSize = 12.sp)
+                }
+            }
 
             val implementedFeatures = listOf(
                 QuickFeature("Find Watch", Icons.Outlined.LocationSearching,
@@ -441,7 +469,10 @@ fun MyWatchScreen(
                 )
             )
 
-            implementedFeatures.chunked(2).forEach { pair ->
+            implementedFeatures
+                .filter { it.title !in hiddenQuickFeatures }
+                .sortedBy { feature -> quickOrder.indexOf(feature.title).let { if (it < 0) Int.MAX_VALUE else it } }
+                .chunked(2).forEach { pair ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -488,6 +519,70 @@ fun MyWatchScreen(
                 Text("Remove device", modifier = Modifier.padding(start = 7.dp))
             }
         }
+    }
+
+    if (showDashboardEditor) {
+        MaterialAlertDialog(
+            onDismissRequest = { showDashboardEditor = false },
+            title = { Text("Customize dashboard") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "Choose which shortcuts appear and arrange their order.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp
+                    )
+                    val allNames = listOf("Find Watch", "Alarms", "Health", "Notifications", "Camera", "Music", "Store")
+                    allNames.forEach { name ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = name !in hiddenQuickFeatures,
+                                onCheckedChange = { visible ->
+                                    hiddenQuickFeatures = if (visible) hiddenQuickFeatures - name else hiddenQuickFeatures + name
+                                    dashboardPreferences.edit()
+                                        .putStringSet("hidden_quick_features", hiddenQuickFeatures)
+                                        .apply()
+                                }
+                            )
+                            Text(name, modifier = Modifier.weight(1f), fontSize = 13.sp)
+                            TextButton(onClick = {
+                                val index = quickOrder.indexOf(name).takeIf { it >= 0 } ?: quickOrder.size
+                                if (index > 0) {
+                                    quickOrder = quickOrder.toMutableList().apply {
+                                        val item = removeAt(index)
+                                        add(index - 1, item)
+                                    }
+                                    dashboardPreferences.edit().putString("quick_order", quickOrder.joinToString("|")).apply()
+                                }
+                            }, enabled = quickOrder.indexOf(name) > 0) { Text("↑") }
+                            TextButton(onClick = {
+                                val index = quickOrder.indexOf(name).takeIf { it >= 0 } ?: quickOrder.size
+                                if (index < quickOrder.lastIndex) {
+                                    quickOrder = quickOrder.toMutableList().apply {
+                                        val item = removeAt(index)
+                                        add(index + 1, item)
+                                    }
+                                    dashboardPreferences.edit().putString("quick_order", quickOrder.joinToString("|")).apply()
+                                }
+                            }, enabled = quickOrder.indexOf(name) in 0 until quickOrder.lastIndex) { Text("↓") }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDashboardEditor = false }) { Text("Done") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    quickOrder = listOf("Find Watch", "Alarms", "Health", "Notifications", "Camera", "Music", "Store")
+                    hiddenQuickFeatures = emptySet()
+                    dashboardPreferences.edit().remove("quick_order").remove("hidden_quick_features").apply()
+                }) { Text("Reset") }
+            }
+        )
     }
 
     if (showRemoveDialog) {
@@ -836,8 +931,12 @@ private fun QuickFeatureTile(
     feature: QuickFeature,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     AppClickableSurface(
-        onClick = feature.onClick,
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            feature.onClick()
+        },
         modifier = modifier.height(100.dp),
         shape = RoundedCornerShape(22.dp),
         enabled = feature.enabled
@@ -1688,131 +1787,349 @@ fun NotificationsScreen(onBack: () -> Unit) {
     val preferences = remember(context) {
         context.getSharedPreferences("plum_watch_notifications", Context.MODE_PRIVATE)
     }
-    val selectedPackages = remember {
+    val selectedPackages = remember(preferences) {
         mutableStateListOf<String>().apply {
             addAll(preferences.getStringSet("selected_packages", emptySet()).orEmpty())
         }
     }
-    val apps = remember(context) {
-        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        context.packageManager.queryIntentActivities(launcherIntent, 0)
-            .mapNotNull { resolve ->
-                val activity = resolve.activityInfo ?: return@mapNotNull null
-                val packageName = activity.packageName
-                if (packageName == context.packageName) return@mapNotNull null
-                val label = runCatching { resolve.loadLabel(context.packageManager).toString() }
-                    .getOrDefault(packageName)
-                NotificationAppChoice(packageName, label)
-            }
-            .distinctBy { it.packageName }
-            .sortedBy { it.label.lowercase() }
-    }
+    var apps by remember { mutableStateOf<List<NotificationAppChoice>>(emptyList()) }
+    var search by remember { mutableStateOf("") }
     var accessEnabled by remember { mutableStateOf(hasNotificationListenerAccess(context)) }
+    var loadingApps by remember { mutableStateOf(true) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 22.dp)
-            .padding(top = 17.dp, bottom = 126.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
-        TextButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("My Watch")
-        }
-        PageTitle("Notifications")
-
-        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    if (accessEnabled) "Notification access is enabled."
-                    else "Allow Plum Watch to read notifications from the apps you select.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
-                )
-                FilledTonalButton(
-                    onClick = {
-                        runCatching {
-                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text(if (accessEnabled) "Notification access settings" else "Enable notification access")
+    LaunchedEffect(context) {
+        apps = withContext(Dispatchers.IO) {
+            val pm = context.packageManager
+            val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            pm.queryIntentActivities(launcherIntent, 0)
+                .mapNotNull { resolve ->
+                    val activity = resolve.activityInfo ?: return@mapNotNull null
+                    val packageName = activity.packageName
+                    if (packageName == context.packageName) return@mapNotNull null
+                    val label = runCatching { resolve.loadLabel(pm).toString() }
+                        .getOrDefault(packageName)
+                    NotificationAppChoice(packageName, label)
                 }
-            }
+                .distinctBy { it.packageName }
+                .sortedBy { it.label.lowercase() }
         }
-
-        NotificationDisplaySettingsContent()
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SectionHeading("Apps")
-            Text("${selectedPackages.size} selected", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-        }
-
-        AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                apps.forEachIndexed { index, app ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            if (app.packageName in selectedPackages) selectedPackages.remove(app.packageName)
-                            else selectedPackages.add(app.packageName)
-                            preferences.edit().putStringSet("selected_packages", selectedPackages.toSet()).apply()
-                        }.padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(app.label, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                            Text(app.packageName, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                        Checkbox(
-                            checked = app.packageName in selectedPackages,
-                            onCheckedChange = { checked ->
-                                if (checked) {
-                                    if (app.packageName !in selectedPackages) selectedPackages.add(app.packageName)
-                                } else {
-                                    selectedPackages.remove(app.packageName)
-                                }
-                                preferences.edit().putStringSet("selected_packages", selectedPackages.toSet()).apply()
-                            }
-                        )
-                    }
-                    if (index < apps.lastIndex) Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
-                }
-            }
-        }
-
-        if (selectedPackages.isEmpty()) {
-            Text(
-                "Choose at least one app. Only its notifications will be passed to the watch.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp
-            )
-        }
-        if (!watchState.isConnected) {
-            Text("Connect your watch to receive notifications.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-        }
+        loadingApps = false
     }
 
     LaunchedEffect(Unit) {
         while (true) {
-            accessEnabled = hasNotificationListenerAccess(context)
-            delay(900L)
+            val enabled = withContext(Dispatchers.IO) { hasNotificationListenerAccess(context) }
+            if (accessEnabled != enabled) accessEnabled = enabled
+            delay(1800L)
         }
+    }
+
+    val filteredApps = remember(apps, search) {
+        if (search.isBlank()) apps
+        else apps.filter {
+            it.label.contains(search, ignoreCase = true) ||
+                it.packageName.contains(search, ignoreCase = true)
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 22.dp, end = 22.dp, top = 17.dp, bottom = 126.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            TextButton(onClick = onBack) {
+                Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("My Watch")
+            }
+            PageTitle("Notifications")
+        }
+        item {
+            AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        if (accessEnabled) "Notification access is enabled."
+                        else "Allow Plum Watch to read notifications from the apps you select.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp
+                    )
+                    FilledTonalButton(
+                        onClick = {
+                            runCatching {
+                                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(if (accessEnabled) "Notification access settings" else "Enable notification access")
+                    }
+                }
+            }
+        }
+        item { NotificationDisplaySettingsContent() }
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionHeading("Apps")
+                Text("${selectedPackages.size} selected", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+            }
+            OutlinedTextField(
+                value = search,
+                onValueChange = { search = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("Search apps") },
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
+        if (loadingApps) {
+            item {
+                Box(Modifier.fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                }
+            }
+        } else {
+            items(filteredApps, key = { it.packageName }) { app ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        if (app.packageName in selectedPackages) selectedPackages.remove(app.packageName)
+                        else selectedPackages.add(app.packageName)
+                        preferences.edit().putStringSet("selected_packages", selectedPackages.toSet()).apply()
+                    }.padding(vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(app.label, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(app.packageName, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Checkbox(
+                        checked = app.packageName in selectedPackages,
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                if (app.packageName !in selectedPackages) selectedPackages.add(app.packageName)
+                            } else selectedPackages.remove(app.packageName)
+                            preferences.edit().putStringSet("selected_packages", selectedPackages.toSet()).apply()
+                        }
+                    )
+                }
+                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+            }
+        }
+        if (filteredApps.isEmpty() && !loadingApps) {
+            item { Text("No matching apps.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
+        }
+        if (selectedPackages.isEmpty()) {
+            item {
+                Text(
+                    "Choose the apps whose notifications should be forwarded to your watch.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            }
+        }
+        if (!watchState.isConnected) {
+            item {
+                Text("Connect your watch to receive notifications.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+private data class BatteryHistorySample(val timestamp: Long, val percent: Int)
+
+private fun decodeBatteryHistory(value: String?): List<BatteryHistorySample> =
+    value.orEmpty().split(",").mapNotNull { token ->
+        val parts = token.split(":", limit = 2)
+        if (parts.size != 2) return@mapNotNull null
+        val timestamp = parts[0].toLongOrNull() ?: return@mapNotNull null
+        val percent = parts[1].toIntOrNull() ?: return@mapNotNull null
+        if (percent !in 0..100) null else BatteryHistorySample(timestamp, percent)
+    }
+
+@Composable
+fun BatteryHistoryScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    val manager = remember(context) { BleWatchManager.getInstance(context) }
+    val state by manager.state.collectAsStateWithLifecycle()
+    val preferences = remember(context) {
+        context.getSharedPreferences("plum-watch-saved-device", Context.MODE_PRIVATE)
+    }
+    var samples by remember {
+        mutableStateOf(decodeBatteryHistory(preferences.getString("battery-history", null)))
+    }
+    var range by remember { mutableStateOf("24H") }
+
+    LaunchedEffect(state.batteryUpdatedAt) {
+        samples = decodeBatteryHistory(preferences.getString("battery-history", null))
+    }
+
+    val now = System.currentTimeMillis()
+    val duration = when (range) {
+        "7D" -> 7L * 24L * 60L * 60L * 1000L
+        "30D" -> 30L * 24L * 60L * 60L * 1000L
+        else -> 24L * 60L * 60L * 1000L
+    }
+    val visibleSamples = samples.filter { it.timestamp >= now - duration }
+    val latest = state.batteryPercent ?: samples.lastOrNull()?.percent
+
+    Column(
+        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("My Watch")
+        }
+        PageTitle("Battery")
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Current charge", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(latest?.let { "$it" } ?: "—", fontSize = 42.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(if (latest != null) "%" else "", fontSize = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text(
+                    when {
+                        !state.isConnected -> "Watch disconnected · showing last saved reading"
+                        state.batteryUpdatedAt != null -> "Updated " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(state.batteryUpdatedAt))
+                        else -> "Waiting for the first battery reading"
+                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("24H", "7D", "30D").forEach { option ->
+                FilterChip(selected = range == option, onClick = { range = option }, label = { Text(option) })
+            }
+        }
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Battery level", fontWeight = FontWeight.SemiBold)
+                    Text("${visibleSamples.size} readings", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+                androidx.compose.foundation.Canvas(
+                    Modifier.fillMaxWidth().height(180.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .28f), RoundedCornerShape(16.dp))
+                        .padding(12.dp)
+                ) {
+                    if (visibleSamples.isEmpty()) return@Canvas
+                    val minTime = visibleSamples.first().timestamp
+                    val maxTime = visibleSamples.last().timestamp
+                    val span = (maxTime - minTime).coerceAtLeast(1L).toFloat()
+                    val path = androidx.compose.ui.graphics.Path()
+                    visibleSamples.forEachIndexed { index, sample ->
+                        val x = ((sample.timestamp - minTime).toFloat() / span) * size.width
+                        val y = size.height - (sample.percent / 100f) * size.height
+                        if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    }
+                    drawPath(
+                        path,
+                        MaterialTheme.colorScheme.primary,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = 3.dp.toPx(),
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                            join = androidx.compose.ui.graphics.StrokeJoin.Round
+                        )
+                    )
+                }
+                if (visibleSamples.isEmpty()) {
+                    Text("Battery history will appear as Plum receives readings.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                } else {
+                    val high = visibleSamples.maxOf { it.percent }
+                    val low = visibleSamples.minOf { it.percent }
+                    Text("Highest $high%  ·  Lowest $low%", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+            }
+        }
+        Text(
+            "History begins when this version receives battery readings. Older readings cannot be reconstructed.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 11.sp,
+            lineHeight = 16.sp
+        )
+    }
+}
+
+@Composable
+fun DeviceInfoScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    val manager = remember(context) { BleWatchManager.getInstance(context) }
+    val state by manager.state.collectAsStateWithLifecycle()
+    val device = state.connectedDevice ?: state.savedDevice
+    val appVersion = remember(context) {
+        runCatching {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull() ?: "Unknown"
+    }
+
+    Column(
+        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("My Watch")
+        }
+        PageTitle("Device information")
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("WATCH", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                InfoRow("Name", device?.name ?: "No watch saved")
+                InfoRow("Bluetooth address", device?.address ?: "—")
+                InfoRow("Connection", state.connectionMessage)
+                InfoRow("GATT services", if (state.discoveredServiceCount > 0) state.discoveredServiceCount.toString() else "Not discovered")
+                InfoRow("Firmware version", "Not exposed by the current watch protocol")
+                InfoRow("Hardware revision", "Not exposed by the current watch protocol")
+            }
+        }
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("CAPABILITIES", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                InfoRow("Battery", if (state.supportsBattery) "Supported" else "Not detected")
+                InfoRow("Heart rate", if (state.supportsHeartRate) "Supported" else "Not detected")
+                InfoRow("Blood oxygen", if (state.supportsBloodOxygen) "Supported" else "Not detected")
+                InfoRow("Wearfit commands", if (state.supportsProprietaryCommands) "Ready" else "Unavailable")
+                InfoRow("Watchface transfer", if (state.supportsSifliWatchface) "Available" else "Unavailable")
+                InfoRow("Find watch", if (state.canFindWatch) "Available" else "Unavailable")
+                InfoRow("Time synchronization", if (state.supportsTimeSync) "Available" else "Unavailable")
+            }
+        }
+        AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("PHONE & APP", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                InfoRow("Phone", Build.MODEL.ifBlank { "Android device" })
+                InfoRow("Android", Build.VERSION.RELEASE ?: "Unknown")
+                InfoRow("Plum Watch", appVersion)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.weight(0.42f))
+        Text(value, color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, modifier = Modifier.weight(0.58f), textAlign = TextAlign.End)
     }
 }
 
