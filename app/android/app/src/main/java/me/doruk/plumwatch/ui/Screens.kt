@@ -595,7 +595,7 @@ fun MyWatchScreen(
                                             },
                                             onDragEnd = {
                                                 val from = quickOrder.indexOf(name)
-                                                val to = quickOrder.indexOf(dragTargetQuickFeature)
+                                                val to = dragTargetQuickFeature?.let { quickOrder.indexOf(it) } ?: -1
                                                 if (from >= 0 && to >= 0 && from != to) {
                                                     quickOrder = quickOrder.toMutableList().apply { removeAt(from); add(to, name) }
                                                     dashboardPreferences.edit().putString("quick_order", quickOrder.joinToString("|")).apply()
