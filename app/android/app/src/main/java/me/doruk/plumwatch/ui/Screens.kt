@@ -333,6 +333,7 @@ fun MyWatchScreen(
     }
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showDashboardEditor by remember { mutableStateOf(false) }
+    var showRecentActivity by remember { mutableStateOf(dashboardPreferences.getBoolean("show_recent_activity", true)) }
     var quickOrder by remember {
         mutableStateOf(
             dashboardPreferences.getString("quick_order", null)
@@ -390,6 +391,40 @@ fun MyWatchScreen(
                     scanning = state.isScanning,
                     onClick = if (state.isScanning) onStopScan else onStartScan
                 )
+            }
+        }
+
+        if (showRecentActivity) {
+            AppSurface(
+                modifier = Modifier.fillMaxWidth().clickable { onOpenBattery() },
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Recent activity", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("View battery", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Battery", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                            Text(state.batteryPercent?.let { "$it%" } ?: "—", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Heart rate", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                            Text(state.heartRateBpm?.let { "$it bpm" } ?: "—", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("SpO₂", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                            Text(state.bloodOxygenPercent?.let { "$it%" } ?: "—", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    Text(
+                        state.batteryUpdatedAt?.let { "Battery updated " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)) }
+                            ?: "Waiting for battery data",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
             }
         }
 
@@ -546,6 +581,16 @@ fun MyWatchScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = showRecentActivity,
+                            onCheckedChange = {
+                                showRecentActivity = it
+                                dashboardPreferences.edit().putBoolean("show_recent_activity", it).apply()
+                            }
+                        )
+                        Text("Recent activity card", fontSize = 13.sp)
+                    }
                     val allNames = listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store")
                     allNames.forEach { name ->
                         Row(
