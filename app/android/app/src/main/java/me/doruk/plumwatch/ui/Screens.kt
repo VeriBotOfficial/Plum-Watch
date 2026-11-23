@@ -2041,6 +2041,8 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
     }
     val visibleSamples = samples.filter { it.timestamp >= now - duration }
     val latest = state.batteryPercent ?: samples.lastOrNull()?.percent
+    val batteryUpdatedAt = state.batteryUpdatedAt
+    val chartColor = MaterialTheme.colorScheme.primary
 
     Column(
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
@@ -2063,7 +2065,7 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
                 Text(
                     when {
                         !state.isConnected -> "Watch disconnected · showing last saved reading"
-                        state.batteryUpdatedAt != null -> "Updated " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(state.batteryUpdatedAt))
+                        batteryUpdatedAt != null -> "Updated " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(batteryUpdatedAt))
                         else -> "Waiting for the first battery reading"
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2099,7 +2101,7 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
                     }
                     drawPath(
                         path,
-                        MaterialTheme.colorScheme.primary,
+                        chartColor,
                         style = androidx.compose.ui.graphics.drawscope.Stroke(
                             width = 3.dp.toPx(),
                             cap = androidx.compose.ui.graphics.StrokeCap.Round,
