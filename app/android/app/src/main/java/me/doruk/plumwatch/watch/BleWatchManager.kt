@@ -92,6 +92,7 @@ data class BleUiState(
     val connectionMessage: String = "Not connected",
     val discoveredServiceCount: Int = 0,
     val batteryPercent: Int? = null,
+    val batteryUpdatedAt: Long? = null,
     val heartRateBpm: Int? = null,
     val bloodOxygenPercent: Int? = null,
     val heartRateUpdatedAt: Long? = null,
@@ -131,6 +132,8 @@ class BleWatchManager(context: Context) {
     private val initialSavedDevice = readSavedDevice()
     private val mutableState = MutableStateFlow(
         BleUiState(
+            batteryPercent = preferences.getInt(KEY_BATTERY_PERCENT, -1).takeIf { it in 0..100 },
+            batteryUpdatedAt = preferences.getLong(KEY_BATTERY_UPDATED_AT, 0L).takeIf { it > 0L },
             savedDevice = initialSavedDevice,
             isReconnecting = initialSavedDevice != null,
             connectionMessage = if (initialSavedDevice != null) {
@@ -778,9 +781,9 @@ class BleWatchManager(context: Context) {
             if (commandId == PROPRIETARY_CMD_BATTERY && cmd.size >= 8) {
                 val level = cmd[7].toInt() and 0xFF
                 if (level in 0..100) {
-                    persistBatteryLevel(level)
+                    val updatedAt = persistBatteryLevel(level)
                     mutableState.update {
-                        it.copy(batteryPercent = level, supportsBattery = true)
+                        it.copy(batteryPercent = level, batteryUpdatedAt = updatedAt, supportsBattery = true)
                     }
                 }
                 return
@@ -981,8 +984,30 @@ class BleWatchManager(context: Context) {
             .apply()
     }
 
-    private fun persistBatteryLevel(level: Int) {
-        preferences.edit().putInt(KEY_BATTERY_PERCENT, level).apply()
+    private fun persistBatteryLevel(level: Int): Long {
+        val timestamp = System.currentTimeMillis()
+        val editor = preferences.edit()
+            .putInt(KEY_BATTERY_PERCENT, level)
+            .putLong(KEY_BATTERY_UPDATED_AT, timestamp)
+        val encoded = preferences.getString(KEY_BATTERY_HISTORY, null).orEmpty()
+        val samples = encoded.split(",").mapNotNull { token ->
+            val parts = token.split(":", limit = 2)
+            if (parts.size != 2) null
+            else {
+                val time = parts[0].toLongOrNull()
+                val value = parts[1].toIntOrNull()
+                if (time != null && value != null && value in 0..100) time to value else null
+            }
+        }.toMutableList()
+        val last = samples.lastOrNull()
+        if (last == null || last.second != level || timestamp - last.first >= AUTO_SYNC_BATTERY_INTERVAL_MS) {
+            samples.add(timestamp to level)
+        }
+        editor.putString(
+            KEY_BATTERY_HISTORY,
+            samples.takeLast(MAX_BATTERY_HISTORY_SAMPLES).joinToString(",") { "${it.first}:${it.second}" }
+        ).apply()
+        return timestamp
     }
 
     @SuppressLint("MissingPermission")
@@ -1000,6 +1025,9 @@ class BleWatchManager(context: Context) {
     }
 
     private fun finishServiceSetup(gatt: BluetoothGatt) {
+        // Start standard battery polling after GATT setup; it must not depend on
+        // the optional Wearfit proprietary handshake.
+        startAutomaticSync()
         if (!wearfitNotificationsReady || wearfitWriteCharacteristic == null) {
             mutableState.update {
                 it.copy(
@@ -1435,8 +1463,8 @@ class BleWatchManager(context: Context) {
             BATTERY_LEVEL_UUID -> {
                 val level = value.firstOrNull()?.toInt()?.and(0xFF)
                     ?.takeIf { it in 0..100 } ?: return
-                persistBatteryLevel(level)
-                mutableState.update { it.copy(batteryPercent = level) }
+                val updatedAt = persistBatteryLevel(level)
+                mutableState.update { it.copy(batteryPercent = level, batteryUpdatedAt = updatedAt, supportsBattery = true) }
             }
             HEART_RATE_MEASUREMENT_UUID -> {
                 if (value.size < 2) return
@@ -2275,6 +2303,9 @@ class BleWatchManager(context: Context) {
         private const val KEY_SLEEP_TRACKING = "sleep-tracking"
         private const val KEY_SLEEP_CHARGE_REMINDER = "sleep-charge-reminder"
         private const val KEY_BATTERY_PERCENT = "battery-percent"
+        private const val KEY_BATTERY_UPDATED_AT = "battery-updated-at"
+        private const val KEY_BATTERY_HISTORY = "battery-history"
+        private const val MAX_BATTERY_HISTORY_SAMPLES = 2016
         private const val AUTO_SYNC_INITIAL_DELAY_MS = 5_000L
         private const val AUTO_SYNC_BATTERY_INTERVAL_MS = 5 * 60 * 1_000L
         private const val AUTO_SYNC_HEALTH_INTERVAL_MS = 15 * 60 * 1_000L
