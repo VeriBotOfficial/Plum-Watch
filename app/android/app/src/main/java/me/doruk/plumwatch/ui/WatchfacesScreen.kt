@@ -194,7 +194,8 @@ private fun StoreHeader(
                 onTabSelected = { index -> sections.getOrNull(index)?.let(onSectionSelected) },
                 backdrop = glassBackdrop,
                 tabsCount = sections.size,
-                modifier = Modifier.fillMaxWidth().height(64.dp)
+                modifier = Modifier.fillMaxWidth().height(64.dp),
+                includeTabsInLens = false
             ) {
                 sections.forEachIndexed { index, section ->
                     LiquidBottomTab(

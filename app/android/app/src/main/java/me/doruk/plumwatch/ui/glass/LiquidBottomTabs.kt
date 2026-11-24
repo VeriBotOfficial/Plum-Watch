@@ -65,11 +65,11 @@ fun LiquidBottomTabs(
     backdrop: Backdrop,
     tabsCount: Int,
     modifier: Modifier = Modifier,
+    includeTabsInLens: Boolean = true,
     content: @Composable RowScope.() -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isLightTheme = colorScheme.background.luminance() > 0.5f
-    val accentColor = colorScheme.primary
     val containerColor = colorScheme.surface.copy(alpha = 0.42f)
 
     val tabsBackdrop = rememberLayerBackdrop()
@@ -190,7 +190,7 @@ fun LiquidBottomTabs(
         )
         }
 
-        CompositionLocalProvider(
+        if (includeTabsInLens) CompositionLocalProvider(
             LocalLiquidBottomTabScale provides {
                 lerp(1f, 1.2f, dampedDragAnimation.pressProgress)
             }
@@ -230,6 +230,12 @@ fun LiquidBottomTabs(
             )
         }
 
+        val selectorBackdrop = if (includeTabsInLens) {
+            rememberCombinedBackdrop(backdrop, tabsBackdrop)
+        } else {
+            backdrop
+        }
+
         Box(
             Modifier
                 .padding(horizontal = 4f.dp)
@@ -241,7 +247,7 @@ fun LiquidBottomTabs(
                 .then(interactiveHighlight.gestureModifier)
                 .then(dampedDragAnimation.modifier)
                 .drawBackdrop(
-                    backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop),
+                    backdrop = selectorBackdrop,
                     shape = { Capsule() },
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
@@ -280,7 +286,6 @@ fun LiquidBottomTabs(
                             else Color.White.copy(0.1f),
                             alpha = 1f - progress
                         )
-                        drawRect(accentColor.copy(alpha = 0.10f + progress * 0.16f))
                         drawRect(Color.Black.copy(alpha = 0.03f * progress))
                     }
                 )
