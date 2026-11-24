@@ -13,6 +13,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -23,6 +27,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -72,6 +77,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import java.io.File
 import java.io.FileInputStream
@@ -172,25 +178,55 @@ private fun StoreHeader(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         PageTitle("Store")
-        Row(
+        BoxWithConstraints(
             modifier = Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(19.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(4.dp)
         ) {
-            StoreSectionButton(
-                label = "Watchface Store",
-                selected = selectedSection == StoreSection.WATCHFACES,
-                modifier = Modifier.weight(1f),
-                onClick = { onSectionSelected(StoreSection.WATCHFACES) }
+            val sections = listOf(StoreSection.WATCHFACES, StoreSection.APPS)
+            val selectedIndex = sections.indexOf(selectedSection).coerceAtLeast(0)
+            val segmentWidth = maxWidth / 2
+            val indicatorOffset by animateDpAsState(
+                targetValue = segmentWidth * selectedIndex,
+                animationSpec = spring(dampingRatio = 0.72f, stiffness = 390f),
+                label = "classic-store-indicator"
             )
-            StoreSectionButton(
-                label = "App Store",
-                selected = selectedSection == StoreSection.APPS,
-                modifier = Modifier.weight(1f),
-                onClick = { onSectionSelected(StoreSection.APPS) }
+            Box(
+                Modifier
+                    .offset(x = indicatorOffset)
+                    .width(segmentWidth)
+                    .height(44.dp)
+                    .align(Alignment.CenterStart)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(MaterialTheme.colorScheme.surface)
             )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .pointerInput(maxWidth, sections) {
+                        detectDragGestures { change, _ ->
+                            val index = (change.position.x / size.width * sections.size)
+                                .toInt().coerceIn(sections.indices)
+                            sections.getOrNull(index)?.let(onSectionSelected)
+                        }
+                    },
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                StoreSectionButton(
+                    label = "Watchface Store",
+                    selected = selectedSection == StoreSection.WATCHFACES,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSectionSelected(StoreSection.WATCHFACES) }
+                )
+                StoreSectionButton(
+                    label = "App Store",
+                    selected = selectedSection == StoreSection.APPS,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSectionSelected(StoreSection.APPS) }
+                )
+            }
         }
     }
 }

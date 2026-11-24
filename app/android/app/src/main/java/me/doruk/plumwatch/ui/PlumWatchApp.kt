@@ -19,11 +19,16 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -430,7 +435,7 @@ private fun FloatingNavigationBar(
             }
         }
     } else {
-        Box(
+        BoxWithConstraints(
             modifier = modifier
                 .navigationBarsPadding()
                 .widthIn(max = 360.dp)
@@ -440,8 +445,31 @@ private fun FloatingNavigationBar(
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 5.dp)
         ) {
+            val tabWidth = maxWidth / pages.size
+            val indicatorOffset by animateDpAsState(
+                targetValue = tabWidth * selectedIndex,
+                animationSpec = spring(dampingRatio = 0.76f, stiffness = 430f),
+                label = "classic-navbar-indicator"
+            )
+            Box(
+                Modifier
+                    .offset(x = indicatorOffset)
+                    .width(tabWidth)
+                    .height(62.dp)
+                    .align(Alignment.CenterStart)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.82f))
+            )
             Row(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(maxWidth, pages) {
+                        detectDragGestures { change, _ ->
+                            val index = (change.position.x / size.width * pages.size)
+                                .toInt().coerceIn(pages.indices)
+                            pages.getOrNull(index)?.let(onSelect)
+                        }
+                    },
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -451,10 +479,6 @@ private fun FloatingNavigationBar(
                             .weight(1f)
                             .height(68.dp)
                             .clip(RoundedCornerShape(28.dp))
-                            .background(
-                                if (page == selectedPage) MaterialTheme.colorScheme.background.copy(alpha = 0.78f)
-                                else MaterialTheme.colorScheme.surface.copy(alpha = 0f)
-                            )
                             .clickable { onSelect(page) }
                             .padding(top = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
