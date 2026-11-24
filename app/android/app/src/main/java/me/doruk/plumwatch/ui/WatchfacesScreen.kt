@@ -95,8 +95,7 @@ import me.doruk.plumwatch.data.WatchfaceRepository
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.ui.glass.LiquidBottomTab
 import me.doruk.plumwatch.ui.glass.LiquidBottomTabs
-import me.doruk.plumwatch.ui.LocalLiquidBackdrop
-import me.doruk.plumwatch.ui.glass.liquidBottomTabColor
+import me.doruk.plumwatch.ui.LocalLiquidSurfaceBackdrop
 import me.doruk.plumwatch.watch.BleWatchManager
 import java.net.HttpURLConnection
 import java.net.URL
@@ -178,7 +177,7 @@ private fun StoreHeader(
     selectedSection: StoreSection,
     onSectionSelected: (StoreSection) -> Unit
 ) {
-    val glassBackdrop = LocalLiquidBackdrop.current
+    val glassBackdrop = LocalLiquidSurfaceBackdrop.current
     val sections = remember { listOf(StoreSection.WATCHFACES, StoreSection.APPS) }
     val selectedIndex = sections.indexOf(selectedSection).coerceAtLeast(0)
     val selectedTabIndex = remember(selectedIndex) { { selectedIndex } }
@@ -196,17 +195,12 @@ private fun StoreHeader(
                 backdrop = glassBackdrop,
                 tabsCount = sections.size,
                 modifier = Modifier.fillMaxWidth().height(64.dp),
-                includeTabsInLens = false
             ) {
                 sections.forEachIndexed { index, section ->
-                    LiquidBottomTab(
-                        tabIndex = index,
-                        onClick = { onSectionSelected(section) }
-                    ) {
-                        val tint = liquidBottomTabColor(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    LiquidBottomTab(onClick = { onSectionSelected(section) }) {
+                        val selected = section == selectedSection
+                        val tint = if (selected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                         Icon(
                             imageVector = if (section == StoreSection.WATCHFACES) Icons.Outlined.Image else Icons.Outlined.GridView,
                             contentDescription = null,

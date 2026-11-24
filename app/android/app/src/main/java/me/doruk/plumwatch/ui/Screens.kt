@@ -127,7 +127,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -399,7 +398,6 @@ fun MyWatchScreen(
             .fillMaxSize()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .graphicsLayer()
             .padding(horizontal = 22.dp)
             .padding(top = 27.dp, bottom = 126.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
