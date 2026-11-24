@@ -23,6 +23,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +71,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.layout.aspectRatio
@@ -91,6 +93,8 @@ import me.doruk.plumwatch.data.Watchface
 import me.doruk.plumwatch.data.WatchfaceLibraryResult
 import me.doruk.plumwatch.data.WatchfaceRepository
 import me.doruk.plumwatch.watch.BleUiState
+import me.doruk.plumwatch.ui.glass.LiquidBottomTab
+import me.doruk.plumwatch.ui.glass.LiquidBottomTabs
 import me.doruk.plumwatch.watch.BleWatchManager
 import java.net.HttpURLConnection
 import java.net.URL
@@ -172,60 +176,107 @@ private fun StoreHeader(
     selectedSection: StoreSection,
     onSectionSelected: (StoreSection) -> Unit
 ) {
+    val glassBackdrop = LocalLiquidSurfaceBackdrop.current
+    val sections = remember { listOf(StoreSection.WATCHFACES, StoreSection.APPS) }
+    val selectedIndex = sections.indexOf(selectedSection).coerceAtLeast(0)
+    val selectedTabIndex = remember(selectedIndex) { { selectedIndex } }
+
     Column(
         modifier = Modifier.fillMaxWidth().statusBarsPadding()
             .padding(horizontal = 22.dp).padding(top = 14.dp, bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         PageTitle("Store")
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(19.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                .padding(4.dp)
-        ) {
-            val sections = listOf(StoreSection.WATCHFACES, StoreSection.APPS)
-            val selectedIndex = sections.indexOf(selectedSection).coerceAtLeast(0)
-            val segmentWidth = maxWidth / 2
-            val indicatorOffset by animateDpAsState(
-                targetValue = segmentWidth * selectedIndex,
-                animationSpec = spring(dampingRatio = 0.72f, stiffness = 390f),
-                label = "classic-store-indicator"
-            )
-            Box(
-                Modifier
-                    .offset(x = indicatorOffset)
-                    .width(segmentWidth)
-                    .height(44.dp)
-                    .align(Alignment.CenterStart)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .pointerInput(maxWidth, sections) {
-                        detectDragGestures { change, _ ->
-                            val index = (change.position.x / size.width * sections.size)
-                                .toInt().coerceIn(sections.indices)
-                            sections.getOrNull(index)?.let(onSectionSelected)
-                        }
-                    },
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+        if (glassBackdrop != null) {
+            LiquidBottomTabs(
+                selectedTabIndex = selectedTabIndex,
+                onTabSelected = { index ->
+                    sections.getOrNull(index)?.let(onSectionSelected)
+                },
+                backdrop = glassBackdrop,
+                tabsCount = sections.size,
+                barHeight = 52.dp,
+                pressedScale = 1.12f,
+                modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
-                StoreSectionButton(
-                    label = "Watchface Store",
-                    selected = selectedSection == StoreSection.WATCHFACES,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onSectionSelected(StoreSection.WATCHFACES) }
+                sections.forEach { section ->
+                    val selected = section == selectedSection
+                    LiquidBottomTab(
+                        onClick = { onSectionSelected(section) }
+                    ) {
+                        Text(
+                            text = if (section == StoreSection.WATCHFACES) "Watchface Store" else "App Store",
+                            color = if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        } else {
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxWidth()
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+                        RoundedCornerShape(28.dp)
+                    )
+                    .padding(4.dp)
+            ) {
+                val segmentWidth = maxWidth / sections.size
+                val indicatorOffset by animateDpAsState(
+                    targetValue = segmentWidth * selectedIndex,
+                    animationSpec = spring(dampingRatio = 0.76f, stiffness = 430f),
+                    label = "classic-store-indicator"
                 )
-                StoreSectionButton(
-                    label = "App Store",
-                    selected = selectedSection == StoreSection.APPS,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onSectionSelected(StoreSection.APPS) }
+                Box(
+                    Modifier
+                        .offset(x = indicatorOffset)
+                        .width(segmentWidth)
+                        .height(44.dp)
+                        .align(Alignment.CenterStart)
+                        .shadow(3.dp, RoundedCornerShape(23.dp))
+                        .clip(RoundedCornerShape(23.dp))
+                        .background(MaterialTheme.colorScheme.background.copy(alpha = 0.86f))
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.26f),
+                            RoundedCornerShape(23.dp)
+                        )
                 )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .pointerInput(maxWidth, sections) {
+                            detectDragGestures { change, _ ->
+                                val index = (change.position.x / size.width * sections.size)
+                                    .toInt().coerceIn(sections.indices)
+                                sections.getOrNull(index)?.let(onSectionSelected)
+                            }
+                        },
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    StoreSectionButton(
+                        label = "Watchface Store",
+                        selected = selectedSection == StoreSection.WATCHFACES,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onSectionSelected(StoreSection.WATCHFACES) }
+                    )
+                    StoreSectionButton(
+                        label = "App Store",
+                        selected = selectedSection == StoreSection.APPS,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onSectionSelected(StoreSection.APPS) }
+                    )
+                }
             }
         }
     }
@@ -238,44 +289,22 @@ private fun StoreSectionButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val glassEnabled = LocalLiquidSurfaceBackdrop.current != null
-    val selectionProgress by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (selected) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = 0.82f,
-            stiffness = 520f
-        ),
-        label = "store-section-selection"
-    )
-    val selectionColor by androidx.compose.animation.animateColorAsState(
-        targetValue = if (selected) {
-            if (glassEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.52f)
-            else MaterialTheme.colorScheme.surface
-        } else Color.Transparent,
-        animationSpec = tween(190),
-        label = "store-section-background"
-    )
-
-    AppClickableSurface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(15.dp)
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(22.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(selectionColor, RoundedCornerShape(15.dp))
-                .padding(vertical = 12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                label,
-                color = if (selected) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                fontWeight = if (selectionProgress > 0.5f) FontWeight.SemiBold else FontWeight.Medium
-            )
-        }
+        Text(
+            text = label,
+            color = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
