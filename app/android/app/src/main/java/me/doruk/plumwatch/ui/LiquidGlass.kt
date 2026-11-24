@@ -35,6 +35,11 @@ import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.highlight.Highlight
 
 /**
  * Liquid Glass is applied selectively to interactive surfaces and primary actions.
@@ -90,13 +95,32 @@ fun AppClickableSurface(
     enabled: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
+    val backdrop = LocalLiquidBackdrop.current
+    val scheme = MaterialTheme.colorScheme
+    val glassModifier = if (backdrop != null) {
+        Modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = { shape },
+            effects = {
+                vibrancy()
+                blur(7f.dp.toPx())
+                lens(15f.dp.toPx(), 15f.dp.toPx())
+            },
+            highlight = { Highlight.Default.copy(alpha = 0.24f) },
+            onDrawSurface = {
+                drawRect(scheme.surface.copy(alpha = 0.46f))
+                drawRect(scheme.primary.copy(alpha = 0.025f))
+            }
+        )
+    } else Modifier
+
     MaterialSurface(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.then(glassModifier),
         enabled = enabled,
         shape = shape,
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface
+        color = if (backdrop != null) Color.Transparent else scheme.surface,
+        contentColor = scheme.onSurface
     ) {
         Box(content = content)
     }
@@ -111,20 +135,43 @@ fun PlumActionButton(
     enabled: Boolean = true,
     loading: Boolean = false
 ) {
+    val backdrop = LocalLiquidBackdrop.current
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(16.dp)
+    val actionContentColor = if (backdrop != null) scheme.primary else scheme.onPrimary
+    val glassModifier = if (backdrop != null) {
+        Modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = { shape },
+            effects = {
+                vibrancy()
+                blur(7f.dp.toPx())
+                lens(13f.dp.toPx(), 13f.dp.toPx())
+            },
+            highlight = { Highlight.Default.copy(alpha = 0.3f) },
+            onDrawSurface = {
+                drawRect(scheme.primary.copy(alpha = 0.17f))
+                drawRect(scheme.surface.copy(alpha = 0.13f))
+            }
+        )
+    } else Modifier
+
     MaterialButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.then(glassModifier),
+        shape = shape,
         colors = MaterialButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
+            containerColor = if (backdrop != null) Color.Transparent else scheme.primary,
+            contentColor = actionContentColor,
+            disabledContainerColor = if (backdrop != null) Color.Transparent else scheme.surfaceVariant,
+            disabledContentColor = scheme.onSurfaceVariant.copy(alpha = 0.55f)
         )
     ) {
         if (loading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(17.dp),
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = actionContentColor,
                 strokeWidth = 2.dp
             )
         } else if (icon != null) {
@@ -142,6 +189,7 @@ fun PlumActionButton(
         }
     }
 }
+
 
 @Composable
 fun PlumBackButton(
