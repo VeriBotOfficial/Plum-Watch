@@ -95,6 +95,7 @@ import me.doruk.plumwatch.data.WatchfaceRepository
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.ui.glass.LiquidBottomTab
 import me.doruk.plumwatch.ui.glass.LiquidBottomTabs
+import me.doruk.plumwatch.ui.glass.liquidBottomTabColor
 import me.doruk.plumwatch.ui.LocalLiquidSurfaceBackdrop
 import me.doruk.plumwatch.watch.BleWatchManager
 import java.net.HttpURLConnection
@@ -195,12 +196,17 @@ private fun StoreHeader(
                 backdrop = glassBackdrop,
                 tabsCount = sections.size,
                 modifier = Modifier.fillMaxWidth().height(64.dp),
+                includeTabsInLens = false
             ) {
                 sections.forEachIndexed { index, section ->
-                    LiquidBottomTab(onClick = { onSectionSelected(section) }) {
-                        val selected = section == selectedSection
-                        val tint = if (selected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    LiquidBottomTab(
+                        onClick = { onSectionSelected(section) },
+                        tabIndex = index
+                    ) {
+                        val tint = liquidBottomTabColor(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Icon(
                             imageVector = if (section == StoreSection.WATCHFACES) Icons.Outlined.Image else Icons.Outlined.GridView,
                             contentDescription = null,
