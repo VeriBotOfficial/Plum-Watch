@@ -10,27 +10,41 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.remember
 import com.kyant.shapes.Capsule
+import kotlin.math.abs
 
 internal val LocalLiquidBottomTabScale =
     staticCompositionLocalOf { { 1f } }
+
+private val LocalLiquidBottomTabSelectedProgress = staticCompositionLocalOf { 1f }
+
+@Composable
+fun liquidBottomTabColor(selectedColor: Color, unselectedColor: Color): Color =
+    lerp(unselectedColor, selectedColor, LocalLiquidBottomTabSelectedProgress.current)
 
 @Composable
 fun RowScope.LiquidBottomTab(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    tabIndex: Int = 0,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scale = LocalLiquidBottomTabScale.current
+    val selectionValue = LocalLiquidBottomTabSelectionValue.current
+    val selectedProgress = (1f - abs(selectionValue() - tabIndex)).coerceIn(0f, 1f)
+    CompositionLocalProvider(LocalLiquidBottomTabSelectedProgress provides selectedProgress) {
     Column(
         modifier
             .clip(Capsule())
@@ -52,4 +66,5 @@ fun RowScope.LiquidBottomTab(
         horizontalAlignment = Alignment.CenterHorizontally,
         content = content
     )
+    }
 }

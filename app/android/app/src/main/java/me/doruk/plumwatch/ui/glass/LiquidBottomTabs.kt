@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -54,6 +55,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 import kotlin.math.roundToInt
+
+internal val LocalLiquidBottomTabSelectionValue = staticCompositionLocalOf { { 0f } }
 
 @Composable
 fun LiquidBottomTabs(
@@ -154,6 +157,9 @@ fun LiquidBottomTabs(
             )
         }
 
+        CompositionLocalProvider(
+            LocalLiquidBottomTabSelectionValue provides { dampedDragAnimation.value }
+        ) {
         Row(
             Modifier
                 .graphicsLayer {
@@ -182,6 +188,7 @@ fun LiquidBottomTabs(
             verticalAlignment = Alignment.CenterVertically,
             content = content
         )
+        }
 
         CompositionLocalProvider(
             LocalLiquidBottomTabScale provides {
@@ -273,6 +280,7 @@ fun LiquidBottomTabs(
                             else Color.White.copy(0.1f),
                             alpha = 1f - progress
                         )
+                        drawRect(accentColor.copy(alpha = 0.10f + progress * 0.16f))
                         drawRect(Color.Black.copy(alpha = 0.03f * progress))
                     }
                 )

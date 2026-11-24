@@ -95,6 +95,7 @@ import me.doruk.plumwatch.data.WatchfaceRepository
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.ui.glass.LiquidBottomTab
 import me.doruk.plumwatch.ui.glass.LiquidBottomTabs
+import me.doruk.plumwatch.ui.glass.liquidBottomTabColor
 import me.doruk.plumwatch.watch.BleWatchManager
 import java.net.HttpURLConnection
 import java.net.URL
@@ -176,7 +177,7 @@ private fun StoreHeader(
     selectedSection: StoreSection,
     onSectionSelected: (StoreSection) -> Unit
 ) {
-    val glassBackdrop = LocalLiquidBackdrop.current
+    val glassBackdrop = LocalLiquidSurfaceBackdrop.current
     val sections = remember { listOf(StoreSection.WATCHFACES, StoreSection.APPS) }
     val selectedIndex = sections.indexOf(selectedSection).coerceAtLeast(0)
     val selectedTabIndex = remember(selectedIndex) { { selectedIndex } }
@@ -195,15 +196,26 @@ private fun StoreHeader(
                 tabsCount = sections.size,
                 modifier = Modifier.fillMaxWidth().height(64.dp)
             ) {
-                sections.forEach { section ->
-                    val selected = section == selectedSection
-                    LiquidBottomTab(onClick = { onSectionSelected(section) }) {
+                sections.forEachIndexed { index, section ->
+                    LiquidBottomTab(
+                        tabIndex = index,
+                        onClick = { onSectionSelected(section) }
+                    ) {
+                        val tint = liquidBottomTabColor(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Icon(
+                            imageVector = if (section == StoreSection.WATCHFACES) Icons.Outlined.Image else Icons.Outlined.GridView,
+                            contentDescription = null,
+                            tint = tint,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Text(
                             text = if (section == StoreSection.WATCHFACES) "Watchface Store" else "App Store",
-                            color = if (selected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = tint,
                             fontSize = 12.sp,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -213,8 +225,11 @@ private fun StoreHeader(
         } else {
             BoxWithConstraints(
                 modifier = Modifier.fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 2.dp, vertical = 2.dp)
+                    .height(60.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f), RoundedCornerShape(24.dp))
+                    .padding(5.dp)
             ) {
                 val segmentWidth = maxWidth / sections.size
                 val indicatorOffset by animateDpAsState(
@@ -224,13 +239,15 @@ private fun StoreHeader(
                 )
                 Box(
                     Modifier.offset(x = indicatorOffset)
-                        .width(segmentWidth).height(44.dp)
+                        .width(segmentWidth).height(50.dp)
                         .align(Alignment.CenterStart)
-                        .clip(RoundedCornerShape(23.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
+                        .shadow(2.dp, RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f), RoundedCornerShape(20.dp))
                 )
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(44.dp)
+                    modifier = Modifier.fillMaxWidth().height(50.dp)
                         .pointerInput(maxWidth, sections) {
                             detectDragGestures { change, _ ->
                                 val index = (change.position.x / size.width * sections.size).toInt().coerceIn(sections.indices)
@@ -265,14 +282,27 @@ private fun StoreSectionButton(
         modifier = modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = label,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (label == "Watchface Store") Icons.Outlined.Image else Icons.Outlined.GridView,
+                contentDescription = null,
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(17.dp)
+            )
+            Spacer(Modifier.width(7.dp))
+            Text(
+                text = label,
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 

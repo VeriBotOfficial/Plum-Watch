@@ -82,6 +82,7 @@ import me.doruk.plumwatch.R
 import me.doruk.plumwatch.data.AppUpdateDownloadState
 import me.doruk.plumwatch.ui.glass.LiquidBottomTab
 import me.doruk.plumwatch.ui.glass.LiquidBottomTabs
+import me.doruk.plumwatch.ui.glass.liquidBottomTabColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
@@ -414,12 +415,12 @@ private fun FloatingNavigationBar(
                 .fillMaxWidth(0.88f)
                 .height(72.dp)
         ) {
-            pages.forEach { page ->
-                val selected = page == selectedPage
-                val tint = if (selected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant
-
-                LiquidBottomTab(onClick = { onSelect(page) }) {
+            pages.forEachIndexed { index, page ->
+                LiquidBottomTab(onClick = { onSelect(page) }, tabIndex = index) {
+                    val tint = liquidBottomTabColor(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Icon(
                         imageVector = IconsForPage(page),
                         contentDescription = page.label,
