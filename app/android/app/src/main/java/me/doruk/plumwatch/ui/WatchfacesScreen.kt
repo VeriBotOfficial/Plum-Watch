@@ -202,7 +202,7 @@ private fun StoreSectionButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val glassEnabled = LocalLiquidBackdrop.current != null
+    val glassEnabled = LocalLiquidSurfaceBackdrop.current != null
     AppClickableSurface(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(15.dp)) {
         Box(
             modifier = Modifier.fillMaxWidth()

@@ -28,6 +28,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,6 +46,7 @@ import com.kyant.backdrop.highlight.Highlight
  * Liquid Glass is applied selectively to interactive surfaces and primary actions.
  */
 val LocalLiquidBackdrop = staticCompositionLocalOf<Backdrop?> { null }
+val LocalLiquidSurfaceBackdrop = staticCompositionLocalOf<Backdrop?> { null }
 
 @Composable
 fun LiquidGlassHost(
@@ -54,18 +56,43 @@ fun LiquidGlassHost(
 ) {
     val backdrop = rememberLayerBackdrop()
     val background = MaterialTheme.colorScheme.background
+    val surfaceBackdrop = rememberLayerBackdrop()
+    val surfaceBaseBackdrop = rememberLayerBackdrop {
+        drawRect(background)
+    }
 
-    CompositionLocalProvider(
-        LocalLiquidBackdrop provides if (enabled) backdrop else null
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        CompositionLocalProvider(
+            LocalLiquidSurfaceBackdrop provides if (enabled) surfaceBackdrop else null
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (enabled) Modifier.layerBackdrop(backdrop) else Modifier)
-                    .background(background),
-                content = content
-            )
+                    .background(background)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (enabled) {
+                                Modifier.drawBackdrop(
+                                    backdrop = surfaceBaseBackdrop,
+                                    shape = { RectangleShape },
+                                    exportedBackdrop = surfaceBackdrop
+                                )
+                            } else {
+                                Modifier
+                            }
+                        ),
+                    content = content
+                )
+            }
+        }
+
+        CompositionLocalProvider(
+            LocalLiquidBackdrop provides if (enabled) backdrop else null
+        ) {
             overlay()
         }
     }
@@ -95,7 +122,7 @@ fun AppClickableSurface(
     enabled: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val backdrop = LocalLiquidBackdrop.current
+    val backdrop = LocalLiquidSurfaceBackdrop.current
     val scheme = MaterialTheme.colorScheme
     val glassModifier = if (backdrop != null) {
         Modifier.drawBackdrop(
@@ -135,7 +162,7 @@ fun PlumActionButton(
     enabled: Boolean = true,
     loading: Boolean = false
 ) {
-    val backdrop = LocalLiquidBackdrop.current
+    val backdrop = LocalLiquidSurfaceBackdrop.current
     val scheme = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(16.dp)
     val actionContentColor = if (backdrop != null) scheme.primary else scheme.onPrimary

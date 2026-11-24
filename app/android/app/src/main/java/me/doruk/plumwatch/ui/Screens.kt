@@ -226,7 +226,7 @@ fun PlumDownloadButton(
         else -> label
     }
     val indicatorVisible = downloading || showActivityIndicator
-    val backdrop = LocalLiquidBackdrop.current
+    val backdrop = LocalLiquidSurfaceBackdrop.current
     val buttonModifier = modifier.height(62.dp).then(
         if (backdrop != null) {
             Modifier.drawBackdrop(
