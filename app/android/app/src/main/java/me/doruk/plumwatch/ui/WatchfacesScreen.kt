@@ -214,10 +214,7 @@ private fun StoreHeader(
             BoxWithConstraints(
                 modifier = Modifier.fillMaxWidth()
                     .height(56.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f), RoundedCornerShape(28.dp))
-                    .padding(4.dp)
+                    .padding(horizontal = 2.dp, vertical = 2.dp)
             ) {
                 val segmentWidth = maxWidth / sections.size
                 val indicatorOffset by animateDpAsState(
@@ -229,10 +226,8 @@ private fun StoreHeader(
                     Modifier.offset(x = indicatorOffset)
                         .width(segmentWidth).height(44.dp)
                         .align(Alignment.CenterStart)
-                        .shadow(3.dp, RoundedCornerShape(23.dp))
                         .clip(RoundedCornerShape(23.dp))
-                        .background(MaterialTheme.colorScheme.background.copy(alpha = 0.86f))
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.26f), RoundedCornerShape(23.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().height(44.dp)

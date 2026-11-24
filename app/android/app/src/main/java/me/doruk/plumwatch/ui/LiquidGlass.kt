@@ -76,6 +76,7 @@ fun LiquidGlassHost(
         }
 
         CompositionLocalProvider(
+            LocalLiquidBackdrop provides if (enabled) backdrop else null,
             LocalLiquidSurfaceBackdrop provides if (enabled) surfaceBackdrop else null
         ) {
             Box(

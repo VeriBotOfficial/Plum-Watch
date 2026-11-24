@@ -552,16 +552,35 @@ fun MyWatchScreen(
             }
         }
 
-        FilledTonalButton(
+        AppClickableSurface(
             onClick = onOpenOtherSettings,
             modifier = Modifier.fillMaxWidth().height(54.dp),
             shape = RoundedCornerShape(18.dp)
         ) {
-            Icon(Icons.Outlined.Widgets, contentDescription = null, modifier = Modifier.size(19.dp))
-            Spacer(Modifier.width(9.dp))
-            Text("Other Settings", fontWeight = FontWeight.Medium)
-            Spacer(Modifier.weight(1f))
-            Icon(Icons.Outlined.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Outlined.Widgets,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(19.dp)
+                )
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    "Other Settings",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    Icons.Outlined.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
 
         AnimatedVisibility(
