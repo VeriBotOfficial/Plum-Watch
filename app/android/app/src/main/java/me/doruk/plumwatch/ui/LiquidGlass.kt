@@ -79,6 +79,7 @@ fun LiquidGlassHost(
                                 Modifier.drawBackdrop(
                                     backdrop = surfaceBaseBackdrop,
                                     shape = { RectangleShape },
+                                    effects = {},
                                     exportedBackdrop = surfaceBackdrop
                                 )
                             } else {
