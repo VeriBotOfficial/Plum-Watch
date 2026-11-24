@@ -247,11 +247,7 @@ fun CameraScreen(
             .padding(top = 17.dp, bottom = 126.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-            androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp))
-            Text("My Watch")
-        }
+        PlumBackButton(onClick = onBack, label = "My Watch")
         Text(
             "Camera",
             color = MaterialTheme.colorScheme.onSurface,

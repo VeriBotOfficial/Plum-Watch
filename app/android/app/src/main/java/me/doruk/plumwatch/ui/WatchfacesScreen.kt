@@ -202,10 +202,16 @@ private fun StoreSectionButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val glassEnabled = LocalLiquidBackdrop.current != null
     AppClickableSurface(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(15.dp)) {
         Box(
             modifier = Modifier.fillMaxWidth()
-                .background(if (selected) MaterialTheme.colorScheme.surface else Color.Transparent)
+                .background(
+                    if (selected && glassEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.11f)
+                    else if (selected) MaterialTheme.colorScheme.surface
+                    else Color.Transparent,
+                    RoundedCornerShape(15.dp)
+                )
                 .padding(vertical = 12.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -445,11 +451,7 @@ private fun WatchfaceDetailScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AppClickableSurface(onClick = onBack, modifier = Modifier.size(42.dp), shape = CircleShape) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
-                }
-            }
+            PlumBackButton(onClick = onBack, modifier = Modifier.size(42.dp))
             Text(
                 "Watchface Store",
                 Modifier.padding(start = 13.dp),

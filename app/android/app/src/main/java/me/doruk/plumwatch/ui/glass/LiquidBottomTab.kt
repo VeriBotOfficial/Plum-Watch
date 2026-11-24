@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -41,6 +42,7 @@ fun RowScope.LiquidBottomTab(
             )
             .fillMaxHeight()
             .weight(1f)
+            .padding(top = 4.dp)
             .graphicsLayer {
                 val scale = scale()
                 scaleX = scale

@@ -174,6 +174,11 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.highlight.Highlight
 @Composable
 fun PlumDownloadButton(
     label: String,
@@ -221,10 +226,36 @@ fun PlumDownloadButton(
         else -> label
     }
     val indicatorVisible = downloading || showActivityIndicator
+    val backdrop = LocalLiquidBackdrop.current
+    val buttonModifier = modifier.height(62.dp).then(
+        if (backdrop != null) {
+            Modifier.drawBackdrop(
+                backdrop = backdrop,
+                shape = { shape },
+                effects = {
+                    vibrancy()
+                    blur(7f.dp.toPx())
+                    lens(13f.dp.toPx(), 13f.dp.toPx())
+                },
+                highlight = { Highlight.Default.copy(alpha = 0.26f) },
+                onDrawSurface = {
+                    drawRect(
+                        backgroundColor.copy(
+                            alpha = if (downloaded) 0.78f else backgroundColor.alpha.coerceAtMost(0.24f)
+                        )
+                    )
+                }
+            )
+        } else {
+            Modifier.clip(shape).background(backgroundColor)
+        }
+    ).clickable(
+        enabled = enabled && !downloading && !showActivityIndicator,
+        onClick = onClick
+    )
 
     Box(
-        modifier = modifier.height(62.dp).clip(shape).background(backgroundColor)
-            .clickable(enabled = enabled && !downloading && !showActivityIndicator, onClick = onClick),
+        modifier = buttonModifier,
         contentAlignment = Alignment.Center
     ) {
         if (downloading) {
@@ -676,11 +707,7 @@ fun OtherWatchSettingsScreen(onBack: () -> Unit) {
             .padding(top = 17.dp, bottom = 126.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("My Watch")
-        }
+        PlumBackButton(onClick = onBack, label = "My Watch")
         PageTitle("Other Settings")
         WatchControlsSettingsContent()
     }
@@ -1073,6 +1100,8 @@ enum class SettingsCategory(
 fun SettingsScreen(
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
+    warmLight: Boolean,
+    onWarmLightChange: (Boolean) -> Unit,
     uiStyle: String,
     onUiStyleChange: (String) -> Unit,
     colorPalette: String,
@@ -1122,6 +1151,8 @@ fun SettingsScreen(
                 category = category,
                 themeMode = themeMode,
                 onThemeModeChange = onThemeModeChange,
+                warmLight = warmLight,
+                onWarmLightChange = onWarmLightChange,
                 uiStyle = uiStyle,
                 onUiStyleChange = onUiStyleChange,
                 colorPalette = colorPalette,
@@ -1296,20 +1327,7 @@ private fun SettingsDetailHeader(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AppClickableSurface(
-                onClick = onBack,
-                modifier = Modifier.size(38.dp),
-                shape = CircleShape
-            ) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.ArrowBack,
-                        contentDescription = "Back to settings",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(19.dp)
-                    )
-                }
-            }
+            PlumBackButton(onClick = onBack, modifier = Modifier.size(38.dp))
             Spacer(Modifier.width(11.dp))
             Text(
                 "SETTINGS",
@@ -1329,6 +1347,8 @@ private fun SettingsCategoryPage(
     category: SettingsCategory,
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
+    warmLight: Boolean,
+    onWarmLightChange: (Boolean) -> Unit,
     uiStyle: String,
     onUiStyleChange: (String) -> Unit,
     colorPalette: String,
@@ -1360,6 +1380,8 @@ private fun SettingsCategoryPage(
                 AppearanceSettingsContent(
                     themeMode = themeMode,
                     onThemeModeChange = onThemeModeChange,
+                    warmLight = warmLight,
+                    onWarmLightChange = onWarmLightChange,
                     uiStyle = uiStyle,
                     onUiStyleChange = onUiStyleChange,
                     colorPalette = colorPalette,
@@ -1396,6 +1418,8 @@ private fun SettingsCategoryPage(
 private fun AppearanceSettingsContent(
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
+    warmLight: Boolean,
+    onWarmLightChange: (Boolean) -> Unit,
     uiStyle: String,
     onUiStyleChange: (String) -> Unit,
     colorPalette: String,
@@ -1435,6 +1459,33 @@ private fun AppearanceSettingsContent(
                         modifier = Modifier.weight(1f),
                         onClick = { onThemeModeChange("dark") }
                     )
+                }
+                if (themeMode == "light") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(1.dp)
+                        ) {
+                            Text(
+                                "Warm",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                "Softer, warmer whites",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Switch(
+                            checked = warmLight,
+                            onCheckedChange = onWarmLightChange
+                        )
+                    }
                 }
             }
         }
@@ -1483,7 +1534,7 @@ private fun AppearanceSettingsContent(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionHeading("Navigation style")
+        SectionHeading("Interface style")
         InterfaceStyleChoice(
             uiStyle = uiStyle,
             onUiStyleChange = onUiStyleChange
@@ -1652,11 +1703,7 @@ fun MusicScreen(onBack: () -> Unit) {
             .padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("My Watch")
-        }
+        PlumBackButton(onClick = onBack, label = "My Watch")
         PageTitle("Music")
         AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1734,11 +1781,7 @@ fun HealthScreen(onBack: () -> Unit) {
             .padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("My Watch")
-        }
+        PlumBackButton(onClick = onBack, label = "My Watch")
         PageTitle("Health")
         AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1900,11 +1943,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            TextButton(onClick = onBack) {
-                Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("My Watch")
-            }
+            PlumBackButton(onClick = onBack, label = "My Watch")
             PageTitle("Notifications")
         }
         item {
@@ -2074,11 +2113,7 @@ fun BatteryHistoryScreen(onBack: () -> Unit) {
             .padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("My Watch")
-        }
+        PlumBackButton(onClick = onBack, label = "My Watch")
         PageTitle("Battery")
 
         AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp)) {
@@ -2337,11 +2372,7 @@ fun DeviceInfoScreen(onBack: () -> Unit) {
             .padding(horizontal = 22.dp).padding(top = 17.dp, bottom = 126.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("My Watch")
-        }
+        PlumBackButton(onClick = onBack, label = "My Watch")
         PageTitle("Device information")
         AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
             Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -2458,11 +2489,7 @@ fun AlarmsScreen(onBack: () -> Unit) {
             .padding(top = 17.dp, bottom = 126.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Icon(Icons.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("My Watch")
-        }
+        PlumBackButton(onClick = onBack, label = "My Watch")
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

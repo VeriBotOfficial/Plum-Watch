@@ -103,6 +103,8 @@ fun PlumWatchApp(
     watchManager: BleWatchManager,
     themeMode: String,
     onThemeModeChange: (String) -> Unit,
+    warmLight: Boolean,
+    onWarmLightChange: (Boolean) -> Unit,
     uiStyle: String,
     onUiStyleChange: (String) -> Unit,
     colorPalette: String,
@@ -186,7 +188,11 @@ fun PlumWatchApp(
         }
     }
 
-    PlumTheme(darkTheme = darkTheme, paletteId = colorPalette) {
+    PlumTheme(
+        darkTheme = darkTheme,
+        paletteId = colorPalette,
+        warmLight = themeMode == "light" && warmLight
+    ) {
         SideEffect {
             val window = (context as? Activity)?.window
             if (window != null) {
@@ -300,6 +306,8 @@ fun PlumWatchApp(
                             AppPage.SETTINGS -> SettingsScreen(
                                 themeMode = themeMode,
                                 onThemeModeChange = onThemeModeChange,
+                                warmLight = warmLight,
+                                onWarmLightChange = onWarmLightChange,
                                 uiStyle = uiStyle,
                                 onUiStyleChange = onUiStyleChange,
                                 colorPalette = colorPalette,
@@ -409,12 +417,12 @@ private fun FloatingNavigationBar(
                         imageVector = IconsForPage(page),
                         contentDescription = page.label,
                         tint = tint,
-                        modifier = Modifier.height(21.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                     Text(
                         text = page.label,
                         color = tint,
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                         letterSpacing = 0.1.sp
                     )
@@ -427,8 +435,8 @@ private fun FloatingNavigationBar(
                 .navigationBarsPadding()
                 .widthIn(max = 360.dp)
                 .fillMaxWidth(0.88f)
-                .height(64.dp)
-                .clip(RoundedCornerShape(32.dp))
+                .height(72.dp)
+                .clip(RoundedCornerShape(36.dp))
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 5.dp)
         ) {
@@ -441,10 +449,16 @@ private fun FloatingNavigationBar(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .height(60.dp)
-                            .clickable { onSelect(page) },
+                            .height(68.dp)
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(
+                                if (page == selectedPage) MaterialTheme.colorScheme.background.copy(alpha = 0.78f)
+                                else MaterialTheme.colorScheme.surface.copy(alpha = 0f)
+                            )
+                            .clickable { onSelect(page) }
+                            .padding(top = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)
                     ) {
                         NavigationItemContent(page, selectedPage, IconsForPage(page))
                     }
@@ -465,13 +479,14 @@ private fun NavigationItemContent(
         imageVector = icon,
         contentDescription = page.label,
         tint = if (selected) MaterialTheme.colorScheme.primary
-        else MaterialTheme.colorScheme.onSurfaceVariant
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(24.dp)
     )
     Text(
         text = page.label,
         color = if (selected) MaterialTheme.colorScheme.primary
         else MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 10.sp,
+        fontSize = 12.sp,
         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
         letterSpacing = 0.1.sp
     )

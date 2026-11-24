@@ -112,6 +112,9 @@ class MainActivity : ComponentActivity() {
             var themeMode by rememberSaveable {
                 mutableStateOf(preferences.getString("theme-mode", "system") ?: "system")
             }
+            var warmLight by rememberSaveable {
+                mutableStateOf(preferences.getBoolean("warm-light", false))
+            }
             var uiStyle by rememberSaveable {
                 mutableStateOf(preferences.getString("ui-style", "classic") ?: "classic")
             }
@@ -125,6 +128,11 @@ class MainActivity : ComponentActivity() {
                 onThemeModeChange = { mode ->
                     themeMode = mode
                     preferences.edit().putString("theme-mode", mode).commit()
+                },
+                warmLight = warmLight,
+                onWarmLightChange = { enabled ->
+                    warmLight = enabled
+                    preferences.edit().putBoolean("warm-light", enabled).apply()
                 },
                 uiStyle = uiStyle,
                 onUiStyleChange = { style ->

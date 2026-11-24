@@ -100,6 +100,7 @@ private val PlumLightColors = lightColorScheme(
 fun PlumTheme(
     darkTheme: Boolean,
     paletteId: String = "plum",
+    warmLight: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val palette = PlumPalettes.firstOrNull { it.id == paletteId } ?: PlumPalettes.first()
@@ -109,6 +110,19 @@ fun PlumTheme(
         animationSpec = tween(durationMillis = 240),
         label = "theme-transition"
     )
+    val warmProgress by animateFloatAsState(
+        targetValue = if (warmLight && !darkTheme) 1f else 0f,
+        animationSpec = tween(durationMillis = 260),
+        label = "warm-light-transition"
+    )
+    val lightBackground = lerp(PlumLightColors.background, Color(0xFFF0ECE4), warmProgress)
+    val lightOnBackground = lerp(PlumLightColors.onBackground, Color(0xFF201E19), warmProgress)
+    val lightSurface = lerp(PlumLightColors.surface, Color(0xFFFBF8F1), warmProgress)
+    val lightOnSurface = lerp(PlumLightColors.onSurface, Color(0xFF211F1A), warmProgress)
+    val lightSurfaceVariant = lerp(PlumLightColors.surfaceVariant, Color(0xFFE9E4DA), warmProgress)
+    val lightOnSurfaceVariant = lerp(PlumLightColors.onSurfaceVariant, Color(0xFF68645C), warmProgress)
+    val lightOutline = lerp(PlumLightColors.outline, Color(0xFFD7D1C6), warmProgress)
+
     val primary by animateColorAsState(
         targetValue = if (darkTheme) palette.darkPrimary else palette.lightPrimary,
         animationSpec = tween(durationMillis = 300),
@@ -129,13 +143,13 @@ fun PlumTheme(
         primary = primary,
         onPrimary = onPrimary,
         secondary = secondary,
-        background = lerp(PlumLightColors.background, PlumDarkColors.background, darkProgress),
-        onBackground = lerp(PlumLightColors.onBackground, PlumDarkColors.onBackground, darkProgress),
-        surface = lerp(PlumLightColors.surface, PlumDarkColors.surface, darkProgress),
-        onSurface = lerp(PlumLightColors.onSurface, PlumDarkColors.onSurface, darkProgress),
-        surfaceVariant = lerp(PlumLightColors.surfaceVariant, PlumDarkColors.surfaceVariant, darkProgress),
-        onSurfaceVariant = lerp(PlumLightColors.onSurfaceVariant, PlumDarkColors.onSurfaceVariant, darkProgress),
-        outline = lerp(PlumLightColors.outline, PlumDarkColors.outline, darkProgress)
+        background = lerp(lightBackground, PlumDarkColors.background, darkProgress),
+        onBackground = lerp(lightOnBackground, PlumDarkColors.onBackground, darkProgress),
+        surface = lerp(lightSurface, PlumDarkColors.surface, darkProgress),
+        onSurface = lerp(lightOnSurface, PlumDarkColors.onSurface, darkProgress),
+        surfaceVariant = lerp(lightSurfaceVariant, PlumDarkColors.surfaceVariant, darkProgress),
+        onSurfaceVariant = lerp(lightOnSurfaceVariant, PlumDarkColors.onSurfaceVariant, darkProgress),
+        outline = lerp(lightOutline, PlumDarkColors.outline, darkProgress)
     )
 
     MaterialTheme(

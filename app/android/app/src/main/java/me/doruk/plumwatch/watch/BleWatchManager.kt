@@ -1720,7 +1720,7 @@ class BleWatchManager(context: Context) {
 
     fun setTimeFormat(use24Hour: Boolean): Boolean {
         deviceSettingsPreferences.edit().putBoolean(KEY_TIME_FORMAT_24H, use24Hour).apply()
-        return sendWearfitSetting(0x7C, byteArrayOf(0x80.toByte(), if (use24Hour) 1 else 0))
+        return sendWearfitSetting(0x7C, byteArrayOf(0x80.toByte(), if (use24Hour) 0 else 1))
     }
 
     fun setRaiseToWake(enabled: Boolean): Boolean {
