@@ -431,7 +431,7 @@ private fun FloatingNavigationBar(
                         text = page.label,
                         color = tint,
                         fontSize = 12.sp,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                        fontWeight = if (index == selectedIndex) FontWeight.SemiBold else FontWeight.Medium,
                         letterSpacing = 0.1.sp
                     )
                 }
