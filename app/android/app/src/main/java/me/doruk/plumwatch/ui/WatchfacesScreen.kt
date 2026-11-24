@@ -176,7 +176,7 @@ private fun StoreHeader(
     selectedSection: StoreSection,
     onSectionSelected: (StoreSection) -> Unit
 ) {
-    val glassBackdrop = LocalLiquidSurfaceBackdrop.current
+    val glassBackdrop = LocalLiquidBackdrop.current
     val sections = remember { listOf(StoreSection.WATCHFACES, StoreSection.APPS) }
     val selectedIndex = sections.indexOf(selectedSection).coerceAtLeast(0)
     val selectedTabIndex = remember(selectedIndex) { { selectedIndex } }
@@ -190,20 +190,14 @@ private fun StoreHeader(
         if (glassBackdrop != null) {
             LiquidBottomTabs(
                 selectedTabIndex = selectedTabIndex,
-                onTabSelected = { index ->
-                    sections.getOrNull(index)?.let(onSectionSelected)
-                },
+                onTabSelected = { index -> sections.getOrNull(index)?.let(onSectionSelected) },
                 backdrop = glassBackdrop,
                 tabsCount = sections.size,
-                barHeight = 52.dp,
-                pressedScale = 1.12f,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                modifier = Modifier.fillMaxWidth().height(64.dp)
             ) {
                 sections.forEach { section ->
                     val selected = section == selectedSection
-                    LiquidBottomTab(
-                        onClick = { onSectionSelected(section) }
-                    ) {
+                    LiquidBottomTab(onClick = { onSectionSelected(section) }) {
                         Text(
                             text = if (section == StoreSection.WATCHFACES) "Watchface Store" else "App Store",
                             color = if (selected) MaterialTheme.colorScheme.primary
@@ -222,11 +216,7 @@ private fun StoreHeader(
                     .height(56.dp)
                     .clip(RoundedCornerShape(28.dp))
                     .background(MaterialTheme.colorScheme.surface)
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
-                        RoundedCornerShape(28.dp)
-                    )
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f), RoundedCornerShape(28.dp))
                     .padding(4.dp)
             ) {
                 val segmentWidth = maxWidth / sections.size
@@ -236,28 +226,19 @@ private fun StoreHeader(
                     label = "classic-store-indicator"
                 )
                 Box(
-                    Modifier
-                        .offset(x = indicatorOffset)
-                        .width(segmentWidth)
-                        .height(44.dp)
+                    Modifier.offset(x = indicatorOffset)
+                        .width(segmentWidth).height(44.dp)
                         .align(Alignment.CenterStart)
                         .shadow(3.dp, RoundedCornerShape(23.dp))
                         .clip(RoundedCornerShape(23.dp))
                         .background(MaterialTheme.colorScheme.background.copy(alpha = 0.86f))
-                        .border(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.26f),
-                            RoundedCornerShape(23.dp)
-                        )
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.26f), RoundedCornerShape(23.dp))
                 )
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
+                    modifier = Modifier.fillMaxWidth().height(44.dp)
                         .pointerInput(maxWidth, sections) {
                             detectDragGestures { change, _ ->
-                                val index = (change.position.x / size.width * sections.size)
-                                    .toInt().coerceIn(sections.indices)
+                                val index = (change.position.x / size.width * sections.size).toInt().coerceIn(sections.indices)
                                 sections.getOrNull(index)?.let(onSectionSelected)
                             }
                         },
@@ -265,16 +246,12 @@ private fun StoreHeader(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     StoreSectionButton(
-                        label = "Watchface Store",
-                        selected = selectedSection == StoreSection.WATCHFACES,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onSectionSelected(StoreSection.WATCHFACES) }
+                        label = "Watchface Store", selected = selectedSection == StoreSection.WATCHFACES,
+                        modifier = Modifier.weight(1f), onClick = { onSectionSelected(StoreSection.WATCHFACES) }
                     )
                     StoreSectionButton(
-                        label = "App Store",
-                        selected = selectedSection == StoreSection.APPS,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onSectionSelected(StoreSection.APPS) }
+                        label = "App Store", selected = selectedSection == StoreSection.APPS,
+                        modifier = Modifier.weight(1f), onClick = { onSectionSelected(StoreSection.APPS) }
                     )
                 }
             }
@@ -290,16 +267,12 @@ private fun StoreSectionButton(
     onClick: () -> Unit
 ) {
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .clip(RoundedCornerShape(22.dp))
-            .clickable(onClick = onClick),
+        modifier = modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
-            color = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,

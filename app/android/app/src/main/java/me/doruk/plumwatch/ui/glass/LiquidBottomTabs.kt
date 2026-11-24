@@ -26,13 +26,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
@@ -63,16 +61,13 @@ fun LiquidBottomTabs(
     onTabSelected: (index: Int) -> Unit,
     backdrop: Backdrop,
     tabsCount: Int,
-    barHeight: Dp = 68.dp,
-    pressedScale: Float = 78f / 56f,
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isLightTheme = colorScheme.background.luminance() > 0.5f
     val accentColor = colorScheme.primary
-    val containerColor = colorScheme.surface.copy(alpha = 0.18f)
-    val innerBarHeight = (barHeight - 8.dp).coerceAtLeast(40.dp)
+    val containerColor = colorScheme.surface.copy(alpha = 0.42f)
 
     val tabsBackdrop = rememberLayerBackdrop()
 
@@ -107,7 +102,7 @@ fun LiquidBottomTabs(
                 valueRange = 0f..(tabsCount - 1).toFloat(),
                 visibilityThreshold = 0.001f,
                 initialScale = 1f,
-                pressedScale = pressedScale,
+                pressedScale = 78f / 56f,
                 onDragStarted = {},
                 onDragStopped = {
                     val targetIndex = targetValue.roundToInt().coerceIn(0, tabsCount - 1)
@@ -169,17 +164,8 @@ fun LiquidBottomTabs(
                     shape = { Capsule() },
                     effects = {
                         vibrancy()
-                        blur(2.2f.dp.toPx())
-                        lens(5f.dp.toPx(), 7f.dp.toPx())
-                    },
-                    highlight = {
-                        Highlight.Default.copy(alpha = if (isLightTheme) 0.38f else 0.34f)
-                    },
-                    shadow = {
-                        Shadow(alpha = 0.18f)
-                    },
-                    innerShadow = {
-                        InnerShadow(radius = 7f.dp, alpha = 0.20f)
+                        blur(8f.dp.toPx())
+                        lens(24f.dp.toPx(), 24f.dp.toPx())
                     },
                     layerBlock = {
                         val progress = dampedDragAnimation.pressProgress
@@ -187,29 +173,10 @@ fun LiquidBottomTabs(
                         scaleX = scale
                         scaleY = scale
                     },
-                    onDrawSurface = {
-                        drawRect(containerColor)
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = if (isLightTheme) 0.26f else 0.22f),
-                                    Color.White.copy(alpha = 0.055f),
-                                    Color.Transparent
-                                ),
-                                startY = 0f,
-                                endY = size.height * 0.88f
-                            )
-                        )
-                        drawLine(
-                            color = Color.White.copy(alpha = if (isLightTheme) 0.34f else 0.28f),
-                            start = Offset(size.width * 0.18f, 1f.dp.toPx()),
-                            end = Offset(size.width * 0.82f, 1f.dp.toPx()),
-                            strokeWidth = 1f.dp.toPx()
-                        )
-                    }
+                    onDrawSurface = { drawRect(containerColor) }
                 )
                 .then(interactiveHighlight.modifier)
-                .height(barHeight)
+                .height(64f.dp)
                 .fillMaxWidth()
                 .padding(4f.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -234,20 +201,21 @@ fun LiquidBottomTabs(
                         shape = { Capsule() },
                         effects = {
                             val progress = dampedDragAnimation.pressProgress
-                            blur(3f.dp.toPx())
+                            vibrancy()
+                            blur(8f.dp.toPx())
                             lens(
-                                8f.dp.toPx() * progress,
-                                8f.dp.toPx() * progress
+                                24f.dp.toPx() * progress,
+                                24f.dp.toPx() * progress
                             )
                         },
                         highlight = {
                             val progress = dampedDragAnimation.pressProgress
-                            Highlight.Default.copy(alpha = progress * 0.45f)
+                            Highlight.Default.copy(alpha = progress)
                         },
                         onDrawSurface = { drawRect(containerColor) }
                     )
                     .then(interactiveHighlight.modifier)
-                    .height(innerBarHeight)
+                    .height(56f.dp)
                     .fillMaxWidth()
                     .padding(horizontal = 4f.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -270,26 +238,25 @@ fun LiquidBottomTabs(
                     shape = { Capsule() },
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
-                        vibrancy()
-                        blur(1.5f.dp.toPx())
                         lens(
-                            (4f + 3f * progress).dp.toPx(),
-                            (5f + 4f * progress).dp.toPx()
+                            10f.dp.toPx() * progress,
+                            14f.dp.toPx() * progress,
+                            chromaticAberration = true
                         )
                     },
                     highlight = {
                         val progress = dampedDragAnimation.pressProgress
-                        Highlight.Default.copy(alpha = 0.30f + progress * 0.22f)
+                        Highlight.Default.copy(alpha = progress)
                     },
                     shadow = {
                         val progress = dampedDragAnimation.pressProgress
-                        Shadow(alpha = 0.16f + progress * 0.18f)
+                        Shadow(alpha = progress)
                     },
                     innerShadow = {
                         val progress = dampedDragAnimation.pressProgress
                         InnerShadow(
-                            radius = (4f + 4f * progress).dp,
-                            alpha = 0.18f + progress * 0.16f
+                            radius = 8f.dp * progress,
+                            alpha = progress
                         )
                     },
                     layerBlock = {
@@ -302,31 +269,14 @@ fun LiquidBottomTabs(
                     onDrawSurface = {
                         val progress = dampedDragAnimation.pressProgress
                         drawRect(
-                            if (isLightTheme) Color.Black.copy(0.035f)
-                            else Color.White.copy(0.075f),
-                            alpha = 1f - progress * 0.35f
+                            if (isLightTheme) Color.Black.copy(0.1f)
+                            else Color.White.copy(0.1f),
+                            alpha = 1f - progress
                         )
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.24f + progress * 0.08f),
-                                    Color.White.copy(alpha = 0.065f),
-                                    Color.Transparent
-                                ),
-                                startY = 0f,
-                                endY = size.height * 0.92f
-                            )
-                        )
-                        drawLine(
-                            color = Color.White.copy(alpha = 0.32f + progress * 0.12f),
-                            start = Offset(size.width * 0.20f, 1f.dp.toPx()),
-                            end = Offset(size.width * 0.80f, 1f.dp.toPx()),
-                            strokeWidth = 1f.dp.toPx()
-                        )
-                        drawRect(Color.Black.copy(alpha = 0.012f * progress))
+                        drawRect(Color.Black.copy(alpha = 0.03f * progress))
                     }
                 )
-                .height(innerBarHeight)
+                .height(56f.dp)
                 .fillMaxWidth(1f / tabsCount)
         )
     }
