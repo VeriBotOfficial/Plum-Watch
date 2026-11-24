@@ -95,6 +95,7 @@ import me.doruk.plumwatch.data.WatchfaceRepository
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.ui.glass.LiquidBottomTab
 import me.doruk.plumwatch.ui.glass.LiquidBottomTabs
+import me.doruk.plumwatch.ui.LocalLiquidBackdrop
 import me.doruk.plumwatch.ui.glass.liquidBottomTabColor
 import me.doruk.plumwatch.watch.BleWatchManager
 import java.net.HttpURLConnection
@@ -177,7 +178,7 @@ private fun StoreHeader(
     selectedSection: StoreSection,
     onSectionSelected: (StoreSection) -> Unit
 ) {
-    val glassBackdrop = LocalLiquidSurfaceBackdrop.current
+    val glassBackdrop = LocalLiquidBackdrop.current
     val sections = remember { listOf(StoreSection.WATCHFACES, StoreSection.APPS) }
     val selectedIndex = sections.indexOf(selectedSection).coerceAtLeast(0)
     val selectedTabIndex = remember(selectedIndex) { { selectedIndex } }
