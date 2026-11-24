@@ -108,7 +108,7 @@ fun LiquidBottomTabs(
                 pressedScale = 78f / 56f,
                 onDragStarted = {},
                 onDragStopped = {
-                    val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, tabsCount - 1)
+                    val targetIndex = targetValue.fastRoundToInt().coerceIn(0, tabsCount - 1)
                     currentIndex = targetIndex
                     animateToValue(targetIndex.toFloat())
                     animationScope.launch {
@@ -121,7 +121,7 @@ fun LiquidBottomTabs(
                 onDrag = { _, dragAmount ->
                     updateValue(
                         (targetValue + dragAmount.x / tabWidth * if (isLtr) 1f else -1f)
-                            .fastCoerceIn(0f, (tabsCount - 1).toFloat())
+                            .coerceIn(0f, (tabsCount - 1).toFloat())
                     )
                     animationScope.launch {
                         offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
@@ -240,7 +240,10 @@ fun LiquidBottomTabs(
                     .height(56f.dp)
                     .fillMaxWidth()
                     .padding(horizontal = 4f.dp)
-                    .drawWithContent {\n                        drawContent()\n                        drawRect(accentColor, blendMode = BlendMode.SrcAtop)\n                    },
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(accentColor, blendMode = BlendMode.SrcAtop)
+                    },
                 verticalAlignment = Alignment.CenterVertically,
                 content = content
             )
@@ -286,8 +289,8 @@ fun LiquidBottomTabs(
                         scaleX = dampedDragAnimation.scaleX
                         scaleY = dampedDragAnimation.scaleY
                         val velocity = dampedDragAnimation.velocity / 10f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                        scaleX /= 1f - (velocity * 0.75f).coerceIn(-0.2f, 0.2f)
+                        scaleY *= 1f - (velocity * 0.25f).coerceIn(-0.2f, 0.2f)
                     },
                     onDrawSurface = {
                         val progress = dampedDragAnimation.pressProgress
