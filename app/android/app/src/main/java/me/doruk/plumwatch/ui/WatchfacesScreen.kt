@@ -203,15 +203,32 @@ private fun StoreSectionButton(
     onClick: () -> Unit
 ) {
     val glassEnabled = LocalLiquidSurfaceBackdrop.current != null
-    AppClickableSurface(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(15.dp)) {
+    val selectionProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = 0.82f,
+            stiffness = 520f
+        ),
+        label = "store-section-selection"
+    )
+    val selectionColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (selected) {
+            if (glassEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.52f)
+            else MaterialTheme.colorScheme.surface
+        } else Color.Transparent,
+        animationSpec = tween(190),
+        label = "store-section-background"
+    )
+
+    AppClickableSurface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(15.dp)
+    ) {
         Box(
-            modifier = Modifier.fillMaxWidth()
-                .background(
-                    if (selected && glassEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.11f)
-                    else if (selected) MaterialTheme.colorScheme.surface
-                    else Color.Transparent,
-                    RoundedCornerShape(15.dp)
-                )
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(selectionColor, RoundedCornerShape(15.dp))
                 .padding(vertical = 12.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -220,7 +237,7 @@ private fun StoreSectionButton(
                 color = if (selected) MaterialTheme.colorScheme.onSurface
                 else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                fontWeight = if (selectionProgress > 0.5f) FontWeight.SemiBold else FontWeight.Medium
             )
         }
     }

@@ -67,7 +67,7 @@ fun LiquidBottomTabs(
     val colorScheme = MaterialTheme.colorScheme
     val isLightTheme = colorScheme.background.luminance() > 0.5f
     val accentColor = colorScheme.primary
-    val containerColor = colorScheme.surface.copy(alpha = 0.42f)
+    val containerColor = colorScheme.surface.copy(alpha = 0.20f)
 
     val tabsBackdrop = rememberLayerBackdrop()
 
@@ -163,9 +163,7 @@ fun LiquidBottomTabs(
                     backdrop = backdrop,
                     shape = { Capsule() },
                     effects = {
-                        vibrancy()
-                        blur(8f.dp.toPx())
-                        lens(24f.dp.toPx(), 24f.dp.toPx())
+                        blur(3f.dp.toPx())
                     },
                     layerBlock = {
                         val progress = dampedDragAnimation.pressProgress
@@ -201,16 +199,15 @@ fun LiquidBottomTabs(
                         shape = { Capsule() },
                         effects = {
                             val progress = dampedDragAnimation.pressProgress
-                            vibrancy()
-                            blur(8f.dp.toPx())
+                            blur(3f.dp.toPx())
                             lens(
-                                24f.dp.toPx() * progress,
-                                24f.dp.toPx() * progress
+                                8f.dp.toPx() * progress,
+                                8f.dp.toPx() * progress
                             )
                         },
                         highlight = {
                             val progress = dampedDragAnimation.pressProgress
-                            Highlight.Default.copy(alpha = progress)
+                            Highlight.Default.copy(alpha = progress * 0.45f)
                         },
                         onDrawSurface = { drawRect(containerColor) }
                     )
@@ -239,9 +236,8 @@ fun LiquidBottomTabs(
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
                         lens(
-                            10f.dp.toPx() * progress,
-                            14f.dp.toPx() * progress,
-                            chromaticAberration = true
+                            5f.dp.toPx() * progress,
+                            7f.dp.toPx() * progress
                         )
                     },
                     highlight = {
@@ -269,11 +265,11 @@ fun LiquidBottomTabs(
                     onDrawSurface = {
                         val progress = dampedDragAnimation.pressProgress
                         drawRect(
-                            if (isLightTheme) Color.Black.copy(0.1f)
-                            else Color.White.copy(0.1f),
+                            if (isLightTheme) Color.Black.copy(0.055f)
+                            else Color.White.copy(0.055f),
                             alpha = 1f - progress
                         )
-                        drawRect(Color.Black.copy(alpha = 0.03f * progress))
+                        drawRect(Color.Black.copy(alpha = 0.012f * progress))
                     }
                 )
                 .height(60f.dp)

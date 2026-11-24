@@ -62,6 +62,19 @@ fun LiquidGlassHost(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        if (enabled) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .drawBackdrop(
+                        backdrop = surfaceBaseBackdrop,
+                        shape = { RectangleShape },
+                        effects = {},
+                        exportedBackdrop = surfaceBackdrop
+                    )
+            )
+        }
+
         CompositionLocalProvider(
             LocalLiquidSurfaceBackdrop provides if (enabled) surfaceBackdrop else null
         ) {
@@ -69,26 +82,9 @@ fun LiquidGlassHost(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (enabled) Modifier.layerBackdrop(backdrop) else Modifier)
-                    .background(background)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (enabled) {
-                                Modifier.drawBackdrop(
-                                    backdrop = surfaceBaseBackdrop,
-                                    shape = { RectangleShape },
-                                    effects = {},
-                                    exportedBackdrop = surfaceBackdrop
-                                )
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    content = content
-                )
-            }
+                    .background(background),
+                content = content
+            )
         }
 
         CompositionLocalProvider(
@@ -131,13 +127,13 @@ fun AppClickableSurface(
             shape = { shape },
             effects = {
                 vibrancy()
-                blur(7f.dp.toPx())
-                lens(15f.dp.toPx(), 15f.dp.toPx())
+                blur(4f.dp.toPx())
+                lens(8f.dp.toPx(), 8f.dp.toPx())
             },
-            highlight = { Highlight.Default.copy(alpha = 0.24f) },
+            highlight = { Highlight.Default.copy(alpha = 0.14f) },
             onDrawSurface = {
-                drawRect(scheme.surface.copy(alpha = 0.46f))
-                drawRect(scheme.primary.copy(alpha = 0.025f))
+                drawRect(scheme.surface.copy(alpha = 0.24f))
+                drawRect(scheme.primary.copy(alpha = 0.008f))
             }
         )
     } else Modifier
@@ -173,13 +169,13 @@ fun PlumActionButton(
             shape = { shape },
             effects = {
                 vibrancy()
-                blur(7f.dp.toPx())
-                lens(13f.dp.toPx(), 13f.dp.toPx())
+                blur(4f.dp.toPx())
+                lens(7f.dp.toPx(), 7f.dp.toPx())
             },
-            highlight = { Highlight.Default.copy(alpha = 0.3f) },
+            highlight = { Highlight.Default.copy(alpha = 0.16f) },
             onDrawSurface = {
-                drawRect(scheme.primary.copy(alpha = 0.17f))
-                drawRect(scheme.surface.copy(alpha = 0.13f))
+                drawRect(scheme.primary.copy(alpha = 0.09f))
+                drawRect(scheme.surface.copy(alpha = 0.10f))
             }
         )
     } else Modifier
