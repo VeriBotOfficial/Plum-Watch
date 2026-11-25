@@ -80,7 +80,11 @@ import java.util.Base64
 import java.util.zip.ZipFile
 
 @Composable
-fun AppStoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
+fun AppStoreScreen(
+    watchManager: BleWatchManager,
+    watchState: BleUiState,
+    onDetailVisibilityChanged: (Boolean) -> Unit = {}
+) {
     val scope = rememberCoroutineScope()
     var result by remember { mutableStateOf<StoreAppLibraryResult?>(null) }
     var loading by remember { mutableStateOf(false) }
@@ -98,11 +102,29 @@ fun AppStoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
 
     LaunchedEffect(Unit) { refresh() }
     BackHandler(enabled = selectedApp != null) { selectedApp = null }
+    LaunchedEffect(selectedApp != null) { onDetailVisibilityChanged(selectedApp != null) }
 
     AnimatedContent(
         targetState = selectedApp,
         modifier = Modifier.fillMaxSize(),
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        transitionSpec = {
+            val openingPreview = targetState != null
+            val direction = if (openingPreview) 1 else -1
+            (fadeIn(androidx.compose.animation.core.tween(150)) + androidx.compose.animation.slideInHorizontally(
+                animationSpec = androidx.compose.animation.core.tween(
+                    210,
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing
+                ),
+                initialOffsetX = { width -> direction * width / 16 }
+            )) togetherWith
+                (fadeOut(androidx.compose.animation.core.tween(110)) + androidx.compose.animation.slideOutHorizontally(
+                    animationSpec = androidx.compose.animation.core.tween(
+                        170,
+                        easing = androidx.compose.animation.core.FastOutSlowInEasing
+                    ),
+                    targetOffsetX = { width -> -direction * width / 22 }
+                ))
+        },
         label = "app-store-navigation"
     ) { selected ->
         if (selected == null) {
@@ -282,6 +304,13 @@ private fun AppStoreDetail(
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            "Version ${app.version.ifBlank { "1.0" }}",
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 13.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
 
         Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
