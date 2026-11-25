@@ -397,7 +397,7 @@ def prepare_app_uploads():
                     except (UnicodeDecodeError, json.JSONDecodeError):
                         pass
 
-            member_paths = [entry.filename.replace("\\\\", "/") for entry in members]
+            member_paths = [entry.filename.replace("\\", "/") for entry in members]
             is_qjs = any("/qjs_app/" in ("/" + path.lower().lstrip("/")) for path in member_paths)
             is_qjs = is_qjs or any(Path(path).suffix.lower() == ".js" for path in member_paths)
             if not is_qjs:
@@ -440,7 +440,7 @@ def prepare_app_uploads():
             metadata["author"] = author[:80]
 
         (folder / "metadata.json").write_text(
-            json.dumps(metadata, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+            json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
 
 def scan_apps(output_dir: Path):
