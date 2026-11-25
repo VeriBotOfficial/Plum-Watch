@@ -1,12 +1,9 @@
 package me.doruk.plumwatch.ui
 
 import android.content.Context
-import android.widget.Toast
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -75,7 +72,6 @@ import me.doruk.plumwatch.data.StoreAppLibraryResult
 import me.doruk.plumwatch.data.StoreAppRepository
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.BleWatchManager
-import me.doruk.plumwatch.watch.WatchDiagnosticLog
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.HttpURLConnection
@@ -186,9 +182,6 @@ private fun AppStoreGallery(
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
-            WatchLogCaptureControls(watchState)
-        }
-        item(span = { GridItemSpan(maxLineSpan) }) {
             OutlinedTextField(
                 value = query,
                 onValueChange = onQueryChange,
@@ -257,41 +250,6 @@ private fun AppStoreGallery(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun WatchLogCaptureControls(watchState: BleUiState) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var capturing by remember { mutableStateOf(WatchDiagnosticLog.isCapturing) }
-    var logFile by remember { mutableStateOf<File?>(null) }
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { destination ->
-        val source = logFile
-        if (destination != null && source != null) {
-            scope.launch(Dispatchers.IO) {
-                val saved = runCatching {
-                    context.contentResolver.openOutputStream(destination)?.use { output ->
-                        source.inputStream().use { input -> input.copyTo(output) }
-                    } ?: error("Could not open destination.")
-                }.isSuccess
-                withContext(Dispatchers.Main) { Toast.makeText(context, if (saved) "Watch log saved." else "Could not save watch log.", Toast.LENGTH_LONG).show() }
-            }
-        }
-    }
-    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Watch diagnostics", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Text(if (capturing) "Capturing Bluetooth traffic…" else "Temporary BLE capture", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (capturing) TextButton(onClick = { logFile = WatchDiagnosticLog.stop(); capturing = false }) { Text("Stop") }
-                else TextButton(onClick = { logFile = WatchDiagnosticLog.start(context, watchState.connectedDevice?.address ?: watchState.savedDevice?.address); capturing = WatchDiagnosticLog.isCapturing }) { Text("Start") }
-            }
-            if (!capturing && logFile != null) TextButton(onClick = { exportLauncher.launch("plum-watch-" + System.currentTimeMillis() + ".txt") }) { Text("Export captured log") }
-            Text("Captures BLE packets and transfer events, not private firmware console output. Raw packets may contain personal watch data.", fontSize = 10.sp, lineHeight = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
