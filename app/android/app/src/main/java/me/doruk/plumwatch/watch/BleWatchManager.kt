@@ -1122,6 +1122,33 @@ class BleWatchManager(context: Context) {
     suspend fun pushWatchface(
         archiveFile: File,
         onProgress: (Float) -> Unit = {}
+    ) = pushSifliArchive(
+        archiveFile = archiveFile,
+        transferType = SIFLI_FILE_TYPE_WATCHFACE,
+        appendAlignmentAndCrc = false,
+        requiredRoot = null,
+        onProgress = onProgress
+    )
+
+    @SuppressLint("MissingPermission")
+    suspend fun installQuickJsApp(
+        archiveFile: File,
+        onProgress: (Float) -> Unit = {}
+    ) = pushSifliArchive(
+        archiveFile = archiveFile,
+        transferType = SIFLI_FILE_TYPE_QUICKJS,
+        appendAlignmentAndCrc = true,
+        requiredRoot = SIFLI_QUICKJS_APP_ROOT,
+        onProgress = onProgress
+    )
+
+    @SuppressLint("MissingPermission")
+    private suspend fun pushSifliArchive(
+        archiveFile: File,
+        transferType: Int,
+        appendAlignmentAndCrc: Boolean,
+        requiredRoot: String?,
+        onProgress: (Float) -> Unit
     ) = sifliPushMutex.withLock {
         val gatt = bluetoothGatt
             ?: throw IllegalStateException("Connect your watch before sending a watchface.")
@@ -1151,21 +1178,36 @@ class BleWatchManager(context: Context) {
         try {
             val files = unzipArchive(archiveFile, tempDir)
             if (files.isEmpty()) {
-                throw IllegalStateException("The watchface ZIP contains no files.")
+                throw IllegalStateException("The SiFli archive contains no files.")
+            }
+            if (requiredRoot != null) {
+                require(files.all { it.relativePath.startsWith(requiredRoot) }) {
+                    "QuickJS packages must place every file under $requiredRoot."
+                }
+                require(files.any { it.relativePath.endsWith(".js", ignoreCase = true) }) {
+                    "The QuickJS package does not contain a JavaScript application entry."
+                }
             }
 
             while (sifliIncomingMessages.tryReceive().isSuccess) Unit
             runCatching { gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH) }
             requestSifliMtu(gatt)
 
-            val totalBytes = files.sumOf { it.size }
+            val totalBytes = files.sumOf { entry ->
+                val checksumBytes = if (appendAlignmentAndCrc) {
+                    ((4L - (entry.size % 4L)) % 4L) + 4L
+                } else {
+                    0L
+                }
+                entry.size + checksumBytes
+            }
             require(totalBytes <= 0xFFFFFFFFL) {
-                "This watchface archive is too large for the SiFli transfer protocol."
+                "This SiFli archive is too large for the transfer protocol."
             }
 
             // ENTIRE_START_REQ: type(2 LE) + phoneType(1=Android) + totalBytes(4 LE)
             val startPayload = ByteBuffer.allocate(7).order(ByteOrder.LITTLE_ENDIAN)
-                .putShort(SIFLI_WATCHFACE_FILE_TYPE_WATCHFACE.toShort())
+                .putShort(transferType.toShort())
                 .put(SIFLI_PHONE_TYPE_ANDROID.toByte())
                 .putInt(totalBytes.toInt())
                 .array()
@@ -1181,7 +1223,12 @@ class BleWatchManager(context: Context) {
 
             var completedBytes = 0L
             for (fileEntry in files) {
-                val fileData = fileEntry.file.readBytes()
+                val sourceData = fileEntry.file.readBytes()
+                val fileData = if (appendAlignmentAndCrc) {
+                    appendQuickJsPaddingAndCrc(sourceData)
+                } else {
+                    sourceData
+                }
                 val relPath = fileEntry.relativePath
                 val pathBytes = relPath.toByteArray(StandardCharsets.UTF_8)
                 require(pathBytes.isNotEmpty() && pathBytes.size <= 255) {
@@ -1337,11 +1384,37 @@ class BleWatchManager(context: Context) {
             }
         }
 
-        // Sort by descending size; GIFs moved to the end (matches SiFli WatchfaceFileComparator).
-        entries.sortWith(compareByDescending<WatchfaceFileEntry> { it.size }
-            .thenBy { if (it.relativePath.lowercase().endsWith(".gif")) 1 else 0 }
-            .thenBy { it.relativePath })
+        // SiFli sends non-GIF files first, each group ordered by descending size.
+        entries.sortWith(
+            compareBy<WatchfaceFileEntry> { it.relativePath.endsWith(".gif", ignoreCase = true) }
+                .thenByDescending { it.size }
+                .thenBy { it.relativePath }
+        )
         return entries
+    }
+
+    /** Applies the SiFli QuickJS format: space-pad to four bytes, then append CRC-32/MPEG-2. */
+    private fun appendQuickJsPaddingAndCrc(data: ByteArray): ByteArray {
+        val paddingSize = (4 - (data.size % 4)) % 4
+        val checksumInputSize = data.size + paddingSize
+        var crc = -1
+
+        for (index in 0 until checksumInputSize) {
+            val value = if (index < data.size) (data[index].toInt() and 0xFF) else 0x20
+            crc = crc xor (value shl 24)
+            repeat(8) {
+                crc = if (crc < 0) (crc shl 1) xor 0x04C11DB7 else crc shl 1
+            }
+        }
+
+        return ByteBuffer.allocate(checksumInputSize + 4)
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .put(data)
+            .apply {
+                repeat(paddingSize) { put(0x20.toByte()) }
+            }
+            .putInt(crc)
+            .array()
     }
 
     /** Recursively deletes a directory and all its contents. */
@@ -2320,8 +2393,10 @@ class BleWatchManager(context: Context) {
         private const val ALERT_LEVEL_HIGH: Byte = 0x02
 
         private const val SIFLI_WATCHFACE_CATEGORY = 0x04
-        // Native watchface type: confirmed by a successful type-0 upload on this HK watch.
-        private const val SIFLI_WATCHFACE_FILE_TYPE_WATCHFACE = 0
+        // SiFli native file-push types: DIALPLATE=0, JavaScript/QuickJS app=5.
+        private const val SIFLI_FILE_TYPE_WATCHFACE = 0
+        private const val SIFLI_FILE_TYPE_QUICKJS = 5
+        private const val SIFLI_QUICKJS_APP_ROOT = "/dyn/dynamic_app/qjs_app/"
         private const val SIFLI_PHONE_TYPE_ANDROID = 2
         private const val SIFLI_MAX_DATA_LENGTH = 10 * 1024
         private const val SIFLI_REQUESTED_MTU = 247

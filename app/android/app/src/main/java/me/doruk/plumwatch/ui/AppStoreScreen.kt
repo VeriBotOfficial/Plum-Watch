@@ -72,7 +72,6 @@ import me.doruk.plumwatch.data.StoreAppLibraryResult
 import me.doruk.plumwatch.data.StoreAppRepository
 import me.doruk.plumwatch.watch.BleUiState
 import me.doruk.plumwatch.watch.BleWatchManager
-import me.doruk.plumwatch.watch.SifliAppInstaller
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.HttpURLConnection
@@ -250,8 +249,7 @@ private fun AppStoreDetail(
     var phase by remember(app.id, watchAddress) { mutableStateOf("Downloading…") }
     var error by remember(app.id, watchAddress) { mutableStateOf<String?>(null) }
 
-    val supportedPackage = (app.packageType.equals("qjs", true) && app.otaType == 5) ||
-        (app.packageType.equals("sifli_app", true) && app.otaType == 12)
+    val supportedPackage = app.packageType.equals("qjs", true) && app.otaType == 5
     val canInstall = watchState.isConnected && watchState.supportsSifliWatchface && supportedPackage
 
     LaunchedEffect(app.id, watchAddress) {
@@ -317,11 +315,9 @@ private fun AppStoreDetail(
                         try {
                             phase = "Downloading…"
                             archive = downloadStoreAppArchive(context, app) { progress = it }
-                            phase = "Connecting to watch…"
-                            watchManager.disconnect()
-                            phase = "Installing…"
+                            phase = "Transferring to watch…"
                             progress = 0f
-                            SifliAppInstaller.install(context, watchAddress!!, archive, app.otaType) {
+                            watchManager.installQuickJsApp(archive) {
                                 progress = it
                             }
                             progress = 1f
@@ -333,7 +329,6 @@ private fun AppStoreDetail(
                             error = exception.message ?: "Could not install this app."
                         } finally {
                             archive?.delete()
-                            watchManager.reconnectSavedDevice()
                             transferring = false
                         }
                     }

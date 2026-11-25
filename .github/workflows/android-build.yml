@@ -99,8 +99,6 @@ jobs:
       - name: Build debug APK
         env:
           PLUM_VERSION_CODE: ${{ github.run_number }}
-          SIFLI_MAVEN_USERNAME: ${{ secrets.SIFLI_MAVEN_USERNAME }}
-          SIFLI_MAVEN_PASSWORD: ${{ secrets.SIFLI_MAVEN_PASSWORD }}
           PLUM_SIGNING_STORE_PASSWORD: ${{ secrets.PLUM_SIGNING_STORE_PASSWORD }}
           PLUM_SIGNING_KEY_ALIAS: ${{ secrets.PLUM_SIGNING_KEY_ALIAS }}
           PLUM_SIGNING_KEY_PASSWORD: ${{ secrets.PLUM_SIGNING_KEY_PASSWORD }}
