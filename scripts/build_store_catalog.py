@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import re
 import struct
@@ -365,13 +366,17 @@ def scan_apps(output_dir: Path):
         return entries
     for folder in sorted(path for path in base.iterdir() if path.is_dir()):
         archives = sorted(folder.glob("*.zip"))
-        if not archives:
+        metadata_path = folder / "metadata.json"
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.is_file() else {}
+        part_names = metadata.get("archiveParts", [])
+        if not archives and not part_names:
             continue
         if len(archives) > 1:
             raise ValueError(f"{folder}: keep one ZIP in each app folder")
-        archive = archives[0]
-        metadata_path = folder / "metadata.json"
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.is_file() else {}
+        archive = archives[0] if archives else None
+        if part_names and not all((folder / name).is_file() for name in part_names):
+            continue
+
         item = {
             "id": slug(metadata.get("id", folder.name)),
             "name": metadata.get("name", folder.name.replace("-", " ").replace("_", " ")),
@@ -382,14 +387,28 @@ def scan_apps(output_dir: Path):
             "compatibility": metadata.get("compatibility"),
             "packageType": metadata.get("packageType", "unknown"),
             "otaType": int(metadata.get("otaType", -1)),
-            "archiveUrl": f"{RAW}/apps/{folder.name}/{quote(archive.name, safe='')}",
-            "archiveSizeBytes": archive.stat().st_size,
+            "archiveSizeBytes": archive.stat().st_size if archive else 0,
             "previewStatus": "not_generated",
         }
-        with zipfile.ZipFile(archive) as zf:
+        if archive:
+            item["archiveUrl"] = f"{RAW}/apps/{folder.name}/{quote(archive.name, safe='')}"
+            package_bytes = archive.read_bytes()
+        else:
+            encoded_parts = []
+            item["archiveParts"] = []
+            for part_name in part_names:
+                part_path = folder / part_name
+                if Path(part_name).name != part_name:
+                    raise ValueError(f"{folder}: unsafe archive part {part_name}")
+                encoded_parts.append(part_path.read_text(encoding="ascii").strip())
+                item["archiveParts"].append(f"{RAW}/apps/{folder.name}/{quote(part_name, safe='')}")
+            package_bytes = base64.b64decode("".join(encoded_parts), validate=True)
+            item["archiveSizeBytes"] = len(package_bytes)
+
+        with zipfile.ZipFile(BytesIO(package_bytes)) as zf:
             corrupt = zf.testzip()
             if corrupt:
-                raise ValueError(f"{archive}: corrupt ZIP member {corrupt}")
+                raise ValueError(f"{folder}: corrupt ZIP member {corrupt}")
             files = list(safe_zip_files(zf))
             if item["packageType"] == "unknown" and any("/qjs_app/" in f.filename.lower() for f in files):
                 item["packageType"] = "qjs"
