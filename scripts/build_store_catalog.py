@@ -362,14 +362,14 @@ def make_app_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
 
 def _canonical_app_name(value: str) -> str:
     """Use one stable, case-insensitive display and folder name."""
-    cleaned = re.sub(r"\\s+", " ", value.strip())
+    cleaned = re.sub(r"\s+", " ", value.strip())
     return cleaned[:1].upper() + cleaned[1:].lower() if cleaned else "App"
 
 
 def _next_app_version(previous: str | None) -> str:
     if not previous:
         return "1.0"
-    match = re.fullmatch(r"(\\d+)\\.(\\d+)", str(previous).strip())
+    match = re.fullmatch(r"(\d+)\.(\d+)", str(previous).strip())
     if not match:
         return "1.0"
     return f"{int(match.group(1))}.{int(match.group(2)) + 1}"
@@ -428,7 +428,7 @@ def prepare_app_uploads():
                     except (UnicodeDecodeError, json.JSONDecodeError):
                         pass
 
-            member_paths = [entry.filename.replace("\\\\", "/") for entry in members]
+            member_paths = [entry.filename.replace("\\", "/") for entry in members]
             is_qjs = any("/qjs_app/" in ("/" + path.lower().lstrip("/")) for path in member_paths)
             is_qjs = is_qjs or any(Path(path).suffix.lower() == ".js" for path in member_paths)
             if not is_qjs:
@@ -470,7 +470,7 @@ def prepare_app_uploads():
             metadata["author"] = author[:80]
 
         metadata_path.write_text(
-            json.dumps(metadata, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+            json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
 
 def scan_apps(output_dir: Path):
