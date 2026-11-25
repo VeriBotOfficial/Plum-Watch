@@ -1,14 +1,20 @@
 # App Store packages
 
-Place each watch app or game in its own folder:
+Drop a QuickJS app ZIP directly into this folder. The catalogue workflow will:
+
+- Create a folder using the ZIP filename, with its first character capitalized
+- Move the ZIP into that folder
+- Read an embedded app manifest or README when available
+- Generate concise metadata and extract the app icon and preview artwork
+- Publish the app in `store/index.json`
+
+Example:
 
 ```
 apps/
   Tetris/
-    Tetris.zip
+    tetris.zip
     metadata.json
 ```
 
-The catalogue publisher reads metadata and extracts preview artwork directly from SiFli EZIP resources inside each package. Use `packageType: "qjs"` and `otaType: 5` for QuickJS applications. GUIBuilder packages use their own transfer type and must not be labelled as QJS.
-
-Metadata fields: `id`, `name`, `description`, `category`, `version`, `author`, `compatibility`, `packageType`, and `otaType`.
+For best results, packages should follow the SiFli QuickJS layout under `dyn/dynamic_app/qjs_app/JA_<app_name>/`, with `main.js` as the application entry point. QuickJS apps use OTA type 5.

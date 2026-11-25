@@ -427,7 +427,7 @@ def prepare_app_uploads():
             "otaType": 5,
         }
         (folder / "metadata.json").write_text(
-            json.dumps(metadata, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+            json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
 
 

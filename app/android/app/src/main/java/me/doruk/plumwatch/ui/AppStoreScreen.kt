@@ -263,100 +263,103 @@ private fun AppStoreDetail(
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(
-                modifier = Modifier.size(42.dp).clickable(onClick = onBack),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
-                }
-            }
-            Text("App Store", Modifier.padding(start = 12.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+            PlumBackButton(onClick = onBack, modifier = Modifier.size(42.dp))
+            Text(
+                "App Store",
+                Modifier.padding(start = 13.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp
+            )
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            StoreAppArtwork(app.iconUrl ?: app.previewUrl,
-                Modifier.size(76.dp).clip(RoundedCornerShape(22.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant))
-            Column(Modifier.padding(start = 14.dp).weight(1f)) {
-                Text(app.name, fontSize = 23.sp, fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface, maxLines = 2)
-                Text(listOf(app.category, app.version.takeIf { it.isNotBlank() }?.let { "v$it" })
-                    .filterNotNull().joinToString(" · "), fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-
-        StoreAppArtwork(
-            app.iconUrl ?: app.previewUrl,
-            Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(28.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(28.dp))
+        Text(
+            app.name,
+            modifier = Modifier.fillMaxWidth().padding(top = 3.dp, bottom = 1.dp),
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 27.sp,
+            lineHeight = 32.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
         )
 
-        if (app.description.isNotBlank()) {
-            Text(app.description, fontSize = 13.sp, lineHeight = 19.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            listOf(app.category, app.version.takeIf { it.isNotBlank() }?.let { "v$it" })
+                .filterNotNull().joinToString(" · "),
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+
+        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            StoreAppArtwork(
+                app.previewUrl ?: app.iconUrl,
+                Modifier.fillMaxWidth(0.84f).aspectRatio(0.82f)
+                    .clip(RoundedCornerShape(34.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(
+                        1.5.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.55f),
+                        RoundedCornerShape(34.dp)
+                    )
+            )
         }
 
-        Surface(
-            modifier = Modifier.fillMaxWidth()
-                .clickable(enabled = canInstall && !transferring) {
-                    scope.launch {
-                        transferring = true
-                        error = null
-                        progress = 0f
-                        var archive: File? = null
-                        try {
-                            phase = "Downloading…"
-                            archive = downloadStoreAppArchive(context, app) { progress = it }
-                            phase = "Transferring to watch…"
-                            progress = 0f
-                            watchManager.installQuickJsApp(archive) {
-                                progress = it
-                            }
-                            progress = 1f
-                            transferred = true
-                            preferences.edit().putBoolean(installedKey, true).apply()
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (exception: Exception) {
-                            error = exception.message ?: "Could not install this app."
-                        } finally {
-                            archive?.delete()
-                            transferring = false
-                        }
-                    }
-                },
-            shape = RoundedCornerShape(20.dp),
-            color = if (canInstall) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (transferring) CircularProgressIndicator(Modifier.size(17.dp), strokeWidth = 2.dp)
-                else Icon(Icons.Outlined.Download, contentDescription = null)
-                Text(
-                    when {
-                        transferring -> "$phase ${(progress * 100).toInt()}%"
-                        !watchState.isConnected -> "Connect your watch"
-                        !watchState.supportsSifliWatchface -> "Connect your watch"
-                        !supportedPackage -> "Unavailable"
-                        
-                        transferred -> "Add to watch again"
-                        else -> "Add to watch"
-                    },
-                    Modifier.padding(start = 9.dp),
-                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                    color = if (canInstall) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        if (app.description.isNotBlank()) {
+            Text(
+                app.description,
+                modifier = Modifier.fillMaxWidth(),
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
+
+        PlumDownloadButton(
+            label = when {
+                !watchState.isConnected -> "Connect your watch"
+                !watchState.supportsSifliWatchface -> "Connect your watch"
+                !supportedPackage -> "Unavailable"
+                error != null -> "Try again"
+                else -> "Add to watch"
+            },
+            downloading = transferring,
+            progress = progress,
+            downloaded = transferred,
+            enabled = canInstall,
+            onClick = {
+                scope.launch {
+                    transferring = true
+                    error = null
+                    progress = 0f
+                    var archive: File? = null
+                    try {
+                        phase = "Downloading…"
+                        archive = downloadStoreAppArchive(context, app) { progress = it }
+                        phase = "Adding to watch…"
+                        progress = 0f
+                        watchManager.installQuickJsApp(archive) { progress = it }
+                        progress = 1f
+                        transferred = true
+                        preferences.edit().putBoolean(installedKey, true).apply()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (exception: Exception) {
+                        error = exception.message ?: "Could not add this app to your watch."
+                    } finally {
+                        archive?.delete()
+                        transferring = false
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            downloadingLabel = phase,
+            successLabel = "Added to watch"
+        )
         if (error != null) {
             Text(error ?: "", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
         }
