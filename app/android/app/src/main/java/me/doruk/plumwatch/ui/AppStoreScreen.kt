@@ -200,8 +200,8 @@ private fun AppStoreGallery(
                             ) {
                                 Column(Modifier.padding(7.dp)) {
                                     StoreAppArtwork(
-                                        app.iconUrl ?: app.previewUrl,
-                                        Modifier.fillMaxWidth().aspectRatio(0.82f)
+                                        app.iconUrl,
+                                        Modifier.fillMaxWidth().aspectRatio(1f)
                                             .clip(RoundedCornerShape(19.dp))
                                             .background(MaterialTheme.colorScheme.surface)
                                     )
@@ -284,15 +284,6 @@ private fun AppStoreDetail(
             overflow = TextOverflow.Ellipsis
         )
 
-        Text(
-            listOf(app.category, app.version.takeIf { it.isNotBlank() }?.let { "v$it" })
-                .filterNotNull().joinToString(" · "),
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 12.sp,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-
         Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             StoreAppArtwork(
                 app.previewUrl ?: app.iconUrl,
@@ -304,18 +295,6 @@ private fun AppStoreDetail(
                         MaterialTheme.colorScheme.outline.copy(alpha = 0.55f),
                         RoundedCornerShape(34.dp)
                     )
-            )
-        }
-
-        if (app.description.isNotBlank()) {
-            Text(
-                app.description,
-                modifier = Modifier.fillMaxWidth(),
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
             )
         }
 
