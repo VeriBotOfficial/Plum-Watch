@@ -110,6 +110,7 @@ fun StoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
     var result by remember { mutableStateOf<WatchfaceLibraryResult?>(null) }
     var loading by remember { mutableStateOf(false) }
     var selectedWatchface by remember { mutableStateOf<Watchface?>(null) }
+    var appDetailOpen by remember { mutableStateOf(false) }
     var selectedSection by remember { mutableStateOf(StoreSection.WATCHFACES) }
     var searchQuery by remember { mutableStateOf("") }
 
@@ -126,11 +127,15 @@ fun StoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
     BackHandler(enabled = selectedWatchface != null) { selectedWatchface = null }
 
     Column(Modifier.fillMaxSize()) {
-        if (selectedWatchface == null) {
+        if (selectedWatchface == null && !appDetailOpen) {
             StoreHeader(selectedSection) { selectedSection = it }
         }
         if (selectedSection == StoreSection.APPS && selectedWatchface == null) {
-            AppStoreScreen(watchManager = watchManager, watchState = watchState)
+            AppStoreScreen(
+                watchManager = watchManager,
+                watchState = watchState,
+                onDetailVisibilityChanged = { appDetailOpen = it }
+            )
         } else {
             AnimatedContent(
                 targetState = selectedWatchface,
