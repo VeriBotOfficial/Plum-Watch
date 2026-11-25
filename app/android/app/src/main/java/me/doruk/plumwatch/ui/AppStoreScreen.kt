@@ -235,7 +235,7 @@ private fun AppStoreGallery(
                                             Text(app.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                                                 color = MaterialTheme.colorScheme.onSurface,
                                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            Text(app.category, fontSize = 11.sp,
+                                            Text("${app.category} · v${app.version.ifBlank { "1.0" }}", fontSize = 11.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                         Icon(Icons.Outlined.Download, contentDescription = null,
