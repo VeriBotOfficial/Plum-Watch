@@ -1,3 +1,5 @@
+import org.gradle.authentication.http.BasicAuthentication
+
 pluginManagement {
     repositories {
         google()
@@ -22,8 +24,11 @@ dependencyResolutionManagement {
         maven {
             url = uri("https://packages.aliyun.com/maven/repository/2457536-release-P0YgD8/")
             credentials {
-                username = "65a890ad4f41789f56425965"
-                password = "Y-kxYEyTl5)['"
+                username = System.getenv("SIFLI_MAVEN_USERNAME") ?: "65a890ad4f41789f56425965"
+                password = System.getenv("SIFLI_MAVEN_PASSWORD") ?: "Y-kxYEyTl5)['"
+            }
+            authentication {
+                create<BasicAuthentication>("basic")
             }
         }
     }
