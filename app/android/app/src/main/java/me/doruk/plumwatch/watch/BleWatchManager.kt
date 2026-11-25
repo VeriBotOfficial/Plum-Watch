@@ -297,6 +297,7 @@ class BleWatchManager(context: Context) {
             status: Int,
             newState: Int
         ) {
+            WatchDiagnosticLog.record("GATT", "connection status=" + status + " state=" + newState + " device=" + gatt.device.address)
             if (status == BluetoothGatt.GATT_SUCCESS &&
                 newState == BluetoothProfile.STATE_CONNECTED
             ) {
@@ -421,6 +422,7 @@ class BleWatchManager(context: Context) {
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            WatchDiagnosticLog.record("GATT", "services status=" + status + " uuids=" + (gatt.services?.joinToString { it.uuid.toString() } ?: "none"))
             if (bluetoothGatt !== gatt) return
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 mutableState.update {
@@ -551,6 +553,7 @@ class BleWatchManager(context: Context) {
             descriptor: BluetoothGattDescriptor,
             status: Int
         ) {
+            WatchDiagnosticLog.record("GATT", "descriptor-write uuid=" + descriptor.uuid + " characteristic=" + descriptor.characteristic.uuid + " status=" + status)
             if (bluetoothGatt !== gatt) return
             notificationDescriptorWritePending = false
             if (descriptor.characteristic.uuid == wearfitNotifyCharacteristic?.uuid) {
@@ -583,6 +586,7 @@ class BleWatchManager(context: Context) {
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            WatchDiagnosticLog.record("GATT", "mtu=" + mtu + " status=" + status)
             if (bluetoothGatt !== gatt) return
             if (status == BluetoothGatt.GATT_SUCCESS) sifliMtu = mtu
             pendingSifliMtuChange?.let { pending ->
@@ -600,6 +604,7 @@ class BleWatchManager(context: Context) {
             characteristic: BluetoothGattCharacteristic,
             status: Int
         ) {
+            WatchDiagnosticLog.record("GATT-TX", "write-complete uuid=" + characteristic.uuid + " status=" + status)
             if (bluetoothGatt !== gatt) return
             if (characteristic.uuid == SIFLI_SERIAL_DATA_UUID) {
                 pendingSifliWrite?.let { pending ->
@@ -633,7 +638,10 @@ class BleWatchManager(context: Context) {
             status: Int
         ) {
             if (bluetoothGatt !== gatt || status != BluetoothGatt.GATT_SUCCESS) return
-            characteristic.value?.let { handleCharacteristicValue(characteristic, it) }
+            characteristic.value?.let { value ->
+                WatchDiagnosticLog.record("WATCH-READ", "uuid=" + characteristic.uuid + " bytes=" + value.size + " data=" + WatchDiagnosticLog.hex(value))
+                handleCharacteristicValue(characteristic, value)
+            }
         }
 
         override fun onCharacteristicRead(
@@ -643,6 +651,7 @@ class BleWatchManager(context: Context) {
             status: Int
         ) {
             if (bluetoothGatt !== gatt || status != BluetoothGatt.GATT_SUCCESS) return
+            WatchDiagnosticLog.record("WATCH-READ", "uuid=" + characteristic.uuid + " bytes=" + value.size + " data=" + WatchDiagnosticLog.hex(value))
             handleCharacteristicValue(characteristic, value)
         }
 
@@ -670,6 +679,7 @@ class BleWatchManager(context: Context) {
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray
         ) {
+            WatchDiagnosticLog.record("WATCH-RX", "uuid=" + characteristic.uuid + " bytes=" + value.size + " data=" + WatchDiagnosticLog.hex(value))
             when {
                 characteristic.uuid == SIFLI_SERIAL_DATA_UUID ->
                     handleSerialData(value)
@@ -1150,6 +1160,7 @@ class BleWatchManager(context: Context) {
         requiredRoot: String?,
         onProgress: (Float) -> Unit
     ) = sifliPushMutex.withLock {
+        WatchDiagnosticLog.record("SIFLI-TRANSFER", "begin type=" + transferType + " archiveBytes=" + archiveFile.length() + " appendAlignmentAndCrc=" + appendAlignmentAndCrc)
         val gatt = bluetoothGatt
             ?: throw IllegalStateException("Connect your watch before sending a watchface.")
         val characteristic = sifliDataCharacteristic
@@ -1177,6 +1188,7 @@ class BleWatchManager(context: Context) {
         tempDir.mkdirs()
         try {
             val files = unzipArchive(archiveFile, tempDir, appendAlignmentAndCrc)
+            WatchDiagnosticLog.record("SIFLI-TRANSFER", "archive-expanded files=" + files.size + " entries=" + files.joinToString { it.relativePath + ":" + it.file.length() })
             if (files.isEmpty()) {
                 throw IllegalStateException("The SiFli archive contains no files.")
             }
@@ -1468,6 +1480,7 @@ class BleWatchManager(context: Context) {
         if (bluetoothGatt !== gatt || !sifliNotificationsReady) {
             throw IllegalStateException("The watch disconnected during the watchface transfer.")
         }
+        WatchDiagnosticLog.record("SIFLI-TX", "queue uuid=" + characteristic.uuid + " mtu=" + sifliMtu + " bytes=" + frame.size + " data=" + WatchDiagnosticLog.hex(frame))
         val pending = CompletableDeferred<Boolean>()
         pendingSifliWrite = pending
         val writeType = if (
@@ -1493,6 +1506,7 @@ class BleWatchManager(context: Context) {
         } finally {
             if (pendingSifliWrite === pending) pendingSifliWrite = null
         }
+        WatchDiagnosticLog.record("SIFLI-TX", "completed success=" + success)
         if (!success) throw IllegalStateException("A SiFli Bluetooth packet could not be sent.")
     }
 
