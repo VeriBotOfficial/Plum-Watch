@@ -250,8 +250,7 @@ private fun AppStoreDetail(
     var phase by remember(app.id, watchAddress) { mutableStateOf("Downloading…") }
     var error by remember(app.id, watchAddress) { mutableStateOf<String?>(null) }
 
-    val canInstall = watchState.isConnected && watchState.supportsSifliWatchface &&
-        app.packageType.equals("qjs", true) && app.otaType == 5
+    val canInstall = false
 
     LaunchedEffect(app.id, watchAddress) {
         transferred = watchAddress != null && preferences.getBoolean(installedKey, false)
@@ -352,7 +351,7 @@ private fun AppStoreDetail(
                         transferring -> "$phase ${(progress * 100).toInt()}%"
                         !watchState.isConnected -> "Connect your watch"
                         !watchState.supportsSifliWatchface -> "Transfer unavailable"
-                        !canInstall -> "Unsupported package"
+                        !canInstall -> "Installer unavailable"
                         transferred -> "Transfer again"
                         else -> "Install on watch"
                     },

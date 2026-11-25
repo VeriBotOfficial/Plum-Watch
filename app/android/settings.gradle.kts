@@ -19,13 +19,6 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url = uri("https://maven.aliyun.com/repository/public") }
-        maven {
-            url = uri("https://packages.aliyun.com/maven/repository/2457536-release-P0YgD8/")
-            credentials {
-                username = "65a890ad4f41789f56425965"
-                password = "Y-kxYEyTl5)['"
-            }
-        }
     }
 }
 
