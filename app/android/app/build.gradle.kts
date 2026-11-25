@@ -82,6 +82,7 @@ dependencies {
     implementation("androidx.camera:camera-view:1.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("com.sifli:siflicore:1.2.16")
+    implementation("com.sifli:siflisol2model:2.2.19")
     implementation("com.sifli:sifliotasdk:2.2.8")
 
     testImplementation("junit:junit:4.13.2")
