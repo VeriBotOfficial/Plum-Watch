@@ -19,6 +19,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -143,14 +145,10 @@ fun StoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
                 transitionSpec = {
                     val openingPreview = targetState != null
                     val direction = if (openingPreview) 1 else -1
-                    (fadeIn(tween(150)) + slideInHorizontally(
-                        animationSpec = tween(210, easing = FastOutSlowInEasing),
-                        initialOffsetX = { width -> direction * width / 16 }
-                    )) togetherWith
-                        (fadeOut(tween(110)) + slideOutHorizontally(
-                            animationSpec = tween(170, easing = FastOutSlowInEasing),
-                            targetOffsetX = { width -> -direction * width / 22 }
-                        ))
+                    (fadeIn(tween(280, delayMillis = 100, easing = FastOutSlowInEasing)) +
+                        scaleIn(initialScale = 0.88f, animationSpec = tween(520, easing = FastOutSlowInEasing))) togetherWith
+                        (fadeOut(tween(150, easing = FastOutSlowInEasing)) +
+                            scaleOut(targetScale = 0.96f, animationSpec = tween(220, easing = FastOutSlowInEasing)))
                 },
                 label = "store-navigation"
             ) { selected ->

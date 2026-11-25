@@ -7,6 +7,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -57,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -110,20 +113,22 @@ fun AppStoreScreen(
         transitionSpec = {
             val openingPreview = targetState != null
             val direction = if (openingPreview) 1 else -1
-            (fadeIn(androidx.compose.animation.core.tween(150)) + androidx.compose.animation.slideInHorizontally(
+            (fadeIn(androidx.compose.animation.core.tween(
+                280, delayMillis = 100,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing
+            )) + scaleIn(
+                initialScale = 0.88f,
                 animationSpec = androidx.compose.animation.core.tween(
-                    210,
-                    easing = androidx.compose.animation.core.FastOutSlowInEasing
-                ),
-                initialOffsetX = { width -> direction * width / 16 }
-            )) togetherWith
-                (fadeOut(androidx.compose.animation.core.tween(110)) + androidx.compose.animation.slideOutHorizontally(
-                    animationSpec = androidx.compose.animation.core.tween(
-                        170,
-                        easing = androidx.compose.animation.core.FastOutSlowInEasing
-                    ),
-                    targetOffsetX = { width -> -direction * width / 22 }
-                ))
+                    520, easing = androidx.compose.animation.core.FastOutSlowInEasing
+                )
+            )) togetherWith (fadeOut(androidx.compose.animation.core.tween(
+                150, easing = androidx.compose.animation.core.FastOutSlowInEasing
+            )) + scaleOut(
+                targetScale = 0.96f,
+                animationSpec = androidx.compose.animation.core.tween(
+                    220, easing = androidx.compose.animation.core.FastOutSlowInEasing
+                )
+            ))
         },
         label = "app-store-navigation"
     ) { selected ->
@@ -213,39 +218,35 @@ private fun AppStoreGallery(
                     }
                 } else {
                     items(apps, key = { it.id }) { app ->
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth().clickable { onSelect(app) },
-                                shape = RoundedCornerShape(24.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                )
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(9.dp)
+                        ) {
+                            AppClickableSurface(
+                                onClick = { onSelect(app) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(26.dp)
                             ) {
-                                Column(Modifier.padding(7.dp)) {
-                                    StoreAppArtwork(
-                                        app.iconUrl,
-                                        Modifier.fillMaxWidth().aspectRatio(1f)
-                                            .clip(RoundedCornerShape(19.dp))
-                                            .background(MaterialTheme.colorScheme.surface)
-                                    )
-                                    Row(
-                                        Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text(app.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            Text("${app.category} · v${app.version.ifBlank { "1.0" }}", fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                        Icon(Icons.Outlined.Download, contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(17.dp))
-                                    }
+                                Box(
+                                    Modifier.padding(4.dp)
+                                        .clip(RoundedCornerShape(22.dp))
+                                        .background(Color(0xFF050607))
+                                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f), RoundedCornerShape(22.dp))
+                                ) {
+                                    StoreAppArtwork(app.iconUrl, Modifier.fillMaxWidth().aspectRatio(0.82f))
                                 }
                             }
+                            Text(
+                                app.name,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
@@ -268,7 +269,7 @@ private fun AppStoreDetail(
         context.getSharedPreferences("plum-store-apps", Context.MODE_PRIVATE)
     }
     val installedKey = "transferred:${watchAddress ?: "no-watch"}:${app.id}"
-    var transferred by remember(app.id, watchAddress) { mutableStateOf(false) }
+    var installedVersion by remember(app.id, watchAddress) { mutableStateOf<String?>(null) }
     var transferring by remember(app.id, watchAddress) { mutableStateOf(false) }
     var progress by remember(app.id, watchAddress) { mutableStateOf(0f) }
     var phase by remember(app.id, watchAddress) { mutableStateOf("Downloading…") }
@@ -277,8 +278,14 @@ private fun AppStoreDetail(
     val supportedPackage = app.packageType.equals("qjs", true) && app.otaType == 5
     val canInstall = watchState.isConnected && watchState.supportsSifliWatchface && supportedPackage
 
+    val versionKey = "installed-version:${watchAddress ?: "no-watch"}:${app.id}"
+    val legacyInstalledKey = "transferred:${watchAddress ?: "no-watch"}:${app.id}"
+    val updateAvailable = installedVersion != null && compareStoreVersions(app.version, installedVersion!!) > 0
+    val installedCurrentVersion = installedVersion != null && !updateAvailable
+
     LaunchedEffect(app.id, watchAddress) {
-        transferred = watchAddress != null && preferences.getBoolean(installedKey, false)
+        installedVersion = preferences.getString(versionKey, null)
+            ?: if (preferences.getBoolean(legacyInstalledKey, false)) "1.0" else null
     }
 
     Column(
@@ -314,6 +321,15 @@ private fun AppStoreDetail(
             fontSize = 13.sp,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
+        if (installedVersion != null) {
+            Text(
+                "Installed ${installedVersion}",
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
 
         Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             StoreAppArtwork(
@@ -335,11 +351,12 @@ private fun AppStoreDetail(
                 !watchState.supportsSifliWatchface -> "Connect your watch"
                 !supportedPackage -> "Unavailable"
                 error != null -> "Try again"
+                updateAvailable -> "Update"
                 else -> "Add to watch"
             },
             downloading = transferring,
             progress = progress,
-            downloaded = transferred,
+            downloaded = installedCurrentVersion && !transferring,
             enabled = canInstall,
             onClick = {
                 scope.launch {
@@ -354,8 +371,8 @@ private fun AppStoreDetail(
                         progress = 0f
                         watchManager.installQuickJsApp(archive) { progress = it }
                         progress = 1f
-                        transferred = true
-                        preferences.edit().putBoolean(installedKey, true).apply()
+                        installedVersion = app.version.ifBlank { "1.0" }
+                        preferences.edit().putString(versionKey, installedVersion).apply()
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (exception: Exception) {
@@ -368,12 +385,23 @@ private fun AppStoreDetail(
             },
             modifier = Modifier.fillMaxWidth(),
             downloadingLabel = phase,
-            successLabel = "Added to watch"
+            successLabel = "Installed ${installedVersion ?: app.version.ifBlank { "1.0" }}"
         )
         if (error != null) {
             Text(error ?: "", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
         }
     }
+}
+
+private fun compareStoreVersions(left: String, right: String): Int {
+    val leftParts = Regex("\\d+").findAll(left).mapNotNull { it.value.toIntOrNull() }.toList()
+    val rightParts = Regex("\\d+").findAll(right).mapNotNull { it.value.toIntOrNull() }.toList()
+    for (index in 0 until maxOf(leftParts.size, rightParts.size)) {
+        val a = leftParts.getOrElse(index) { 0 }
+        val b = rightParts.getOrElse(index) { 0 }
+        if (a != b) return a.compareTo(b)
+    }
+    return 0
 }
 
 @Composable
