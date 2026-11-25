@@ -361,9 +361,12 @@ def make_app_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
 
 
 def prepare_app_uploads():
-    """Turn ZIPs uploaded directly to store/apps into catalogue-ready app folders."""
+    """Convert ZIPs uploaded to store/apps into clean, catalogue-ready app folders."""
     base = STORE / "apps"
     base.mkdir(parents=True, exist_ok=True)
+
+    # A root-level ZIP is the publishing interface. Re-uploading the same ZIP
+    # replaces the existing package instead of requiring manual folder cleanup.
     for archive in sorted(base.glob("*.zip"), key=lambda path: path.name.casefold()):
         stem = archive.stem.strip()
         if not stem:
@@ -371,18 +374,17 @@ def prepare_app_uploads():
         folder = base / (stem[0].upper() + stem[1:])
         folder.mkdir(exist_ok=True)
         destination = folder / archive.name
-        if destination.exists():
-            raise ValueError(str(destination) + ": archive already exists")
-        archive.rename(destination)
+        archive.replace(destination)
 
     for folder in sorted((path for path in base.iterdir() if path.is_dir()), key=lambda path: path.name.casefold()):
         archives = sorted(folder.glob("*.zip"), key=lambda path: path.name.casefold())
-        if len(archives) != 1 or (folder / "metadata.json").exists():
+        if not archives:
             continue
+        if len(archives) != 1:
+            raise ValueError(f"{folder}: keep one ZIP in each app folder")
+
         archive = archives[0]
-        name = folder.name.replace("-", " ").replace("_", " ").strip()
         embedded = {}
-        readme = ""
         with zipfile.ZipFile(archive) as zf:
             members = list(safe_zip_files(zf))
             for entry in members:
@@ -394,29 +396,36 @@ def prepare_app_uploads():
                             embedded.update(value)
                     except (UnicodeDecodeError, json.JSONDecodeError):
                         pass
-                elif basename in {"readme.md", "readme.txt"} and not readme:
-                    try:
-                        readme = next((line.strip().lstrip("#").strip() for line in
-                                       zf.read(entry).decode("utf-8-sig").splitlines()
-                                       if line.strip() and not line.lstrip().startswith(("#", "---"))), "")
-                    except UnicodeDecodeError:
-                        pass
-            member_paths = [entry.filename.replace("\\", "/") for entry in members]
+
+            member_paths = [entry.filename.replace("\\\\", "/") for entry in members]
             is_qjs = any("/qjs_app/" in ("/" + path.lower().lstrip("/")) for path in member_paths)
             is_qjs = is_qjs or any(Path(path).suffix.lower() == ".js" for path in member_paths)
             if not is_qjs:
                 raise ValueError(str(archive) + ": no QuickJS app files were found")
 
-        display_name = str(embedded.get("name") or embedded.get("title") or name).strip()
-        description = str(embedded.get("description") or readme).strip()
-        if not description:
-            game = any(word in (display_name + " " + archive.name).lower()
-                       for word in ("game", "tetris", "snake", "puzzle", "2048"))
-            description = "A " + ("game" if game else "useful app") + " for your watch."
+        display_name = str(embedded.get("name") or embedded.get("title") or
+                           folder.name.replace("-", " ").replace("_", " ")).strip()
         category = str(embedded.get("category") or "").strip()
         if not category:
-            category = "Games" if any(word in display_name.lower()
-                                      for word in ("tetris", "snake", "puzzle", "2048", "game")) else "Apps"
+            category = "Games" if any(word in (display_name + " " + archive.name).lower()
+                                      for word in ("game", "tetris", "snake", "puzzle", "2048")) else "Apps"
+
+        description = str(embedded.get("description") or "").strip()
+        technical_terms = ("sifli", "quickjs", "ota", "sdk", "javascript", "runtime",
+                           "firmware", "manifest", "archive", "binary", "package")
+        if not description or any(term in description.lower() for term in technical_terms):
+            key = (display_name + " " + archive.name).lower()
+            if "tetris" in key:
+                description = "A classic block-stacking puzzle game for your watch."
+            elif "snake" in key:
+                description = "A classic snake game made for your watch."
+            elif "2048" in key:
+                description = "A number-merging puzzle game for your watch."
+            elif category.lower() == "games":
+                description = "A game you can play on your watch."
+            else:
+                description = "A useful app for your watch."
+
         metadata = {
             "id": slug(str(embedded.get("id") or folder.name)),
             "name": display_name,
@@ -426,10 +435,13 @@ def prepare_app_uploads():
             "packageType": "qjs",
             "otaType": 5,
         }
-        (folder / "metadata.json").write_text(
-            json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-        )
+        author = str(embedded.get("author") or "").strip()
+        if author and not any(term in author.lower() for term in technical_terms):
+            metadata["author"] = author[:80]
 
+        (folder / "metadata.json").write_text(
+            json.dumps(metadata, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+        )
 
 def scan_apps(output_dir: Path):
     entries = []
@@ -455,6 +467,7 @@ def scan_apps(output_dir: Path):
             "description": metadata.get("description", ""),
             "category": metadata.get("category", "Apps"),
             "version": str(metadata.get("version", "")),
+            "author": metadata.get("author"),
             "packageType": metadata.get("packageType", "unknown"),
             "otaType": int(metadata.get("otaType", -1)),
             "archiveSizeBytes": archive.stat().st_size if archive else 0,
