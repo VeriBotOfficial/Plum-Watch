@@ -1,12 +1,14 @@
 # App Store packages
 
-Place each app or game in its own folder:
+Place each watch app or game in its own folder:
 
 ```
 apps/
-  MyGame/
-    MyGame.zip
+  Tetris/
+    Tetris.zip
     metadata.json
 ```
 
-The catalogue publisher discovers packages automatically. Do not publish an app package until target firmware compatibility and its installation method have been verified. The Android app currently exposes the category but does not claim app/game installation support.
+The catalogue publisher reads metadata and extracts preview artwork directly from SiFli EZIP resources inside each package. Use `packageType: "qjs"` and `otaType: 5` for QuickJS applications. GUIBuilder packages use their own transfer type and must not be labelled as QJS.
+
+Metadata fields: `id`, `name`, `description`, `category`, `version`, `author`, `compatibility`, `packageType`, and `otaType`.

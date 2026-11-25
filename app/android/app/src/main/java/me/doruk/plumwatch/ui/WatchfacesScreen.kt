@@ -130,7 +130,7 @@ fun StoreScreen(watchManager: BleWatchManager, watchState: BleUiState) {
             StoreHeader(selectedSection) { selectedSection = it }
         }
         if (selectedSection == StoreSection.APPS && selectedWatchface == null) {
-            AppStoreEmptyState()
+            AppStoreScreen(watchManager = watchManager, watchState = watchState)
         } else {
             AnimatedContent(
                 targetState = selectedWatchface,

@@ -330,6 +330,34 @@ def scan_watchfaces(output_dir: Path):
     return entries
 
 
+def make_app_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
+    assets = _asset_images(zf)
+    icon = _find_asset(assets, "_thumb") or _find_asset(assets, "_icon")
+    background = _find_asset(assets, "_bg")
+    start = _find_asset(assets, "_start")
+    game_over = _find_asset(assets, "_game_over")
+
+    if icon is not None:
+        icon_name = item["id"] + "-icon.png"
+        icon.thumbnail((256, 256), Image.Resampling.LANCZOS)
+        icon.save(output_dir / icon_name, format="PNG", optimize=True)
+        item["iconUrl"] = f"{RAW}/generated/previews/{icon_name}"
+
+    preview = background.copy() if background is not None else None
+    if preview is not None and start is not None:
+        overlay = start.copy()
+        overlay.thumbnail((int(preview.width * 0.9), int(preview.height * 0.55)), Image.Resampling.LANCZOS)
+        preview.alpha_composite(overlay, ((preview.width - overlay.width) // 2, (preview.height - overlay.height) // 2))
+    if preview is None:
+        preview = start.copy() if start is not None else (game_over.copy() if game_over is not None else icon)
+
+    if preview is not None:
+        _save_preview_frames([preview.convert("RGBA")], item, output_dir)
+        item["previewStatus"] = "rendered_from_package"
+    else:
+        item["previewStatus"] = "no_preview_asset"
+
+
 def scan_apps(output_dir: Path):
     entries = []
     base = STORE / "apps"
@@ -342,12 +370,35 @@ def scan_apps(output_dir: Path):
         if len(archives) > 1:
             raise ValueError(f"{folder}: keep one ZIP in each app folder")
         archive = archives[0]
-        item = {"id": slug(folder.name), "name": folder.name.replace("-", " ").replace("_", " "), "archiveUrl": f"{RAW}/apps/{folder.name}/{archive.name}", "archiveSizeBytes": archive.stat().st_size, "previewStatus": "not_generated"}
+        metadata_path = folder / "metadata.json"
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.is_file() else {}
+        item = {
+            "id": slug(metadata.get("id", folder.name)),
+            "name": metadata.get("name", folder.name.replace("-", " ").replace("_", " ")),
+            "description": metadata.get("description", ""),
+            "category": metadata.get("category", "Apps"),
+            "version": str(metadata.get("version", "")),
+            "author": metadata.get("author"),
+            "compatibility": metadata.get("compatibility"),
+            "packageType": metadata.get("packageType", "unknown"),
+            "otaType": int(metadata.get("otaType", -1)),
+            "archiveUrl": f"{RAW}/apps/{folder.name}/{quote(archive.name, safe='')}",
+            "archiveSizeBytes": archive.stat().st_size,
+            "previewStatus": "not_generated",
+        }
         with zipfile.ZipFile(archive) as zf:
             corrupt = zf.testzip()
             if corrupt:
                 raise ValueError(f"{archive}: corrupt ZIP member {corrupt}")
-            list(safe_zip_files(zf))
+            files = list(safe_zip_files(zf))
+            if item["packageType"] == "unknown" and any("/qjs_app/" in f.filename.lower() for f in files):
+                item["packageType"] = "qjs"
+                item["otaType"] = 5
+            try:
+                make_app_preview(zf, item, output_dir)
+            except Exception as exc:
+                item["previewStatus"] = "preview_failed"
+                item["previewError"] = str(exc)[:180]
         entries.append(item)
     return entries
 
