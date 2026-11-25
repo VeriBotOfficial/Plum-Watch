@@ -1,7 +1,7 @@
 {
-  "versionName": "26.2.3",
-  "versionCode": 367,
+  "versionName": "26.2.4",
+  "versionCode": 374,
   "apkUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/app/android/build/plum-watch-debug.apk",
-  "apkSizeBytes": 23656914,
-  "sha256": "d61a05bafc6d88e82e83ad649619ab78e923ff76a537262c5b5f9aaeb47f8ca8"
+  "apkSizeBytes": 23673298,
+  "sha256": "54c66e4cdf4393331d49855e3ca132f452094ea5dde1a2d0935f0b3a433db026"
 }
