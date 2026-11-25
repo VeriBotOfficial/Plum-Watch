@@ -1176,7 +1176,7 @@ class BleWatchManager(context: Context) {
         val tempDir = File(appContext.cacheDir, "plum-watchface-${System.currentTimeMillis()}")
         tempDir.mkdirs()
         try {
-            val files = unzipArchive(archiveFile, tempDir)
+            val files = unzipArchive(archiveFile, tempDir, appendAlignmentAndCrc)
             if (files.isEmpty()) {
                 throw IllegalStateException("The SiFli archive contains no files.")
             }
@@ -1329,7 +1329,11 @@ class BleWatchManager(context: Context) {
     )
 
     /** Unzips safely inside destDir and returns entries sorted by descending size (GIFs last). */
-    private fun unzipArchive(archive: File, destDir: File): List<WatchfaceFileEntry> {
+    private fun unzipArchive(
+        archive: File,
+        destDir: File,
+        appendAlignmentAndCrc: Boolean
+    ): List<WatchfaceFileEntry> {
         if (!destDir.exists() && !destDir.mkdirs()) {
             throw IllegalStateException("Could not create the temporary watchface directory.")
         }
@@ -1384,10 +1388,18 @@ class BleWatchManager(context: Context) {
             }
         }
 
-        // SiFli sends non-GIF files first, each group ordered by descending size.
+        // Match the SiFli SDK: non-GIF files first, then descending transmitted
+        // size. QuickJS files include their four-byte alignment and CRC trailer
+        // when the SDK calculates this ordering.
         entries.sortWith(
             compareBy<WatchfaceFileEntry> { it.relativePath.endsWith(".gif", ignoreCase = true) }
-                .thenByDescending { it.size }
+                .thenByDescending { entry ->
+                    if (appendAlignmentAndCrc) {
+                        entry.size + ((4L - (entry.size % 4L)) % 4L) + 4L
+                    } else {
+                        entry.size
+                    }
+                }
                 .thenBy { it.relativePath }
         )
         return entries
