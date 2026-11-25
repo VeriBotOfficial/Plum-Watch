@@ -374,7 +374,7 @@ def scan_apps(output_dir: Path):
         if len(archives) > 1:
             raise ValueError(f"{folder}: keep one ZIP in each app folder")
         archive = archives[0] if archives else None
-        if part_names and not all((folder / name).is_file() for name in part_names):
+        if archive is None and part_names and not all((folder / name).is_file() for name in part_names):
             continue
 
         item = {

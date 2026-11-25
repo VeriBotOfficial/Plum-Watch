@@ -250,7 +250,9 @@ private fun AppStoreDetail(
     var phase by remember(app.id, watchAddress) { mutableStateOf("Downloading…") }
     var error by remember(app.id, watchAddress) { mutableStateOf<String?>(null) }
 
-    val canInstall = false
+    val supportedPackage = (app.packageType.equals("qjs", true) && app.otaType == 5) ||
+        (app.packageType.equals("sifli_app", true) && app.otaType == 12)
+    val canInstall = watchState.isConnected && watchState.supportsSifliWatchface && supportedPackage
 
     LaunchedEffect(app.id, watchAddress) {
         transferred = watchAddress != null && preferences.getBoolean(installedKey, false)
@@ -300,7 +302,7 @@ private fun AppStoreDetail(
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(
-            app.compatibility ?: "SiFli QuickJS app",
+            app.compatibility ?: if (app.otaType == 12) "SiFli GUIBuilder app" else "SiFli QuickJS app",
             fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
@@ -319,7 +321,7 @@ private fun AppStoreDetail(
                             watchManager.disconnect()
                             phase = "Installing…"
                             progress = 0f
-                            SifliAppInstaller.install(context, watchAddress!!, archive) {
+                            SifliAppInstaller.install(context, watchAddress!!, archive, app.otaType) {
                                 progress = it
                             }
                             progress = 1f
@@ -351,6 +353,7 @@ private fun AppStoreDetail(
                         transferring -> "$phase ${(progress * 100).toInt()}%"
                         !watchState.isConnected -> "Connect your watch"
                         !watchState.supportsSifliWatchface -> "Transfer unavailable"
+                        !supportedPackage -> "Unsupported package type"
                         !canInstall -> "Installer unavailable"
                         transferred -> "Transfer again"
                         else -> "Install on watch"

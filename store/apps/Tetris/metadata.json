@@ -6,13 +6,5 @@
   "version": "2.00",
   "compatibility": "SiFli QuickJS dynamic-app firmware",
   "packageType": "qjs",
-  "otaType": 5,
-  "archiveParts": [
-    "Tetris.zip.b64.00",
-    "Tetris.zip.b64.01",
-    "Tetris.zip.b64.02",
-    "Tetris.zip.b64.03",
-    "Tetris.zip.b64.04",
-    "Tetris.zip.b64.05"
-  ]
+  "otaType": 5
 }
