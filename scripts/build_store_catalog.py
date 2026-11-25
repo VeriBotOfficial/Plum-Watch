@@ -360,33 +360,64 @@ def make_app_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
 
 
 
+def _canonical_app_name(value: str) -> str:
+    """Use one stable, case-insensitive display and folder name."""
+    cleaned = re.sub(r"\\s+", " ", value.strip())
+    return cleaned[:1].upper() + cleaned[1:].lower() if cleaned else "App"
+
+
+def _next_app_version(previous: str | None) -> str:
+    if not previous:
+        return "1.0"
+    match = re.fullmatch(r"(\\d+)\\.(\\d+)", str(previous).strip())
+    if not match:
+        return "1.0"
+    return f"{int(match.group(1))}.{int(match.group(2)) + 1}"
+
+
 def prepare_app_uploads():
-    """Convert ZIPs uploaded to store/apps into clean, catalogue-ready app folders."""
+    """Turn root-level ZIP uploads into versioned, normalized app packages."""
     base = STORE / "apps"
     base.mkdir(parents=True, exist_ok=True)
 
-    # A root-level ZIP is the publishing interface. Re-uploading the same ZIP
-    # replaces the existing package instead of requiring manual folder cleanup.
-    for archive in sorted(base.glob("*.zip"), key=lambda path: path.name.casefold()):
-        stem = archive.stem.strip()
-        if not stem:
-            raise ValueError("Invalid app archive name: " + archive.name)
-        folder = base / (stem[0].upper() + stem[1:])
-        folder.mkdir(exist_ok=True)
-        destination = folder / archive.name
-        archive.replace(destination)
-
+    # Normalize every existing app folder first so case-only renames cannot
+    # create a second entry for the same app.
     for folder in sorted((path for path in base.iterdir() if path.is_dir()), key=lambda path: path.name.casefold()):
-        archives = sorted(folder.glob("*.zip"), key=lambda path: path.name.casefold())
-        if not archives:
-            continue
-        if len(archives) != 1:
-            raise ValueError(f"{folder}: keep one ZIP in each app folder")
+        canonical = _canonical_app_name(folder.name)
+        destination = base / canonical
+        if folder != destination and not destination.exists():
+            folder.rename(destination)
 
-        archive = archives[0]
+    for upload in sorted(base.glob("*.zip"), key=lambda path: path.name.casefold()):
+        canonical = _canonical_app_name(upload.stem)
+        existing = next(
+            (path for path in base.iterdir() if path.is_dir() and path.name.casefold() == canonical.casefold()),
+            None
+        )
+        folder = existing or (base / canonical)
+        folder.mkdir(exist_ok=True)
+        metadata_path = folder / "metadata.json"
+        previous_metadata = {}
+        if metadata_path.is_file():
+            try:
+                previous_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                previous_metadata = {}
+
+        destination = folder / (canonical + ".zip")
+        if upload.resolve() != destination.resolve():
+            if destination.exists():
+                destination.unlink()
+            upload.replace(destination)
+
+        # Each newly uploaded ZIP advances the app's minor release number.
+        next_version = _next_app_version(previous_metadata.get("version"))
         embedded = {}
-        with zipfile.ZipFile(archive) as zf:
+        with zipfile.ZipFile(destination) as zf:
             members = list(safe_zip_files(zf))
+            corrupt = zf.testzip()
+            if corrupt:
+                raise ValueError(f"{destination}: corrupt ZIP member {corrupt}")
             for entry in members:
                 basename = Path(entry.filename).name.lower()
                 if basename in {"app.json", "manifest.json", "package.json", "metadata.json"}:
@@ -397,50 +428,49 @@ def prepare_app_uploads():
                     except (UnicodeDecodeError, json.JSONDecodeError):
                         pass
 
-            member_paths = [entry.filename.replace("\\", "/") for entry in members]
+            member_paths = [entry.filename.replace("\\\\", "/") for entry in members]
             is_qjs = any("/qjs_app/" in ("/" + path.lower().lstrip("/")) for path in member_paths)
             is_qjs = is_qjs or any(Path(path).suffix.lower() == ".js" for path in member_paths)
             if not is_qjs:
-                raise ValueError(str(archive) + ": no QuickJS app files were found")
+                raise ValueError(str(destination) + ": no QuickJS app files were found")
 
-        display_name = str(embedded.get("name") or embedded.get("title") or
-                           folder.name.replace("-", " ").replace("_", " ")).strip()
-        category = str(embedded.get("category") or "").strip()
+        display_name = canonical
+        category = str(embedded.get("category") or previous_metadata.get("category") or "").strip()
         if not category:
-            category = "Games" if any(word in (display_name + " " + archive.name).lower()
-                                      for word in ("game", "tetris", "snake", "puzzle", "2048")) else "Apps"
+            category = "Games" if any(word in canonical.lower() for word in
+                                      ("game", "tetris", "snake", "puzzle", "2048")) else "Apps"
 
-        description = str(embedded.get("description") or "").strip()
+        description = str(embedded.get("description") or previous_metadata.get("description") or "").strip()
         technical_terms = ("sifli", "quickjs", "ota", "sdk", "javascript", "runtime",
                            "firmware", "manifest", "archive", "binary", "package")
         if not description or any(term in description.lower() for term in technical_terms):
-            key = (display_name + " " + archive.name).lower()
+            key = canonical.lower()
             if "tetris" in key:
-                description = "A classic block-stacking puzzle game for your watch."
+                description = "A classic block-stacking puzzle game."
             elif "snake" in key:
-                description = "A classic snake game made for your watch."
+                description = "A classic snake game."
             elif "2048" in key:
-                description = "A number-merging puzzle game for your watch."
+                description = "A number-merging puzzle game."
             elif category.lower() == "games":
-                description = "A game you can play on your watch."
+                description = "A game for your watch."
             else:
                 description = "A useful app for your watch."
 
         metadata = {
-            "id": slug(str(embedded.get("id") or folder.name)),
+            "id": slug(canonical),
             "name": display_name,
             "description": description[:180],
             "category": category,
-            "version": str(embedded.get("version") or "1.0"),
+            "version": next_version,
             "packageType": "qjs",
             "otaType": 5,
         }
-        author = str(embedded.get("author") or "").strip()
+        author = str(embedded.get("author") or previous_metadata.get("author") or "").strip()
         if author and not any(term in author.lower() for term in technical_terms):
             metadata["author"] = author[:80]
 
-        (folder / "metadata.json").write_text(
-            json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        metadata_path.write_text(
+            json.dumps(metadata, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
         )
 
 def scan_apps(output_dir: Path):
