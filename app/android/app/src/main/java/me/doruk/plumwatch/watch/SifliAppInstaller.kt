@@ -1,6 +1,8 @@
 package me.doruk.plumwatch.watch
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.sifli.siflicore.error.SFError
 import com.sifli.sifliotasdk.manager.ISFOtaV3ManagerCallback
 import com.sifli.sifliotasdk.manager.SFOtaV3Manager
@@ -31,7 +33,7 @@ object SifliAppInstaller {
                     val progress = if (totalBytes > 0L) {
                         (currentBytes.toDouble() / totalBytes.toDouble()).toFloat().coerceIn(0f, 1f)
                     } else 0f
-                    onProgress(progress)
+                    Handler(Looper.getMainLooper()).post { onProgress(progress) }
                 }
 
                 override fun onComplete(success: Boolean, error: SFError?) {
@@ -50,7 +52,7 @@ object SifliAppInstaller {
 
             try {
                 manager.setCallback(callback)
-                manager.init(context.applicationContext, SFTransmissionMode.TRANSMISSION_MODE_BLE)
+                manager.init(context.applicationContext as android.app.Application, SFTransmissionMode.TRANSMISSION_MODE_BLE)
                 val resource = OtaV3ResourceFileInfo(
                     OtaV3DfuFileType.ZIP_RESOURCE,
                     archive.absolutePath,
