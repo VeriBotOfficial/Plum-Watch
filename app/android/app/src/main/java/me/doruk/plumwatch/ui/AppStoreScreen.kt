@@ -144,15 +144,16 @@ private fun AppStoreGallery(
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text("Apps & games", fontSize = 25.sp, fontWeight = FontWeight.SemiBold,
+                    Text("Apps", fontSize = 25.sp, fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface)
-                    Text("Made for your watch", fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = onRefresh, enabled = !loading) {
                     if (loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                    else Icon(Icons.Outlined.Refresh, contentDescription = "Refresh")
+                    else {
+                        Icon(Icons.Outlined.Refresh, contentDescription = null)
+                        Text("Refresh", Modifier.padding(start = 5.dp))
+                    }
                 }
             }
         }
@@ -199,7 +200,7 @@ private fun AppStoreGallery(
                             ) {
                                 Column(Modifier.padding(7.dp)) {
                                     StoreAppArtwork(
-                                        app.previewUrl ?: app.iconUrl,
+                                        app.iconUrl ?: app.previewUrl,
                                         Modifier.fillMaxWidth().aspectRatio(0.82f)
                                             .clip(RoundedCornerShape(19.dp))
                                             .background(MaterialTheme.colorScheme.surface)
@@ -289,7 +290,7 @@ private fun AppStoreDetail(
         }
 
         StoreAppArtwork(
-            app.previewUrl ?: app.iconUrl,
+            app.iconUrl ?: app.previewUrl,
             Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(28.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(28.dp))
@@ -299,10 +300,6 @@ private fun AppStoreDetail(
             Text(app.description, fontSize = 13.sp, lineHeight = 19.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text(
-            app.compatibility ?: if (app.otaType == 12) "SiFli GUIBuilder app" else "SiFli QuickJS app",
-            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
 
         Surface(
             modifier = Modifier.fillMaxWidth()
@@ -347,11 +344,11 @@ private fun AppStoreDetail(
                     when {
                         transferring -> "$phase ${(progress * 100).toInt()}%"
                         !watchState.isConnected -> "Connect your watch"
-                        !watchState.supportsSifliWatchface -> "Transfer unavailable"
-                        !supportedPackage -> "Unsupported package type"
-                        !canInstall -> "Installer unavailable"
-                        transferred -> "Transfer again"
-                        else -> "Install on watch"
+                        !watchState.supportsSifliWatchface -> "Connect your watch"
+                        !supportedPackage -> "Unavailable"
+                        
+                        transferred -> "Add to watch again"
+                        else -> "Add to watch"
                     },
                     Modifier.padding(start = 9.dp),
                     fontSize = 14.sp, fontWeight = FontWeight.SemiBold,

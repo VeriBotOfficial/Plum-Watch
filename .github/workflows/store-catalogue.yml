@@ -39,7 +39,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add store/index.json
+          git add store/index.json store/apps
           if [ -d store/generated/previews ]; then
             git add store/generated/previews
           fi

@@ -359,6 +359,78 @@ def make_app_preview(zf: zipfile.ZipFile, item: dict, output_dir: Path):
         item["previewStatus"] = "no_preview_asset"
 
 
+
+def prepare_app_uploads():
+    """Turn ZIPs uploaded directly to store/apps into catalogue-ready app folders."""
+    base = STORE / "apps"
+    base.mkdir(parents=True, exist_ok=True)
+    for archive in sorted(base.glob("*.zip"), key=lambda path: path.name.casefold()):
+        stem = archive.stem.strip()
+        if not stem:
+            raise ValueError("Invalid app archive name: " + archive.name)
+        folder = base / (stem[0].upper() + stem[1:])
+        folder.mkdir(exist_ok=True)
+        destination = folder / archive.name
+        if destination.exists():
+            raise ValueError(str(destination) + ": archive already exists")
+        archive.rename(destination)
+
+    for folder in sorted((path for path in base.iterdir() if path.is_dir()), key=lambda path: path.name.casefold()):
+        archives = sorted(folder.glob("*.zip"), key=lambda path: path.name.casefold())
+        if len(archives) != 1 or (folder / "metadata.json").exists():
+            continue
+        archive = archives[0]
+        name = folder.name.replace("-", " ").replace("_", " ").strip()
+        embedded = {}
+        readme = ""
+        with zipfile.ZipFile(archive) as zf:
+            members = list(safe_zip_files(zf))
+            for entry in members:
+                basename = Path(entry.filename).name.lower()
+                if basename in {"app.json", "manifest.json", "package.json", "metadata.json"}:
+                    try:
+                        value = json.loads(zf.read(entry).decode("utf-8-sig"))
+                        if isinstance(value, dict):
+                            embedded.update(value)
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        pass
+                elif basename in {"readme.md", "readme.txt"} and not readme:
+                    try:
+                        readme = next((line.strip().lstrip("#").strip() for line in
+                                       zf.read(entry).decode("utf-8-sig").splitlines()
+                                       if line.strip() and not line.lstrip().startswith(("#", "---"))), "")
+                    except UnicodeDecodeError:
+                        pass
+            member_paths = [entry.filename.replace("\\", "/") for entry in members]
+            is_qjs = any("/qjs_app/" in ("/" + path.lower().lstrip("/")) for path in member_paths)
+            is_qjs = is_qjs or any(Path(path).suffix.lower() == ".js" for path in member_paths)
+            if not is_qjs:
+                raise ValueError(str(archive) + ": no QuickJS app files were found")
+
+        display_name = str(embedded.get("name") or embedded.get("title") or name).strip()
+        description = str(embedded.get("description") or readme).strip()
+        if not description:
+            game = any(word in (display_name + " " + archive.name).lower()
+                       for word in ("game", "tetris", "snake", "puzzle", "2048"))
+            description = "A " + ("game" if game else "useful app") + " for your watch."
+        category = str(embedded.get("category") or "").strip()
+        if not category:
+            category = "Games" if any(word in display_name.lower()
+                                      for word in ("tetris", "snake", "puzzle", "2048", "game")) else "Apps"
+        metadata = {
+            "id": slug(str(embedded.get("id") or folder.name)),
+            "name": display_name,
+            "description": description[:180],
+            "category": category,
+            "version": str(embedded.get("version") or "1.0"),
+            "packageType": "qjs",
+            "otaType": 5,
+        }
+        (folder / "metadata.json").write_text(
+            json.dumps(metadata, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+        )
+
+
 def scan_apps(output_dir: Path):
     entries = []
     base = STORE / "apps"
@@ -383,8 +455,6 @@ def scan_apps(output_dir: Path):
             "description": metadata.get("description", ""),
             "category": metadata.get("category", "Apps"),
             "version": str(metadata.get("version", "")),
-            "author": metadata.get("author"),
-            "compatibility": metadata.get("compatibility"),
             "packageType": metadata.get("packageType", "unknown"),
             "otaType": int(metadata.get("otaType", -1)),
             "archiveSizeBytes": archive.stat().st_size if archive else 0,
@@ -426,6 +496,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--write", action="store_true")
     args = parser.parse_args()
+    prepare_app_uploads()
     output_dir = STORE / "generated" / "previews"
     output_dir.mkdir(parents=True, exist_ok=True)
     for old in output_dir.glob("*"):
