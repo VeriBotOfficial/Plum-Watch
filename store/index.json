@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T18:01:17.378931+00:00",
+  "generatedAt": "2026-11-25T18:12:53.120096+00:00",
   "watchfaces": [
     {
       "id": "21540_4_dial",
@@ -118,7 +118,8 @@
       "name": "Tetris",
       "description": "A classic block-stacking puzzle game for your watch.",
       "category": "Games",
-      "version": "2.00",
+      "version": "1.0",
+      "author": null,
       "packageType": "qjs",
       "otaType": 5,
       "archiveSizeBytes": 170234,

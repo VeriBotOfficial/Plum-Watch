@@ -3,7 +3,7 @@
   "name": "Tetris",
   "description": "A classic block-stacking puzzle game for your watch.",
   "category": "Games",
-  "version": "2.00",
+  "version": "1.0",
   "packageType": "qjs",
   "otaType": 5
 }
