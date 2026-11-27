@@ -1,6 +1,10 @@
 #include "rtconfig.h"
 #include <stdio.h>
-#if defined(BSP_USING_PC_SIMULATOR)\n#include <windows.h>\n#else\n#include <time.h>\n#endif
+#if defined(BSP_USING_PC_SIMULATOR)
+#include <windows.h>
+#else
+#include <time.h>
+#endif
 #include "lvsf.h"
 #include <lv_ext_resource_manager.h>
 #include <rtthread.h>
