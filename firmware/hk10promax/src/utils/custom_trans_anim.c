@@ -252,12 +252,36 @@ static void enter_or_exit_anim_default(gui_anim_obj_t img, void *user_data, uint
     if (raw_process > MANUAL_TRAN_ANIM_MAX_PROCESS)
         raw_process = MANUAL_TRAN_ANIM_MAX_PROCESS;
 
-    /* Smoothstep easing using bounded integer arithmetic. */
+    /*
+     * Apple-style app expansion: a fast, continuous cubic-bezier-like
+     * ease-out with a restrained spring overshoot. Fixed-point arithmetic
+     * avoids floating point work on the watch CPU.
+     */
     int32_t t = (raw_process * 1024) / MANUAL_TRAN_ANIM_MAX_PROCESS;
-    eased_process = (t * t * (3072 - 2 * t)) / (1024 * 1024);
-    eased_process = (eased_process * MANUAL_TRAN_ANIM_MAX_PROCESS) / 1024;
+    int32_t q = 1024 - t;
+    int64_t q2 = ((int64_t)q * q) / 1024;
+    int64_t q3 = (q2 * q) / 1024;
+    int32_t eased = (int32_t)(1024 - q3);
+    /* Add a small 2.5% settling overshoot without a separate keyframe. */
+    int32_t overshoot = (int32_t)(((int64_t)256 * t * q2) / (1024 * 1024));
+    eased += overshoot;
+    if (eased > 1050) eased = 1050;
+    if (flag & FLAG_TRANS_ANIM_REVERSE)
+    {
+        /* Closing uses the time-reversed curve, with no end-of-flight snap. */
+        int32_t reverse_t = 1024 - t;
+        int32_t reverse_q = 1024 - reverse_t;
+        int64_t reverse_q2 = ((int64_t)reverse_q * reverse_q) / 1024;
+        int64_t reverse_q3 = (reverse_q2 * reverse_q) / 1024;
+        int32_t reverse_eased = (int32_t)(1024 - reverse_q3);
+        int32_t reverse_over = (int32_t)(((int64_t)256 * reverse_t * reverse_q2) / (1024 * 1024));
+        reverse_eased += reverse_over;
+        if (reverse_eased > 1050) reverse_eased = 1050;
+        eased = 1024 - reverse_eased;
+    }
+    eased_process = (eased * MANUAL_TRAN_ANIM_MAX_PROCESS) / 1024;
 
-    lv_opa_t opa_v = (lv_opa_t)(255 * raw_process / MANUAL_TRAN_ANIM_MAX_PROCESS);
+    lv_opa_t opa_v = (lv_opa_t)(255 * eased_process / MANUAL_TRAN_ANIM_MAX_PROCESS);
 
     if (flag & FLAG_TRANS_ANIM_REVERSE)
     {
