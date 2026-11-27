@@ -5,7 +5,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $FirmwareRoot = $PSScriptRoot
+$RepositoryRoot = Split-Path -Parent (Split-Path -Parent $FirmwareRoot)
 $ProjectDir = Join-Path $FirmwareRoot "project"
+$SimulatorDrive = $null
 
 function Find-SiFliSdk {
     param([string]$RequestedPath)
@@ -120,6 +122,25 @@ try {
         throw "SCons is unavailable after activating the SiFli SDK environment."
     }
 
+    # The SDK image converter does not consistently quote source paths. Use a
+    # temporary drive alias so repositories under paths containing spaces build.
+    $usedDrives = (Get-PSDrive -PSProvider FileSystem).Name
+    $BuildRoot = $null
+    foreach ($letter in @("Z","Y","X","W","V","U","T","S","R","Q","P")) {
+        if ($usedDrives -contains $letter) { continue }
+        $driveName = $letter + ":"
+        & subst $driveName $RepositoryRoot
+        if ($LASTEXITCODE -eq 0) {
+            $SimulatorDrive = $driveName
+            $BuildRoot = $letter + ":"
+            break
+        }
+    }
+    if (-not $BuildRoot) {
+        throw "Could not allocate a temporary drive for the simulator build."
+    }
+    $ProjectDir = Join-Path $BuildRoot "firmware\hk10promax\project"
+
     Push-Location $ProjectDir
     try {
         $jobCount = [Math]::Max(1, $Jobs)
@@ -139,9 +160,14 @@ try {
     }
 
     Write-Host "[SiFli] Launching simulator..."
-    Start-Process -FilePath $Simulator -WorkingDirectory (Split-Path $Simulator)
+    Start-Process -FilePath $Simulator -WorkingDirectory (Split-Path $Simulator) -Wait
 }
 catch {
     Write-Host "[Simulator] $($_.Exception.Message)" -ForegroundColor Red
     exit 1
+}
+finally {
+    if ($SimulatorDrive) {
+        & subst $SimulatorDrive /d
+    }
 }

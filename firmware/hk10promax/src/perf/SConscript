@@ -9,7 +9,9 @@ src = []
 inc = []
 
 # add LittlevGL common include
-src = src + Glob('*.c')
+# Physical SF32LB525 peripherals are not part of the Windows PC simulator.
+if not GetDepend('BSP_USING_PC_SIMULATOR'):
+    src = src + Glob('*.c')
 
 LOCAL_CCFLAGS = ''
 
