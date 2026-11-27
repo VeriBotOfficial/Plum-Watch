@@ -14,6 +14,12 @@ jobs:
   build:
     name: Build pc_hcpu simulator
     runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      SIFLI_SDK_SHELL: pwsh.exe
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -24,38 +30,71 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Cache SiFli toolchain
+      - name: Resolve SiFli SDK revision
+        id: sdk
+        run: |
+          $remote = git ls-remote --exit-code https://github.com/OpenSiFli/SiFli-SDK refs/heads/release/v2.4
+          if ($LASTEXITCODE -ne 0 -or -not $remote) { throw "Could not resolve SiFli SDK release/v2.4." }
+          $revision = (($remote | Select-Object -First 1) -split '\s+')[0]
+          if ($revision -notmatch '^[0-9a-f]{40}$') { throw "Invalid SiFli SDK revision: $revision" }
+          "revision=$revision" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Cache SiFli SDK and toolchain
+        id: sifli-cache
         uses: actions/cache@v4
         with:
           path: |
+            ~\SiFli-SDK
             ~\.sifli
             ~\.cache\uv
-          key: sifli-v2.4-windows-${{ runner.arch }}-v1
+          key: sifli-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
           restore-keys: |
             sifli-v2.4-windows-${{ runner.arch }}-
 
       - name: Install SiFli SDK
-        shell: pwsh
         run: |
-          $Sdk = Join-Path $env:RUNNER_TEMP "SiFli-SDK"
-          git clone --depth 1 --branch release/v2.4 --recurse-submodules --shallow-submodules https://github.com/OpenSiFli/SiFli-SDK $Sdk
-          if ($LASTEXITCODE -ne 0) { throw "SiFli SDK checkout failed." }
+          $Sdk = Join-Path $env:USERPROFILE "SiFli-SDK"
+          if ("${{ steps.sifli-cache.outputs.cache-hit }}" -eq "true") {
+            if (-not (Test-Path -LiteralPath (Join-Path $Sdk "export.ps1"))) {
+              throw "The restored SiFli SDK cache is incomplete."
+            }
+            $CachedRevision = (& git -C $Sdk rev-parse HEAD).Trim()
+            if ($LASTEXITCODE -ne 0 -or $CachedRevision -ne "${{ steps.sdk.outputs.revision }}") {
+              throw "The restored SiFli SDK cache does not match the resolved SDK revision."
+            }
+            Write-Host "[SiFli] Reusing cached SDK and installed toolchain."
+          }
+          else {
+            if (Test-Path -LiteralPath $Sdk) {
+              Remove-Item -LiteralPath $Sdk -Recurse -Force
+            }
+            git clone --depth 1 --no-checkout https://github.com/OpenSiFli/SiFli-SDK $Sdk
+            if ($LASTEXITCODE -ne 0) { throw "SiFli SDK checkout failed." }
+            git -C $Sdk fetch --depth 1 origin "${{ steps.sdk.outputs.revision }}"
+            if ($LASTEXITCODE -ne 0) { throw "SiFli SDK revision fetch failed." }
+            git -C $Sdk checkout --detach "${{ steps.sdk.outputs.revision }}"
+            if ($LASTEXITCODE -ne 0) { throw "SiFli SDK checkout failed." }
+            git -C $Sdk submodule update --init --recursive --depth 1
+            if ($LASTEXITCODE -ne 0) { throw "SiFli SDK submodule setup failed." }
+
+            $env:SIFLI_SDK = $Sdk
+            Push-Location $Sdk
+            try {
+              & .\install.ps1
+              if ($LASTEXITCODE -ne 0) { throw "SiFli SDK toolchain installation failed." }
+            }
+            finally {
+              Pop-Location
+            }
+          }
           $env:SIFLI_SDK = $Sdk
-          Push-Location $Sdk
-          try {
-            & .\install.ps1
-            if ($LASTEXITCODE -ne 0) { throw "SiFli SDK toolchain installation failed." }
-          }
-          finally {
-            Pop-Location
-          }
           "SIFLI_SDK=$Sdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build Windows simulator
-        shell: pwsh
         run: |
           & .\firmware\hk10promax\run_simulator_windows.ps1 -BuildOnly
           if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
@@ -63,7 +102,6 @@ jobs:
           }
 
       - name: Publish Windows simulator to firmware folder
-        shell: pwsh
         run: |
           $Source = Join-Path $PWD "firmware\hk10promax\project\build_pc_hcpu"
           if (-not (Test-Path -LiteralPath (Join-Path $Source "main.exe") -PathType Leaf)) {
