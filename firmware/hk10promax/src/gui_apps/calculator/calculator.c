@@ -165,6 +165,15 @@ static void btn_click_cb(lv_event_t *e)
     update_display(expr_buf);
 }
 
+static void calc_button_feedback_cb(lv_event_t *e)
+{
+    lv_obj_t *btn = lv_event_get_target(e);
+    if (lv_event_get_code(e) == LV_EVENT_PRESSED)
+        lv_obj_set_style_bg_opa(btn, LV_OPA_70, LV_PART_MAIN);
+    else
+        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+}
+
 static void calc_ui_init(lv_obj_t *parent)
 {
     lv_obj_t *cont = lv_obj_create(parent);
@@ -206,6 +215,10 @@ static void calc_ui_init(lv_obj_t *parent)
         lv_color_t bg=opkey?lv_color_hex(0xFF922B):(utility?lv_color_hex(0xAEB0B5):lv_color_hex(0x343538));
         lv_obj_set_style_bg_color(btn,bg,LV_PART_MAIN);
         lv_obj_set_style_bg_color(btn,bg,LV_PART_MAIN|LV_STATE_PRESSED);
+        lv_obj_set_style_transition_time(btn, 90, LV_PART_MAIN);
+        lv_obj_add_event_cb(btn, calc_button_feedback_cb, LV_EVENT_PRESSED, NULL);
+        lv_obj_add_event_cb(btn, calc_button_feedback_cb, LV_EVENT_RELEASED, NULL);
+        lv_obj_add_event_cb(btn, calc_button_feedback_cb, LV_EVENT_PRESS_LOST, NULL);
         lv_obj_add_event_cb(btn,btn_click_cb,LV_EVENT_CLICKED,NULL);
         lv_obj_t *lbl=lv_label_create(btn);
         lv_label_set_text(lbl,key);
@@ -223,6 +236,7 @@ static void on_start(void)
     num2 = 0;
     op = 0;
     new_num = true;
+    disp_label = NULL;
 
     calc_ui_init(lv_scr_act());
 }

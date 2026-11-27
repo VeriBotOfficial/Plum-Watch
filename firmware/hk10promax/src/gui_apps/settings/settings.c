@@ -1,5 +1,6 @@
 #include "rtconfig.h"
 #include <stdio.h>
+#include <time.h>
 #include "lvsf.h"
 #include <lv_ext_resource_manager.h>
 #include <rtthread.h>
@@ -17,6 +18,7 @@ LV_IMG_DECLARE(img_settings);
 #define SETTINGS_MUTED 0x9A9BA0
 
 static rt_device_t settings_lcd;
+static lv_timer_t *settings_clock_timer;
 
 static void settings_apply_brightness(int value, bool persist)
 {
@@ -40,6 +42,17 @@ static void brightness_event_cb(lv_event_t *e)
         snprintf(text, sizeof(text), "%d%%", value);
         lv_label_set_text(value_label, text);
     }
+}
+
+static void settings_clock_update(lv_timer_t *timer)
+{
+    if (!timer || !timer->user_data) return;
+    time_t now = time(RT_NULL);
+    struct tm *local = localtime(&now);
+    if (!local) return;
+    char text[8];
+    snprintf(text, sizeof(text), "%02d:%02d", local->tm_hour, local->tm_min);
+    lv_label_set_text((lv_obj_t *)timer->user_data, text);
 }
 
 static void settings_section(lv_obj_t *parent, const char *name)
@@ -83,16 +96,26 @@ static void settings_ui_init(lv_obj_t *parent)
     lv_obj_set_flex_align(root, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
     lv_obj_set_scrollbar_mode(root, LV_SCROLLBAR_MODE_OFF);
 
-    lv_obj_t *title = lv_label_create(root);
+    lv_obj_t *header = lv_obj_create(root);
+    lv_obj_set_size(header, LV_HOR_RES_MAX - 36, 38);
+    lv_obj_set_style_bg_opa(header, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(header, 0, 0);
+    lv_obj_set_style_pad_all(header, 0, 0);
+    lv_obj_clear_flag(header, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *title = lv_label_create(header);
     lv_label_set_text(title, "Settings");
     lv_obj_set_style_text_color(title, lv_color_hex(SETTINGS_TEXT), 0);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+    lv_obj_align(title, LV_ALIGN_LEFT_MID, 0, 0);
 
-    lv_obj_t *clock = lv_label_create(root);
-    lv_label_set_text(clock, "10:09");
+    lv_obj_t *clock = lv_label_create(header);
     lv_obj_set_style_text_color(clock, lv_color_hex(SETTINGS_TEXT), 0);
     lv_obj_set_style_text_font(clock, &lv_font_montserrat_14, 0);
-    lv_obj_align(clock, LV_ALIGN_TOP_RIGHT, -2, 2);
+    lv_obj_align(clock, LV_ALIGN_RIGHT_MID, 0, 0);
+    if (settings_clock_timer) lv_timer_del(settings_clock_timer);
+    settings_clock_timer = lv_timer_create(settings_clock_update, 60000, clock);
+    settings_clock_update(settings_clock_timer);
 
     settings_section(root, "DISPLAY");
     lv_obj_t *display_card = settings_card(root, 112);
@@ -156,6 +179,12 @@ static void msg_handler(gui_app_msg_type_t msg, void *param)
 {
     if (msg == GUI_APP_MSG_ONSTART)
         on_start();
+    else if (msg == GUI_APP_MSG_ONSTOP && settings_clock_timer)
+    {
+        lv_timer_del(settings_clock_timer);
+        settings_clock_timer = NULL;
+        settings_lcd = RT_NULL;
+    }
 }
 
 static int app_main(intent_t i)
