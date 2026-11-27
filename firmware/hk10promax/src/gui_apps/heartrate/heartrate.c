@@ -117,90 +117,88 @@ static void reset_button_cb(lv_event_t *e)
 
 static void heartrate_ui_init(lv_obj_t *parent)
 {
-    hr_device = find_hr_device();
-    measuring = false;
-    sample_count = 0;
-    bpm_total = 0;
-    bpm_min = 999;
-    bpm_max = 0;
+    hr_device=find_hr_device(); measuring=false; sample_count=0; bpm_total=0; bpm_min=999; bpm_max=0;
+    lv_obj_t *root=lv_obj_create(parent);
+    lv_obj_set_size(root,LV_HOR_RES_MAX,LV_VER_RES_MAX);
+    lv_obj_set_style_bg_color(root,lv_color_black(),0);
+    lv_obj_set_style_bg_opa(root,LV_OPA_COVER,0);
+    lv_obj_set_style_border_width(root,0,0);
+    lv_obj_set_style_pad_all(root,0,0);
+    lv_obj_clear_flag(root,LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *root = lv_obj_create(parent);
-    lv_obj_set_size(root, LV_HOR_RES_MAX, LV_VER_RES_MAX);
-    lv_obj_set_style_bg_color(root, lv_color_hex(HR_BG), 0);
-    lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(root, 0, 0);
-    lv_obj_set_style_pad_all(root, 18, 0);
-    lv_obj_set_style_pad_row(root, 12, 0);
-    lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(root, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_scrollbar_mode(root, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_t *clock=lv_label_create(root);
+    lv_label_set_text(clock,"10:09");
+    lv_obj_set_style_text_color(clock,lv_color_white(),0);
+    lv_obj_set_style_text_font(clock,&lv_font_montserrat_16,0);
+    lv_obj_align(clock,LV_ALIGN_TOP_RIGHT,-22,20);
 
-    lv_obj_t *title = lv_label_create(root);
-    lv_label_set_text(title, "Heart Rate");
-    lv_obj_set_style_text_color(title, lv_color_white(), 0);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+    lv_obj_t *glow1=lv_obj_create(root);
+    lv_obj_set_size(glow1,190,190);
+    lv_obj_set_style_radius(glow1,LV_RADIUS_CIRCLE,0);
+    lv_obj_set_style_bg_color(glow1,lv_color_hex(0x8D0808),0);
+    lv_obj_set_style_bg_opa(glow1,LV_OPA_20,0);
+    lv_obj_set_style_border_width(glow1,0,0);
+    lv_obj_align(glow1,LV_ALIGN_TOP_MID,0,36);
+    lv_obj_clear_flag(glow1,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *reading = lv_obj_create(root);
-    lv_obj_set_size(reading, LV_HOR_RES_MAX - 40, 190);
-    lv_obj_set_style_bg_color(reading, lv_color_hex(HR_CARD), 0);
-    lv_obj_set_style_bg_opa(reading, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(reading, 0, 0);
-    lv_obj_set_style_radius(reading, 22, 0);
-    lv_obj_clear_flag(reading, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *glow2=lv_obj_create(root);
+    lv_obj_set_size(glow2,148,148);
+    lv_obj_set_style_radius(glow2,LV_RADIUS_CIRCLE,0);
+    lv_obj_set_style_bg_color(glow2,lv_color_hex(0xB30B0B),0);
+    lv_obj_set_style_bg_opa(glow2,LV_OPA_30,0);
+    lv_obj_set_style_border_width(glow2,0,0);
+    lv_obj_align_to(glow2,glow1,LV_ALIGN_CENTER,0,0);
+    lv_obj_clear_flag(glow2,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
 
-    bpm_label = lv_label_create(reading);
-    lv_label_set_text(bpm_label, "--");
-    lv_obj_set_style_text_color(bpm_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(bpm_label, &lv_font_montserrat_36, 0);
-    lv_obj_align(bpm_label, LV_ALIGN_CENTER, 0, -18);
+    lv_obj_t *heart=lv_img_create(root);
+    lv_img_set_src(heart,LV_EXT_IMG_GET(img_red_heart));
+    lv_obj_set_size(heart,112,112);
+    lv_obj_align_to(heart,glow1,LV_ALIGN_CENTER,0,0);
 
-    lv_obj_t *unit = lv_label_create(reading);
-    lv_label_set_text(unit, "BPM");
-    lv_obj_set_style_text_color(unit, lv_color_hex(HR_MUTED), 0);
-    lv_obj_set_style_text_font(unit, &lv_font_montserrat_14, 0);
-    lv_obj_align(unit, LV_ALIGN_CENTER, 0, 34);
+    lv_obj_t *current=lv_label_create(root);
+    lv_label_set_text(current,"Current");
+    lv_obj_set_style_text_color(current,lv_color_white(),0);
+    lv_obj_set_style_text_font(current,&lv_font_montserrat_16,0);
+    lv_obj_align(root,LV_ALIGN_TOP_LEFT,0,0);
+    lv_obj_align(current,LV_ALIGN_BOTTOM_LEFT,22,-105);
 
-    status_label = lv_label_create(root);
-    lv_label_set_text(status_label, hr_device ? "Ready" : "Sensor unavailable");
-    lv_obj_set_style_text_color(status_label, lv_color_hex(hr_device ? 0xB978E8 : 0xD69A54), 0);
-    lv_obj_set_style_text_font(status_label, &lv_font_montserrat_14, 0);
+    bpm_label=lv_label_create(root);
+    lv_label_set_text(bpm_label,"--");
+    lv_obj_set_style_text_color(bpm_label,lv_color_white(),0);
+    lv_obj_set_style_text_font(bpm_label,&lv_font_montserrat_36,0);
+    lv_obj_align(bpm_label,LV_ALIGN_BOTTOM_LEFT,22,-58);
 
-    average_label = lv_label_create(root);
-    lv_label_set_text(average_label, "Average  --");
-    lv_obj_set_style_text_color(average_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(average_label, &lv_font_montserrat_14, 0);
+    lv_obj_t *unit=lv_label_create(root);
+    lv_label_set_text(unit,"BPM");
+    lv_obj_set_style_text_color(unit,lv_color_hex(0xFF503D),0);
+    lv_obj_set_style_text_font(unit,&lv_font_montserrat_16,0);
+    lv_obj_align(unit,LV_ALIGN_BOTTOM_LEFT,90,-66);
 
-    range_label = lv_label_create(root);
-    lv_label_set_text(range_label, "Range  --");
-    lv_obj_set_style_text_color(range_label, lv_color_hex(HR_MUTED), 0);
-    lv_obj_set_style_text_font(range_label, &lv_font_montserrat_14, 0);
+    status_label=lv_label_create(root);
+    lv_label_set_text(status_label,hr_device?"Ready":"Sensor unavailable");
+    lv_obj_set_style_text_color(status_label,lv_color_hex(HR_MUTED),0);
+    lv_obj_set_style_text_font(status_label,&lv_font_montserrat_14,0);
+    lv_obj_align(status_label,LV_ALIGN_BOTTOM_LEFT,22,-32);
 
-    lv_obj_t *measure_button = lv_btn_create(root);
-    lv_obj_set_size(measure_button, LV_HOR_RES_MAX - 64, 48);
-    lv_obj_set_style_bg_color(measure_button, lv_color_hex(0xA45BE0), 0);
-    lv_obj_set_style_radius(measure_button, 24, 0);
-    measure_button_label = lv_label_create(measure_button);
-    lv_label_set_text(measure_button_label, hr_device ? "Start" : "Unavailable");
+    average_label=lv_label_create(root);
+    lv_label_set_text(average_label,"Average  --");
+    lv_obj_set_style_text_color(average_label,lv_color_hex(HR_MUTED),0);
+    lv_obj_set_style_text_font(average_label,&lv_font_montserrat_12,0);
+    lv_obj_align(average_label,LV_ALIGN_BOTTOM_LEFT,22,-10);
+    range_label=NULL;
+
+    lv_obj_t *measure=lv_btn_create(root);
+    lv_obj_set_size(measure,LV_HOR_RES_MAX-44,38);
+    lv_obj_align(measure,LV_ALIGN_BOTTOM_MID,0,-2);
+    lv_obj_set_style_bg_color(measure,lv_color_hex(0x292A2E),0);
+    lv_obj_set_style_radius(measure,19,0);
+    measure_button_label=lv_label_create(measure);
+    lv_label_set_text(measure_button_label,hr_device?"Start measurement":"Unavailable");
     lv_obj_center(measure_button_label);
-    lv_obj_add_event_cb(measure_button, measure_button_cb, LV_EVENT_CLICKED, NULL);
-    if (!hr_device)
-    {
-        lv_obj_add_state(measure_button, LV_STATE_DISABLED);
-        lv_obj_set_style_bg_color(measure_button, lv_color_hex(0x45434A), LV_PART_MAIN);
-    }
+    lv_obj_add_event_cb(measure,measure_button_cb,LV_EVENT_CLICKED,NULL);
+    if(!hr_device) lv_obj_add_state(measure,LV_STATE_DISABLED);
 
-    lv_obj_t *reset = lv_btn_create(root);
-    lv_obj_set_size(reset, LV_HOR_RES_MAX - 64, 42);
-    lv_obj_set_style_bg_color(reset, lv_color_hex(HR_CARD), 0);
-    lv_obj_set_style_radius(reset, 21, 0);
-    lv_obj_t *reset_label = lv_label_create(reset);
-    lv_label_set_text(reset_label, "Reset session");
-    lv_obj_set_style_text_color(reset_label, lv_color_white(), 0);
-    lv_obj_center(reset_label);
-    lv_obj_add_event_cb(reset, reset_button_cb, LV_EVENT_CLICKED, NULL);
-
-    if (!measure_timer)
-        measure_timer = lv_timer_create(measure_timer_cb, 1000, NULL);
+    if(!measure_timer) measure_timer=lv_timer_create(measure_timer_cb,1000,NULL);
 }
 
 static void on_start(void)
