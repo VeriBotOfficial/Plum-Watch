@@ -44,7 +44,7 @@ static void gif_init(lv_obj_t *parent)
 
     lv_obj_align(gif, LV_ALIGN_CENTER, 0, 0);
 
-    lv_gif_dec_loop(gif, 1, 16); // 16ms/frame default
+    lv_gif_dec_loop(gif, 1, 33); // 30 fps is sufficient and reduces decode/render load
     lv_gif_dec_end_cb_register(gif, gif_loop_end_func);
 }
 

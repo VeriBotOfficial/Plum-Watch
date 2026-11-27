@@ -245,8 +245,19 @@ static void enter_or_exit_anim_default(gui_anim_obj_t img, void *user_data, uint
 
     int32_t zoom;
     int32_t zoom_start, zoom_end;
+    int32_t raw_process = process;
+    int32_t eased_process;
 
-    lv_opa_t opa_v = (lv_opa_t)(255 * process / MANUAL_TRAN_ANIM_MAX_PROCESS);
+    if (raw_process < 0) raw_process = 0;
+    if (raw_process > MANUAL_TRAN_ANIM_MAX_PROCESS)
+        raw_process = MANUAL_TRAN_ANIM_MAX_PROCESS;
+
+    /* Smoothstep easing using bounded integer arithmetic. */
+    int32_t t = (raw_process * 1024) / MANUAL_TRAN_ANIM_MAX_PROCESS;
+    eased_process = (t * t * (3072 - 2 * t)) / (1024 * 1024);
+    eased_process = (eased_process * MANUAL_TRAN_ANIM_MAX_PROCESS) / 1024;
+
+    lv_opa_t opa_v = (lv_opa_t)(255 * raw_process / MANUAL_TRAN_ANIM_MAX_PROCESS);
 
     if (flag & FLAG_TRANS_ANIM_REVERSE)
     {
@@ -283,15 +294,25 @@ static void enter_or_exit_anim_default(gui_anim_obj_t img, void *user_data, uint
         }
     }
 
-    zoom = zoom_start + (zoom_end - zoom_start) * (int32_t)process / MANUAL_TRAN_ANIM_MAX_PROCESS;
+    zoom = zoom_start + (zoom_end - zoom_start) * eased_process / MANUAL_TRAN_ANIM_MAX_PROCESS;
     if (zoom < 0) zoom = 0;
 
     lv_img_set_zoom(img, (uint16_t)zoom);
 
     if (pivot)
-        lv_img_set_pivot(img, pivot->x, pivot->y);
+    {
+        lv_coord_t pivot_x = pivot->x;
+        lv_coord_t pivot_y = pivot->y;
+        if (pivot_x < 0) pivot_x = 0;
+        if (pivot_y < 0) pivot_y = 0;
+        if (pivot_x >= lv_obj_get_width(img)) pivot_x = lv_obj_get_width(img) - 1;
+        if (pivot_y >= lv_obj_get_height(img)) pivot_y = lv_obj_get_height(img) - 1;
+        lv_img_set_pivot(img, pivot_x, pivot_y);
+    }
     else
+    {
         lv_img_set_pivot(img, lv_obj_get_width(img) >> 1, lv_obj_get_height(img) >> 1);
+    }
 
     lv_obj_set_style_img_opa(img, opa_v, LV_PART_MAIN);
 }
@@ -299,11 +320,19 @@ static void enter_or_exit_anim_default(gui_anim_obj_t img, void *user_data, uint
 
 void cust_trans_anim_config(CUST_ANIM_TYPE_E type, lv_point_t *pivot)
 {
+    /*
+     * The framework retains callback user_data. MainMenu passes a stack-local
+     * pivot, so copy it into static storage and never retain the caller pointer.
+     * NULL explicitly resets the pivot to screen centre.
+     */
     if (pivot)
-    {
         g_anim_pivot = *pivot;
-        g_has_anim_pivot = true;
+    else
+    {
+        g_anim_pivot.x = LV_HOR_RES_MAX / 2;
+        g_anim_pivot.y = LV_VER_RES_MAX / 2;
     }
+    g_has_anim_pivot = true;
 
     gui_app_trans_anim_t enter_anim_cfg, exit_anim_cfg;
 
@@ -346,10 +375,10 @@ void cust_trans_anim_config(CUST_ANIM_TYPE_E type, lv_point_t *pivot)
         gui_app_trans_anim_init_cfg(&enter_anim_cfg, GUI_APP_TRANS_ANIM_CUSTOM);
         gui_app_trans_anim_init_cfg(&exit_anim_cfg, GUI_APP_TRANS_ANIM_CUSTOM);
         enter_anim_cfg.cfg.cust.exe_cb = enter_or_exit_anim_default;
-        enter_anim_cfg.cfg.cust.user_data = pivot ? pivot : (g_has_anim_pivot ? &g_anim_pivot : NULL);
+        enter_anim_cfg.cfg.cust.user_data = &g_anim_pivot;
 
         exit_anim_cfg.cfg.cust.exe_cb = enter_or_exit_anim_default;
-        exit_anim_cfg.cfg.cust.user_data = pivot ? pivot : (g_has_anim_pivot ? &g_anim_pivot : NULL);
+        exit_anim_cfg.cfg.cust.user_data = &g_anim_pivot;
         break;
     }
 

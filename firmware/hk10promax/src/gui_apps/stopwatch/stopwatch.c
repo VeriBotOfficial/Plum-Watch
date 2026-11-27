@@ -20,6 +20,7 @@ static lv_obj_t *lap_list;
 static lv_timer_t *timer = NULL;
 
 static uint32_t total_ms = 0;
+static rt_tick_t last_tick = 0;
 static bool is_running = false;
 static uint32_t laps[MAX_LAPS];
 static uint8_t lap_count = 0;
@@ -42,7 +43,10 @@ static void timer_cb(lv_timer_t *t)
 {
     if (is_running)
     {
-        total_ms += 50;
+        rt_tick_t now = rt_tick_get();
+        rt_tick_t elapsed_ticks = now - last_tick;
+        last_tick = now;
+        total_ms += (uint32_t)rt_tick_to_millisecond(elapsed_ticks);
         update_time_display();
     }
 }
@@ -72,6 +76,8 @@ static void btn_start_pause_cb(lv_event_t *e)
 {
     is_running = !is_running;
     if (is_running)
+        last_tick = rt_tick_get();
+    if (is_running)
     {
         lv_label_set_text(btn_start_pause_label, "Pause");
         lv_obj_set_style_bg_color(btn_start_pause, lv_palette_main(LV_PALETTE_ORANGE), 0);
@@ -98,6 +104,7 @@ static void btn_lap_reset_cb(lv_event_t *e)
     {
         /* Reset Timer & Laps */
         total_ms = 0;
+        last_tick = rt_tick_get();
         lap_count = 0;
         update_time_display();
         if (lap_list) lv_obj_clean(lap_list);
@@ -172,6 +179,7 @@ static void on_start(void)
     cust_trans_anim_config(CUST_ANIM_TYPE_3, NULL);
     total_ms = 0;
     is_running = false;
+    last_tick = rt_tick_get();
     stopwatch_ui_init(lv_scr_act());
 }
 

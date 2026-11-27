@@ -28,6 +28,74 @@ static uint8_t watch_thread_stack[APP_WATCH_GUI_TASK_STACK_SIZE];
 #define WATCHFACE_APP_NAME "Watchface"
 #define MENU_APP_NAME "MainMenu"
 
+static void boot_splash_set_opa(void *obj, int32_t opa)
+{
+    lv_obj_t *splash = (lv_obj_t *)obj;
+    lv_obj_set_style_bg_opa(splash, (lv_opa_t)opa, 0);
+    /* LVGL object opacity is not inherited by ordinary child objects. */
+    for (uint32_t i = 0; i < 3; ++i)
+    {
+        lv_obj_t *part = lv_obj_get_child(splash, (int32_t)i);
+        if (part)
+            lv_obj_set_style_bg_opa(part, (lv_opa_t)opa, 0);
+    }
+}
+
+static void boot_splash_delete(lv_anim_t *anim)
+{
+    lv_obj_t *splash = (lv_obj_t *)anim->var;
+    if (splash)
+        lv_obj_del(splash);
+}
+
+static void boot_splash_show(void)
+{
+    lv_obj_t *splash = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(splash, LV_HOR_RES_MAX, LV_VER_RES_MAX);
+    lv_obj_set_pos(splash, 0, 0);
+    lv_obj_set_style_bg_color(splash, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(splash, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(splash, 0, 0);
+    lv_obj_set_style_radius(splash, 0, 0);
+    lv_obj_clear_flag(splash, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+
+    /* Small vector plum mark: no bitmap or intermediate framebuffer required. */
+    lv_obj_t *berry_left = lv_obj_create(splash);
+    lv_obj_set_size(berry_left, 34, 38);
+    lv_obj_set_pos(berry_left, (LV_HOR_RES_MAX / 2) - 30, (LV_VER_RES_MAX / 2) - 15);
+    lv_obj_set_style_bg_color(berry_left, lv_color_hex(0x873DB5), 0);
+    lv_obj_set_style_bg_opa(berry_left, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(berry_left, 0, 0);
+    lv_obj_set_style_radius(berry_left, LV_RADIUS_CIRCLE, 0);
+
+    lv_obj_t *berry_right = lv_obj_create(splash);
+    lv_obj_set_size(berry_right, 34, 38);
+    lv_obj_set_pos(berry_right, (LV_HOR_RES_MAX / 2) - 4, (LV_VER_RES_MAX / 2) - 15);
+    lv_obj_set_style_bg_color(berry_right, lv_color_hex(0xA95BD4), 0);
+    lv_obj_set_style_bg_opa(berry_right, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(berry_right, 0, 0);
+    lv_obj_set_style_radius(berry_right, LV_RADIUS_CIRCLE, 0);
+
+    lv_obj_t *leaf = lv_obj_create(splash);
+    lv_obj_set_size(leaf, 23, 10);
+    lv_obj_set_pos(leaf, (LV_HOR_RES_MAX / 2) + 1, (LV_VER_RES_MAX / 2) - 29);
+    lv_obj_set_style_bg_color(leaf, lv_color_hex(0x75B85B), 0);
+    lv_obj_set_style_bg_opa(leaf, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(leaf, 0, 0);
+    lv_obj_set_style_radius(leaf, LV_RADIUS_CIRCLE, 0);
+
+    uint32_t duration = 5000U + (rt_tick_get() % 3001U);
+    lv_anim_t fade;
+    lv_anim_init(&fade);
+    lv_anim_set_var(&fade, splash);
+    lv_anim_set_exec_cb(&fade, boot_splash_set_opa);
+    lv_anim_set_values(&fade, LV_OPA_COVER, LV_OPA_TRANSP);
+    lv_anim_set_delay(&fade, duration - 450U);
+    lv_anim_set_time(&fade, 450U);
+    lv_anim_set_ready_cb(&fade, boot_splash_delete);
+    lv_anim_start(&fade);
+}
+
 #ifdef BSP_KEY1_ACTIVE_HIGH
     #define DOWN_BUTTON_ACTIVE_POL 1
 #else
@@ -107,6 +175,7 @@ static void app_watch_entry()
     gui_app_run(WATCHFACE_APP_NAME);
 
     lv_disp_trig_activity(NULL);
+    boot_splash_show();
     lvsf_gesture_init(lv_layer_top());
 
     int ms_delay = 0;
