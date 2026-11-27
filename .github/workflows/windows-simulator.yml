@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: windows-simulator-${{ github.ref }}
@@ -29,10 +29,34 @@ jobs:
             throw "Simulator build failed with exit code $LASTEXITCODE."
           }
 
-      - name: Upload Windows simulator
-        uses: actions/upload-artifact@v4
-        with:
-          name: plum-watch-windows-simulator
-          path: firmware/hk10promax/project/build_pc_hcpu/main.exe
-          if-no-files-found: error
-          retention-days: 14
+      - name: Publish Windows simulator to firmware folder
+        shell: powershell
+        run: |
+          $Source = Join-Path $PWD "firmware\hk10promax\project\build_pc_hcpu"
+          $Executable = Join-Path $Source "main.exe"
+          if (-not (Test-Path -LiteralPath $Executable -PathType Leaf)) {
+            throw "Simulator executable was not produced: $Executable"
+          }
+
+          $Destination = Join-Path $PWD "firmware\builds\windows-simulator"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin $env:GITHUB_REF_NAME
+          git reset --hard "origin/$env:GITHUB_REF_NAME"
+          if (Test-Path -LiteralPath $Destination) {
+            Remove-Item -LiteralPath $Destination -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+          Get-ChildItem -LiteralPath $Source -File | Where-Object {
+            $_.Extension -in @(".exe", ".dll")
+          } | Copy-Item -Destination $Destination -Force
+
+          git add -f firmware/builds/windows-simulator
+          if (git diff --cached --quiet) {
+            Write-Host "Windows simulator output is unchanged."
+          }
+          else {
+            git commit -m "[skip ci] Publish Windows simulator to firmware"
+            git push origin "HEAD:$env:GITHUB_REF_NAME"
+          }

@@ -76,7 +76,7 @@ jobs:
         run: |
           if [ -z "$PLUM_SIGNING_KEYSTORE_BASE64" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Persistent signing secrets are missing. Build will be validated, but this APK will not be published."
+            echo "::warning::Persistent signing secrets are missing. The APK will be saved, but not published as an app update."
             exit 0
           fi
 
@@ -100,53 +100,51 @@ jobs:
         working-directory: app/android
         run: sh ./gradlew --no-daemon testDebugUnitTest assembleDebug
 
-      - name: Publish latest APK to repository
-        if: steps.signing.outputs.configured == 'true' && github.ref == 'refs/heads/main'
+      - name: Publish APK to firmware folder
+        if: github.ref == 'refs/heads/main'
+        env:
+          STABLE_SIGNING_CONFIGURED: ${{ steps.signing.outputs.configured }}
         run: |
           APK_FILE="$RUNNER_TEMP/plum-watch-debug.apk"
           UPDATE_FILE="$RUNNER_TEMP/update.json"
           cp app/android/app/build/outputs/apk/debug/app-debug.apk "$APK_FILE"
-          VERSION_NAME="$PLUM_VERSION_NAME"
-          VERSION_CODE="${GITHUB_RUN_NUMBER}"
-          SHA256=$(sha256sum "$APK_FILE" | cut -d " " -f 1)
-          APK_SIZE_BYTES=$(stat -c%s "$APK_FILE")
-          cat > "$UPDATE_FILE" <<EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git reset --hard origin/main
+
+          mkdir -p firmware/builds/android
+          cp "$APK_FILE" firmware/builds/android/plum-watch-debug.apk
+          git add -f firmware/builds/android/plum-watch-debug.apk
+
+          if [ "$STABLE_SIGNING_CONFIGURED" = "true" ]; then
+            VERSION_NAME="$PLUM_VERSION_NAME"
+            VERSION_CODE="${GITHUB_RUN_NUMBER}"
+            SHA256=$(sha256sum "$APK_FILE" | cut -d " " -f 1)
+            APK_SIZE_BYTES=$(stat -c%s "$APK_FILE")
+            cat > "$UPDATE_FILE" <<EOF
           {
             "versionName": "$VERSION_NAME",
             "versionCode": $VERSION_CODE,
-            "apkUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/app/android/build/plum-watch-debug.apk",
+            "apkUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/firmware/builds/android/plum-watch-debug.apk",
             "apkSizeBytes": $APK_SIZE_BYTES,
             "sha256": "$SHA256"
           }
           EOF
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git fetch origin main
-          git reset --hard origin/main
-          mkdir -p app/android/build
-          cp "$APK_FILE" app/android/build/plum-watch-debug.apk
-          cp "$UPDATE_FILE" app/android/build/update.json
-          git add -f app/android/build/plum-watch-debug.apk app/android/build/update.json
-
-          if git diff --cached --quiet; then
-            echo "APK is unchanged; no repository update needed."
-          else
-            git commit -m "[skip ci] Publish latest Android APK"
-            git push origin HEAD:main
+            cp "$UPDATE_FILE" app/android/build/update.json
+            git add -f app/android/build/update.json
           fi
 
-      - name: Upload stable debug APK artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: plum-watch-debug-apk
-          path: app/android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          if git diff --cached --quiet; then
+            echo "Published APK is unchanged; no repository update needed."
+          else
+            git commit -m "[skip ci] Publish Android APK to firmware"
+            git push origin HEAD:main
+          fi
 
       - name: Report signing setup
         if: success() && steps.signing.outputs.configured != 'true'
         run: |
-          echo "Build and tests succeeded, but no installable update was published."
-          echo "Add the four PLUM_SIGNING_* repository secrets, then run this workflow manually."
+          echo "The APK was saved under firmware/builds/android."
+          echo "Configure the four PLUM_SIGNING_* repository secrets to publish it as an app update."
