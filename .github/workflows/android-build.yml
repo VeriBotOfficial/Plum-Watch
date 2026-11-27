@@ -114,9 +114,9 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
-          mkdir -p firmware/builds/android
-          cp "$APK_FILE" firmware/builds/android/plum-watch-debug.apk
-          git add -f firmware/builds/android/plum-watch-debug.apk
+          mkdir -p app/android
+          cp "$APK_FILE" app/android/plum-watch-debug.apk
+          git add -f app/android/plum-watch-debug.apk
 
           if [ "$STABLE_SIGNING_CONFIGURED" = "true" ]; then
             VERSION_NAME="$PLUM_VERSION_NAME"
@@ -127,7 +127,7 @@ jobs:
           {
             "versionName": "$VERSION_NAME",
             "versionCode": $VERSION_CODE,
-            "apkUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/firmware/builds/android/plum-watch-debug.apk",
+            "apkUrl": "https://raw.githubusercontent.com/VeriBotOfficial/Plum-Watch/main/app/android/plum-watch-debug.apk",
             "apkSizeBytes": $APK_SIZE_BYTES,
             "sha256": "$SHA256"
           }
@@ -146,5 +146,5 @@ jobs:
       - name: Report signing setup
         if: success() && steps.signing.outputs.configured != 'true'
         run: |
-          echo "The APK was saved under firmware/builds/android."
+          echo "The APK was saved under app/android/plum-watch-debug.apk."
           echo "Configure the four PLUM_SIGNING_* repository secrets to publish it as an app update."
