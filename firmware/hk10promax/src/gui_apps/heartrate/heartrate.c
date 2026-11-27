@@ -1,7 +1,7 @@
 #include "rtconfig.h"
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
+#if defined(BSP_USING_PC_SIMULATOR)\n#include <windows.h>\n#else\n#include <time.h>\n#endif
 #include "lvsf.h"
 #include <lv_ext_resource_manager.h>
 #include <rtthread.h>
@@ -126,11 +126,17 @@ static void heart_pulse_exec(void *var, int32_t zoom)
 static void heart_clock_cb(lv_timer_t *timer)
 {
     if (!timer || !timer->user_data) return;
+    char text[8];
+#if defined(BSP_USING_PC_SIMULATOR)
+    SYSTEMTIME local;
+    GetLocalTime(&local);
+    snprintf(text, sizeof(text), "%02u:%02u", (unsigned int)local.wHour, (unsigned int)local.wMinute);
+#else
     time_t now = time(RT_NULL);
     struct tm *local = localtime(&now);
     if (!local) return;
-    char text[8];
     snprintf(text, sizeof(text), "%02d:%02d", local->tm_hour, local->tm_min);
+#endif
     lv_label_set_text((lv_obj_t *)timer->user_data, text);
 }
 

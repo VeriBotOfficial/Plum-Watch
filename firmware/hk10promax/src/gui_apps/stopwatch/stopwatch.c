@@ -1,6 +1,6 @@
 #include "rtconfig.h"
 #include <stdio.h>
-#include <time.h>
+#if defined(BSP_USING_PC_SIMULATOR)\n#include <windows.h>\n#else\n#include <time.h>\n#endif
 #include "lvsf.h"
 #include <lv_ext_resource_manager.h>
 #include <rtthread.h>
@@ -31,11 +31,17 @@ static lv_timer_t *clock_timer = NULL;
 static void stopwatch_clock_cb(lv_timer_t *timer)
 {
     if (!timer || !timer->user_data) return;
+    char text[8];
+#if defined(BSP_USING_PC_SIMULATOR)
+    SYSTEMTIME local;
+    GetLocalTime(&local);
+    snprintf(text, sizeof(text), "%02u:%02u", (unsigned int)local.wHour, (unsigned int)local.wMinute);
+#else
     time_t now = time(RT_NULL);
     struct tm *local = localtime(&now);
     if (!local) return;
-    char text[8];
     snprintf(text, sizeof(text), "%02d:%02d", local->tm_hour, local->tm_min);
+#endif
     lv_label_set_text((lv_obj_t *)timer->user_data, text);
 }
 
@@ -179,7 +185,7 @@ static void stopwatch_ui_init(lv_obj_t *parent)
     lv_obj_align(btn_start_pause,LV_ALIGN_BOTTOM_LEFT,18,-20);
     lv_obj_set_style_bg_color(btn_start_pause,lv_color_hex(0x239B62),0);
     lv_obj_set_style_bg_color(btn_start_pause,lv_color_hex(0x2DAD70),LV_PART_MAIN | LV_STATE_PRESSED);
-    lv_obj_set_style_transition_time(btn_start_pause,100,LV_PART_MAIN);
+
     lv_obj_set_style_radius(btn_start_pause,24,0);
     lv_obj_set_style_shadow_width(btn_start_pause,0,0);
     lv_obj_add_event_cb(btn_start_pause,btn_start_pause_cb,LV_EVENT_CLICKED,NULL);
@@ -192,7 +198,7 @@ static void stopwatch_ui_init(lv_obj_t *parent)
     lv_obj_align(lap,LV_ALIGN_BOTTOM_RIGHT,-18,-20);
     lv_obj_set_style_bg_color(lap,lv_color_hex(0x303136),0);
     lv_obj_set_style_bg_color(lap,lv_color_hex(0x414249),LV_PART_MAIN | LV_STATE_PRESSED);
-    lv_obj_set_style_transition_time(lap,100,LV_PART_MAIN);
+
     lv_obj_set_style_radius(lap,24,0);
     lv_obj_set_style_shadow_width(lap,0,0);
     lv_obj_add_event_cb(lap,btn_lap_reset_cb,LV_EVENT_CLICKED,NULL);
