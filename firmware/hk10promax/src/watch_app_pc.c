@@ -1,5 +1,6 @@
 #include <rtthread.h>
 #include <dfs_fs.h>
+#include <SDL2/SDL.h>
 #include "gui_app_fwk.h"
 #include "littlevgl2rtt.h"
 #include "lv_ex_data.h"
@@ -90,6 +91,32 @@ int rt_wdt_init(void)
 }
 
 static struct rt_thread watch_thread;
+static volatile int pc_escape_requested;
+
+static int pc_simulator_event_watch(void *userdata, SDL_Event *event)
+{
+    (void)userdata;
+
+    if (event && event->type == SDL_KEYDOWN &&
+        event->key.keysym.sym == SDLK_ESCAPE && event->key.repeat == 0)
+    {
+        /* The SDL thread only signals; GUI navigation stays on the LVGL thread. */
+        pc_escape_requested = 1;
+    }
+
+    return 1;
+}
+
+static void pc_handle_escape(void)
+{
+    if (gui_app_is_actived("Watchface"))
+        return;
+
+    if (gui_app_is_actived("MainMenu"))
+        gui_app_run("Watchface");
+    else
+        gui_app_goback();
+}
 ALIGN(RT_ALIGN_SIZE)
 static uint8_t watch_thread_stack[APP_WATCH_GUI_TASK_STACK_SIZE];
 
@@ -110,12 +137,21 @@ static void app_watch_entry(void *parameter)
     gui_app_init();
     gui_app_run(WATCHFACE_APP_NAME);
 
+    /* Observe SDL globally so Escape works from every simulator GUI app. */
+    SDL_AddEventWatch(pc_simulator_event_watch, NULL);
+
     lv_disp_trig_activity(NULL);
     boot_splash_show();
     lvsf_gesture_init(lv_layer_top());
 
     while (1)
     {
+        if (pc_escape_requested)
+        {
+            pc_escape_requested = 0;
+            pc_handle_escape();
+        }
+
         int delay = lv_timer_handler();
         if (delay > 0)
             rt_thread_mdelay(delay);
