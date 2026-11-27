@@ -5,6 +5,8 @@
 #include "littlevgl2rtt.h"
 #include "lv_ex_data.h"
 #include "lv_ext_resource_manager.h"
+
+LV_IMG_DECLARE(img_plum_logo_white);
 #include "lv_freetype.h"
 #include "utils/gl_styles.h"
 
