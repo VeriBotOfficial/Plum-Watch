@@ -46,7 +46,7 @@ static void timer_cb(lv_timer_t *t)
         rt_tick_t now = rt_tick_get();
         rt_tick_t elapsed_ticks = now - last_tick;
         last_tick = now;
-        total_ms += (uint32_t)rt_tick_to_millisecond(elapsed_ticks);
+        total_ms += (uint32_t)(((uint64_t)elapsed_ticks * 1000ULL) / RT_TICK_PER_SECOND);
         update_time_display();
     }
 }

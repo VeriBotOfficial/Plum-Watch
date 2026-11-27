@@ -4,5 +4,6 @@
   "Stopwatch": "Stopwatch",
   "Calculator": "Calculator",
   "HeartRate": "Heart Rate",
-  "HeartRateString": "Heart Rate"
+  "HeartRateString": "Heart Rate",
+  "Settings": "Settings"
 }

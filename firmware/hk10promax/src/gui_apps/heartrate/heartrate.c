@@ -30,6 +30,10 @@ static uint16_t bpm_max;
 
 static rt_device_t find_hr_device(void)
 {
+#if defined(BSP_USING_PC_SIMULATOR)
+    /* The Windows simulator has no physical heart-rate sensor device. */
+    return RT_NULL;
+#else
     static const char *names[] = {
         "hr_hrs33", "hr_vc32", "hr_gh30", "hr_pah80",
         "hr_sc7r3", "hr_sensor"
@@ -40,6 +44,7 @@ static rt_device_t find_hr_device(void)
         if (device) return device;
     }
     return RT_NULL;
+#endif
 }
 
 static void update_measurement_labels(uint16_t bpm)
@@ -62,6 +67,11 @@ static void update_measurement_labels(uint16_t bpm)
 
 static void measure_timer_cb(lv_timer_t *timer)
 {
+#if defined(BSP_USING_PC_SIMULATOR)
+    /* Keep the UI timer valid without compiling hardware-only sensor types. */
+    if (measuring && status_label)
+        lv_label_set_text(status_label, "Sensor unavailable in simulator");
+#else
     struct rt_sensor_data data;
     if (!measuring || !hr_device) return;
     memset(&data, 0, sizeof(data));
@@ -79,6 +89,7 @@ static void measure_timer_cb(lv_timer_t *timer)
         return;
     }
     update_measurement_labels(bpm);
+#endif
 }
 
 static void measure_button_cb(lv_event_t *e)
@@ -140,7 +151,7 @@ static void heartrate_ui_init(lv_obj_t *parent)
     bpm_label = lv_label_create(reading);
     lv_label_set_text(bpm_label, "--");
     lv_obj_set_style_text_color(bpm_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(bpm_label, &lv_font_montserrat_48, 0);
+    lv_obj_set_style_text_font(bpm_label, &lv_font_montserrat_36, 0);
     lv_obj_align(bpm_label, LV_ALIGN_CENTER, 0, -18);
 
     lv_obj_t *unit = lv_label_create(reading);
