@@ -31,14 +31,14 @@ static uint8_t watch_thread_stack[APP_WATCH_GUI_TASK_STACK_SIZE];
 static void boot_splash_set_opa(void *obj, int32_t opa)
 {
     lv_obj_t *splash = (lv_obj_t *)obj;
-    lv_obj_set_style_bg_opa(splash, (lv_opa_t)opa, 0);
-    /* LVGL object opacity is not inherited by ordinary child objects. */
-    for (uint32_t i = 0; i < 3; ++i)
-    {
-        lv_obj_t *part = lv_obj_get_child(splash, (int32_t)i);
-        if (part)
-            lv_obj_set_style_bg_opa(part, (lv_opa_t)opa, 0);
-    }
+    lv_obj_t *logo = lv_obj_get_child(splash, 0);
+    if (logo)
+        lv_obj_set_style_img_opa(logo, (lv_opa_t)opa, LV_PART_MAIN);
+}
+
+static void boot_splash_set_zoom(void *obj, int32_t zoom)
+{
+    lv_img_set_zoom((lv_obj_t *)obj, (uint16_t)zoom);
 }
 
 static void boot_splash_delete(lv_anim_t *anim)
@@ -57,45 +57,48 @@ static void boot_splash_show(void)
     lv_obj_set_style_bg_opa(splash, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(splash, 0, 0);
     lv_obj_set_style_radius(splash, 0, 0);
+    lv_obj_set_style_pad_all(splash, 0, 0);
     lv_obj_clear_flag(splash, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
-    /* Small vector plum mark: no bitmap or intermediate framebuffer required. */
-    lv_obj_t *berry_left = lv_obj_create(splash);
-    lv_obj_set_size(berry_left, 34, 38);
-    lv_obj_set_pos(berry_left, (LV_HOR_RES_MAX / 2) - 30, (LV_VER_RES_MAX / 2) - 15);
-    lv_obj_set_style_bg_color(berry_left, lv_color_hex(0x873DB5), 0);
-    lv_obj_set_style_bg_opa(berry_left, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(berry_left, 0, 0);
-    lv_obj_set_style_radius(berry_left, LV_RADIUS_CIRCLE, 0);
+    /* The white Plum mark is compiled with the normal LVGL image resources. */
+    lv_obj_t *logo = lv_img_create(splash);
+    lv_img_set_src(logo, LV_EXT_IMG_GET(img_plum_logo_white));
+    lv_img_set_pivot(logo, 64, 64);
+    lv_img_set_zoom(logo, 192);
+    lv_obj_align(logo, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_img_opa(logo, LV_OPA_TRANSP, LV_PART_MAIN);
 
-    lv_obj_t *berry_right = lv_obj_create(splash);
-    lv_obj_set_size(berry_right, 34, 38);
-    lv_obj_set_pos(berry_right, (LV_HOR_RES_MAX / 2) - 4, (LV_VER_RES_MAX / 2) - 15);
-    lv_obj_set_style_bg_color(berry_right, lv_color_hex(0xA95BD4), 0);
-    lv_obj_set_style_bg_opa(berry_right, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(berry_right, 0, 0);
-    lv_obj_set_style_radius(berry_right, LV_RADIUS_CIRCLE, 0);
+    /* A restrained scale-up and fade-in, followed by a short hold and fade. */
+    lv_anim_t zoom;
+    lv_anim_init(&zoom);
+    lv_anim_set_var(&zoom, logo);
+    lv_anim_set_exec_cb(&zoom, boot_splash_set_zoom);
+    lv_anim_set_values(&zoom, 192, LV_IMG_ZOOM_NONE);
+    lv_anim_set_time(&zoom, 700);
+    lv_anim_set_path_cb(&zoom, lv_anim_path_ease_out);
+    lv_anim_start(&zoom);
 
-    lv_obj_t *leaf = lv_obj_create(splash);
-    lv_obj_set_size(leaf, 23, 10);
-    lv_obj_set_pos(leaf, (LV_HOR_RES_MAX / 2) + 1, (LV_VER_RES_MAX / 2) - 29);
-    lv_obj_set_style_bg_color(leaf, lv_color_hex(0x75B85B), 0);
-    lv_obj_set_style_bg_opa(leaf, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(leaf, 0, 0);
-    lv_obj_set_style_radius(leaf, LV_RADIUS_CIRCLE, 0);
+    lv_anim_t fade_in;
+    lv_anim_init(&fade_in);
+    lv_anim_set_var(&fade_in, splash);
+    lv_anim_set_exec_cb(&fade_in, boot_splash_set_opa);
+    lv_anim_set_values(&fade_in, LV_OPA_TRANSP, LV_OPA_COVER);
+    lv_anim_set_delay(&fade_in, 100);
+    lv_anim_set_time(&fade_in, 450);
+    lv_anim_set_path_cb(&fade_in, lv_anim_path_ease_out);
+    lv_anim_start(&fade_in);
 
-    uint32_t duration = 5000U + (rt_tick_get() % 3001U);
-    lv_anim_t fade;
-    lv_anim_init(&fade);
-    lv_anim_set_var(&fade, splash);
-    lv_anim_set_exec_cb(&fade, boot_splash_set_opa);
-    lv_anim_set_values(&fade, LV_OPA_COVER, LV_OPA_TRANSP);
-    lv_anim_set_delay(&fade, duration - 450U);
-    lv_anim_set_time(&fade, 450U);
-    lv_anim_set_ready_cb(&fade, boot_splash_delete);
-    lv_anim_start(&fade);
+    lv_anim_t fade_out;
+    lv_anim_init(&fade_out);
+    lv_anim_set_var(&fade_out, splash);
+    lv_anim_set_exec_cb(&fade_out, boot_splash_set_opa);
+    lv_anim_set_values(&fade_out, LV_OPA_COVER, LV_OPA_TRANSP);
+    lv_anim_set_delay(&fade_out, 1700);
+    lv_anim_set_time(&fade_out, 450);
+    lv_anim_set_path_cb(&fade_out, lv_anim_path_ease_in);
+    lv_anim_set_ready_cb(&fade_out, boot_splash_delete);
+    lv_anim_start(&fade_out);
 }
-
 #ifdef BSP_KEY1_ACTIVE_HIGH
     #define DOWN_BUTTON_ACTIVE_POL 1
 #else
