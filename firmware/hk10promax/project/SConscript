@@ -16,15 +16,6 @@ if GetBoardName() == 'pc_hcpu':
     pc_env = GetCurrentEnv()
     pc_env.AppendUnique(CCFLAGS=['/FIstdint.h'])
 
-    # watch_app_pc.c uses SDL's public event API for simulator-only keyboard
-    # shortcuts. The SDK ships SDL headers, but their location differs between
-    # SDK installations; discover the directory containing SDL2/SDL.h rather
-    # than assuming a machine-specific absolute path.
-    for root, dirs, files in os.walk(SIFLI_SDK):
-        if os.path.basename(root).lower() == 'sdl2' and 'SDL.h' in files:
-            pc_env.AppendUnique(CPPPATH=[os.path.dirname(root)])
-            break
-
 objs.extend(SConscript(os.path.join(SIFLI_SDK, 'SConscript'), variant_dir="sifli_sdk", duplicate=0))
 
 # Add application source code
