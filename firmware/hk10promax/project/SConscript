@@ -7,6 +7,14 @@ list = os.listdir(cwd)
 
 # Add SDK
 Import('SIFLI_SDK')
+
+# The SiFli v2.4 RT-Thread watchdog and motor headers use uint32_t/uint8_t
+# without including <stdint.h>. MSVC does not get these typedefs indirectly.
+# Force-include the standard header for the PC simulator only; leave the
+# physical watch firmware toolchain and its include order unchanged.
+if GetBoardName() == 'pc_hcpu':
+    GetCurrentEnv().AppendUnique(CCFLAGS=['/FIstdint.h'])
+
 objs.extend(SConscript(os.path.join(SIFLI_SDK, 'SConscript'), variant_dir="sifli_sdk", duplicate=0))
 
 # Add application source code
