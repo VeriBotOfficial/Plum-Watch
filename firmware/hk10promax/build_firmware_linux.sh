@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-FIRMWARE_ROOT="$(cd -- "$SCRIPT_DIR/../hk10promax" && pwd)"
+FIRMWARE_ROOT="$SCRIPT_DIR"
 PROJECT_DIR="$FIRMWARE_ROOT/project"
 SDK_ROOT="${SIFLI_SDK:-${1:-}}"
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
