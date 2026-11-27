@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "app/android/**"
+      - "firmware/android/**"
       - ".github/workflows/android-build.yml"
   workflow_dispatch:
 

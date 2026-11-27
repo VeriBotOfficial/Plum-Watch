@@ -365,7 +365,8 @@ fun MyWatchScreen(
     onOpenDeviceInfo: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenCamera: () -> Unit,
-    onOpenMusic: () -> Unit
+    onOpenMusic: () -> Unit,
+    onOpenSimulator: () -> Unit
 ) {
     val context = LocalContext.current
     val dashboardPreferences = remember(context) {
@@ -373,7 +374,7 @@ fun MyWatchScreen(
     }
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showDashboardEditor by remember { mutableStateOf(false) }
-    val allQuickFeatureNames = listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store")
+    val allQuickFeatureNames = listOf("Find Watch", "Alarms", "Health", "Battery", "Device info", "Notifications", "Camera", "Music", "Store", "Simulator")
     var quickOrder by remember {
         mutableStateOf(
             (dashboardPreferences.getString("quick_order", null)
@@ -530,6 +531,11 @@ fun MyWatchScreen(
                     subtitle = "Browse watchfaces and apps",
                     enabled = state.isConnected && state.supportsSifliWatchface,
                     onClick = { if (state.isConnected && state.supportsSifliWatchface) onOpenStore() }
+                ),
+                QuickFeature("Simulator", Icons.Outlined.Watch,
+                    subtitle = "Preview the watch interface",
+                    enabled = true,
+                    onClick = onOpenSimulator
                 )
             )
 

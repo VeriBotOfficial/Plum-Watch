@@ -103,7 +103,8 @@ private enum class AppPage(val label: String) {
     DEVICE_INFO("Device information"),
     NOTIFICATIONS("Notifications"),
     CAMERA("Camera"),
-    MUSIC("Music")
+    MUSIC("Music"),
+    SIMULATOR("Simulator")
 }
 
 @Composable
@@ -308,7 +309,8 @@ fun PlumWatchApp(
                                 onOpenDeviceInfo = { page = AppPage.DEVICE_INFO },
                                 onOpenNotifications = { page = AppPage.NOTIFICATIONS },
                                 onOpenCamera = { page = AppPage.CAMERA },
-                                onOpenMusic = { page = AppPage.MUSIC }
+                                onOpenMusic = { page = AppPage.MUSIC },
+                                onOpenSimulator = { page = AppPage.SIMULATOR }
                             )
                             AppPage.STORE -> StoreScreen(watchManager = watchManager, watchState = watchState)
                             AppPage.SETTINGS -> SettingsScreen(
@@ -341,6 +343,9 @@ fun PlumWatchApp(
                                 onBack = { page = AppPage.WATCH }
                             )
                             AppPage.MUSIC -> MusicScreen(
+                                onBack = { page = AppPage.WATCH }
+                            )
+                            AppPage.SIMULATOR -> FirmwareSimulatorScreen(
                                 onBack = { page = AppPage.WATCH }
                             )
                         }
@@ -531,6 +536,7 @@ private fun IconsForPage(page: AppPage): ImageVector = when (page) {
     AppPage.NOTIFICATIONS -> Icons.Outlined.Notifications
     AppPage.CAMERA -> Icons.Outlined.CameraAlt
     AppPage.MUSIC -> Icons.Outlined.MusicNote
+    AppPage.SIMULATOR -> Icons.Outlined.Watch
 }
 
 private fun missingBluetoothPermissions(context: android.content.Context): Array<String> {
