@@ -58,7 +58,6 @@ jobs:
           path: |
             ~\SiFli-SDK
             ~\.sifli
-            ~\.cache\uv
           key: sifli-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
           restore-keys: |
             sifli-v2.4-windows-${{ runner.arch }}-
@@ -108,8 +107,8 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            ~\\SiFli-SDK
-            ~\\.sifli
+            ~\SiFli-SDK
+            ~\.sifli
           key: sifli-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
 
       - name: Build watch firmware
