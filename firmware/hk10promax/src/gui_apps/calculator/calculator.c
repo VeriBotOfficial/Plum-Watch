@@ -132,7 +132,7 @@ static void btn_click_cb(lv_event_t *e)
         {
             num1 = atof(expr_buf);
         }
-        op = (txt[0] == '×') ? '*' : ((txt[0] == '÷') ? '/' : txt[0]);
+        op = (strcmp(txt, "×") == 0) ? '*' : ((strcmp(txt, "÷") == 0) ? '/' : txt[0]);
         new_num = true;
     }
     else if (strcmp(txt, "=") == 0)
