@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$env:SIFLI_SDK_SHELL = "pwsh.exe"
 $FirmwareRoot = (Resolve-Path $PSScriptRoot).Path
 $ProjectDir = Join-Path $FirmwareRoot "project"
 

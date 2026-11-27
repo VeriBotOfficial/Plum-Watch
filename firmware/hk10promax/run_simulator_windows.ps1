@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$env:SIFLI_SDK_SHELL = "pwsh.exe"
 $FirmwareRoot = $PSScriptRoot
 $RepositoryRoot = Split-Path -Parent (Split-Path -Parent $FirmwareRoot)
 $ProjectDir = Join-Path $FirmwareRoot "project"
