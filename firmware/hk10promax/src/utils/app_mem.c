@@ -773,6 +773,24 @@ void *ffmpeg_realloc(void *p, size_t new_size)
 
     return new_p;
 }
+#elif defined(BSP_USING_PC_SIMULATOR)
+/* The 64-bit Windows simulator must not use the watch allocator's 32-bit
+ * pointer alignment arithmetic. The simulator uses the RT-Thread host heap. */
+void *ffmpeg_alloc(size_t nbytes)
+{
+    return rt_malloc(nbytes);
+}
+
+void ffmpeg_free(void *p)
+{
+    if (p)
+        rt_free(p);
+}
+
+void *ffmpeg_realloc(void *p, size_t new_size)
+{
+    return rt_realloc(p, new_size);
+}
 #endif
 
 #ifdef LV_USING_FREETYPE_ENGINE

@@ -1,4 +1,5 @@
 #include <rtthread.h>
+#include <dfs_fs.h>
 #include "gui_app_fwk.h"
 #include "littlevgl2rtt.h"
 #include "lv_ex_data.h"
@@ -9,6 +10,15 @@
 #define APP_WATCH_GUI_TASK_STACK_SIZE (16 * 1024)
 #define LCD_DEVICE_NAME "lcd"
 #define WATCHFACE_APP_NAME "Watchface"
+
+/* The PC simulator has no physical flash filesystem mount table. */
+const struct dfs_mount_tbl mount_table[] = {{ RT_NULL, RT_NULL, RT_NULL, 0, RT_NULL }};
+
+/* The simulator has no physical watchdog peripheral. */
+int rt_wdt_init(void)
+{
+    return RT_EOK;
+}
 
 static struct rt_thread watch_thread;
 ALIGN(RT_ALIGN_SIZE)
@@ -61,4 +71,7 @@ int app_watch_init(void)
     return rt_thread_startup(&watch_thread);
 }
 
-INIT_APP_EXPORT(app_watch_init);
+int app_main(void)
+{
+    return app_watch_init();
+}
