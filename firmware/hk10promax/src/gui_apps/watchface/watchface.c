@@ -45,32 +45,32 @@ static void watchface_ui_init(lv_obj_t *parent)
 {
     lv_obj_t *root = lv_obj_create(parent);
     lv_obj_set_size(root, LV_HOR_RES_MAX, LV_VER_RES_MAX);
-    lv_obj_set_style_bg_color(root, lv_color_hex(0x09090B), 0);
+    lv_obj_set_style_bg_color(root, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(root, 0, 0);
     lv_obj_set_style_pad_all(root, 0, 0);
 
     lv_obj_t *brand = lv_label_create(root);
-    lv_label_set_text(brand, "PLUM WATCH");
-    lv_obj_set_style_text_color(brand, lv_color_hex(0xA45BE0), 0);
+    lv_label_set_text(brand, "PLUM");
+    lv_obj_set_style_text_color(brand, lv_color_hex(0xE5E5E7), 0);
     lv_obj_set_style_text_font(brand, &lv_font_montserrat_16, 0);
-    lv_obj_align(brand, LV_ALIGN_TOP_MID, 0, 72);
+    lv_obj_align(brand, LV_ALIGN_TOP_MID, 0, 54);
 
     date_label = lv_label_create(root);
     lv_obj_set_style_text_color(date_label, lv_color_hex(0xA1A1AA), 0);
     lv_obj_set_style_text_font(date_label, &lv_font_montserrat_16, 0);
-    lv_obj_align(date_label, LV_ALIGN_CENTER, 0, -54);
+    lv_obj_align(date_label, LV_ALIGN_CENTER, 0, -58);
 
     time_label = lv_label_create(root);
     lv_obj_set_style_text_color(time_label, lv_color_hex(0xF4F4F5), 0);
     lv_obj_set_style_text_font(time_label, &lv_font_montserrat_36, 0);
-    lv_obj_align(time_label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(time_label, LV_ALIGN_CENTER, 0, -4);
 
     lv_obj_t *hint = lv_label_create(root);
     lv_label_set_text(hint, "Tap to open apps");
     lv_obj_set_style_text_color(hint, lv_color_hex(0x777780), 0);
-    lv_obj_set_style_text_font(hint, &lv_font_montserrat_14, 0);
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -62);
+    lv_obj_set_style_text_font(hint, &lv_font_montserrat_12, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -54);
 
     lv_obj_add_flag(root, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(root, open_menu_cb, LV_EVENT_CLICKED, NULL);
