@@ -6,7 +6,7 @@
 #include "lv_ex_data.h"
 #include "lv_ext_resource_manager.h"
 
-LV_IMG_DECLARE(img_plum_logo_white);
+LV_IMG_DECLARE(plum_logo_white);
 #include "lv_freetype.h"
 #include "utils/gl_styles.h"
 
@@ -44,7 +44,7 @@ static void boot_splash_show(void)
 
     /* The white Plum mark is compiled with the normal LVGL image resources. */
     lv_obj_t *logo = lv_img_create(splash);
-    lv_img_set_src(logo, LV_EXT_IMG_GET(img_plum_logo_white));
+    lv_img_set_src(logo, LV_EXT_IMG_GET(plum_logo_white));
     lv_img_set_pivot(logo, 64, 64);
     lv_img_set_zoom(logo, 192);
     lv_obj_align(logo, LV_ALIGN_CENTER, 0, 0);
