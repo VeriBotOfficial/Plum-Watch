@@ -688,16 +688,24 @@ static void icon_event_callback(lv_event_t *e)
         // Not to clear scroll_actived before icon receieve click event
         lv_event_stop_bubbling(e);
     }
+    else if ((LV_EVENT_PRESSED == event) &&
+             (!app_mainmenu_ctx.scroll_actived))
+    {
+        /* A restrained press-in gives the icon a tactile response. */
+        uint16_t zoom = lv_img_get_zoom(obj);
+        if (zoom > 0)
+            lv_img_set_zoom(obj, (uint16_t)(((uint32_t)zoom * 238) / 256));
+    }
+    else if (((LV_EVENT_RELEASED == event) ||
+              (LV_EVENT_PRESS_LOST == event)) &&
+             (!app_mainmenu_ctx.scroll_actived))
+    {
+        /* Restore the honeycomb's computed geometry before launching. */
+        app_mainmenu_icons_transform(true);
+    }
     else if ((LV_EVENT_SHORT_CLICKED == event) &&
              (!app_mainmenu_ctx.scroll_actived))
     {
-        // rt_kprintf("app mainmenu icon clickd\n");
-
-        /*
-         * Start the app expansion from the icon's current on-screen position.
-         * This removes the old two-stage interaction (scroll to centre, then
-         * launch) and gives a continuous icon-to-app transition.
-         */
         char *cmd = (char *)lv_obj_get_user_data(obj);
         if (cmd)
         {

@@ -52,7 +52,7 @@ static void watchface_ui_init(lv_obj_t *parent)
 
     lv_obj_t *brand = lv_label_create(root);
     lv_label_set_text(brand, "PLUM WATCH");
-    lv_obj_set_style_text_color(brand, lv_color_hex(0xB978E8), 0);
+    lv_obj_set_style_text_color(brand, lv_color_hex(0xA45BE0), 0);
     lv_obj_set_style_text_font(brand, &lv_font_montserrat_16, 0);
     lv_obj_align(brand, LV_ALIGN_TOP_MID, 0, 72);
 
@@ -81,7 +81,6 @@ static void watchface_ui_init(lv_obj_t *parent)
 
 static void on_start(void)
 {
-    cust_trans_anim_config(CUST_ANIM_TYPE_3, NULL);
     watchface_ui_init(lv_scr_act());
 }
 

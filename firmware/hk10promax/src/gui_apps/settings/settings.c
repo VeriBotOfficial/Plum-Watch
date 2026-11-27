@@ -143,7 +143,6 @@ static void settings_ui_init(lv_obj_t *parent)
 
 static void on_start(void)
 {
-    cust_trans_anim_config(CUST_ANIM_TYPE_3, NULL);
     settings_ui_init(lv_scr_act());
 }
 

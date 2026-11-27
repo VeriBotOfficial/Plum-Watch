@@ -69,7 +69,6 @@ static void gif_deinit(void)
 
 static void on_start(void)
 {
-    cust_trans_anim_config(CUST_ANIM_TYPE_3, NULL);
 
     lv_obj_t *scr = lv_scr_act();
     gif_init(scr);
@@ -77,11 +76,16 @@ static void on_start(void)
 
 static void on_resume(void)
 {
+#ifndef BSP_USING_PC_SIMULATOR
+    gif_resume();
+#endif
 }
 
 static void on_pause(void)
 {
-    gif_deinit();
+#ifndef BSP_USING_PC_SIMULATOR
+    gif_pause();
+#endif
 }
 
 static void on_stop(void)

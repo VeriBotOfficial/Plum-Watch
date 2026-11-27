@@ -177,7 +177,7 @@ static void heartrate_ui_init(lv_obj_t *parent)
 
     lv_obj_t *measure_button = lv_btn_create(root);
     lv_obj_set_size(measure_button, LV_HOR_RES_MAX - 64, 48);
-    lv_obj_set_style_bg_color(measure_button, lv_color_hex(0x8B4CC2), 0);
+    lv_obj_set_style_bg_color(measure_button, lv_color_hex(0xA45BE0), 0);
     lv_obj_set_style_radius(measure_button, 24, 0);
     measure_button_label = lv_label_create(measure_button);
     lv_label_set_text(measure_button_label, hr_device ? "Start" : "Unavailable");
@@ -205,7 +205,6 @@ static void heartrate_ui_init(lv_obj_t *parent)
 
 static void on_start(void)
 {
-    cust_trans_anim_config(CUST_ANIM_TYPE_3, NULL);
     heartrate_ui_init(lv_scr_act());
 }
 

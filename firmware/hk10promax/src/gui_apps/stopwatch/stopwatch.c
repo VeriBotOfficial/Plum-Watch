@@ -67,7 +67,7 @@ static void update_lap_list_ui(void)
         snprintf(buf, sizeof(buf), "Lap %d    %02lu:%02lu.%02lu", i + 1, (unsigned long)minutes, (unsigned long)seconds, (unsigned long)hundredths);
 
         lv_obj_t *item = lv_list_add_btn(lap_list, NULL, buf);
-        lv_obj_set_style_bg_color(item, lv_palette_darken(LV_PALETTE_GREY, 4), 0);
+        lv_obj_set_style_bg_color(item, lv_color_hex(0x1B1D22), 0);
         lv_obj_set_style_text_color(item, lv_color_white(), 0);
     }
 }
@@ -80,12 +80,12 @@ static void btn_start_pause_cb(lv_event_t *e)
     if (is_running)
     {
         lv_label_set_text(btn_start_pause_label, "Pause");
-        lv_obj_set_style_bg_color(btn_start_pause, lv_palette_main(LV_PALETTE_ORANGE), 0);
+        lv_obj_set_style_bg_color(btn_start_pause, lv_color_hex(0xA45BE0), 0);
     }
     else
     {
         lv_label_set_text(btn_start_pause_label, "Start");
-        lv_obj_set_style_bg_color(btn_start_pause, lv_palette_main(LV_PALETTE_GREEN), 0);
+        lv_obj_set_style_bg_color(btn_start_pause, lv_color_hex(0xA45BE0), 0);
     }
 }
 
@@ -111,7 +111,7 @@ static void btn_lap_reset_cb(lv_event_t *e)
         if (btn_start_pause_label)
         {
             lv_label_set_text(btn_start_pause_label, "Start");
-            lv_obj_set_style_bg_color(btn_start_pause, lv_palette_main(LV_PALETTE_GREEN), 0);
+            lv_obj_set_style_bg_color(btn_start_pause, lv_color_hex(0xA45BE0), 0);
         }
     }
 }
@@ -120,7 +120,7 @@ static void stopwatch_ui_init(lv_obj_t *parent)
 {
     lv_obj_t *cont = lv_obj_create(parent);
     lv_obj_set_size(cont, LV_HOR_RES_MAX, LV_VER_RES_MAX);
-    lv_obj_set_style_bg_color(cont, lv_color_black(), 0);
+    lv_obj_set_style_bg_color(cont, lv_color_hex(0x09090B), 0);
     lv_obj_set_style_border_width(cont, 0, 0);
 
     /* Title */
@@ -133,7 +133,7 @@ static void stopwatch_ui_init(lv_obj_t *parent)
     /* Main Time Display */
     time_label = lv_label_create(cont);
     lv_obj_align(time_label, LV_ALIGN_TOP_MID, 0, 70);
-    lv_obj_set_style_text_color(time_label, lv_palette_main(LV_PALETTE_LIGHT_BLUE), 0);
+    lv_obj_set_style_text_color(time_label, lv_color_hex(0xF4F4F5), 0);
     lv_obj_set_style_text_font(time_label, &lv_font_montserrat_36, 0);
     lv_label_set_text(time_label, "00:00.00");
 
@@ -141,14 +141,15 @@ static void stopwatch_ui_init(lv_obj_t *parent)
     lap_list = lv_list_create(cont);
     lv_obj_set_size(lap_list, LV_HOR_RES_MAX - 40, 160);
     lv_obj_align(lap_list, LV_ALIGN_TOP_MID, 0, 130);
-    lv_obj_set_style_bg_color(lap_list, lv_color_black(), 0);
+    lv_obj_set_style_bg_color(lap_list, lv_color_hex(0x1B1D22), 0);
     lv_obj_set_style_border_width(lap_list, 0, 0);
+    lv_obj_set_style_radius(lap_list, 18, 0);
 
     /* Circular WatchOS Action Buttons */
     btn_start_pause = lv_btn_create(cont);
     lv_obj_set_size(btn_start_pause, 100, 50);
     lv_obj_align(btn_start_pause, LV_ALIGN_BOTTOM_RIGHT, -30, -25);
-    lv_obj_set_style_bg_color(btn_start_pause, lv_palette_main(LV_PALETTE_GREEN), 0);
+    lv_obj_set_style_bg_color(btn_start_pause, lv_color_hex(0xA45BE0), 0);
     lv_obj_set_style_radius(btn_start_pause, 25, 0);
     lv_obj_add_event_cb(btn_start_pause, btn_start_pause_cb, LV_EVENT_CLICKED, NULL);
 
@@ -159,7 +160,7 @@ static void stopwatch_ui_init(lv_obj_t *parent)
     lv_obj_t *btn_lap_reset = lv_btn_create(cont);
     lv_obj_set_size(btn_lap_reset, 100, 50);
     lv_obj_align(btn_lap_reset, LV_ALIGN_BOTTOM_LEFT, 30, -25);
-    lv_obj_set_style_bg_color(btn_lap_reset, lv_palette_darken(LV_PALETTE_GREY, 3), 0);
+    lv_obj_set_style_bg_color(btn_lap_reset, lv_color_hex(0x303038), 0);
     lv_obj_set_style_radius(btn_lap_reset, 25, 0);
     lv_obj_add_event_cb(btn_lap_reset, btn_lap_reset_cb, LV_EVENT_CLICKED, NULL);
 
@@ -176,7 +177,6 @@ static void stopwatch_ui_init(lv_obj_t *parent)
 
 static void on_start(void)
 {
-    cust_trans_anim_config(CUST_ANIM_TYPE_3, NULL);
     total_ms = 0;
     is_running = false;
     last_tick = rt_tick_get();

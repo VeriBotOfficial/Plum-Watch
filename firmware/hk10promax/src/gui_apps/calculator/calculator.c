@@ -190,9 +190,11 @@ static void calc_ui_init(lv_obj_t *parent)
         "+/-", "0",  ".", "%"
     };
 
-    int start_y = 96;
-    int btn_size = 52;
-    int gap = 8;
+    int start_y = 100;
+    int gap = 6;
+    int width_limit = (LV_HOR_RES_MAX - 40 - 3 * gap) / 4;
+    int height_limit = (LV_VER_RES_MAX - start_y - 12 - 4 * gap) / 5;
+    int btn_size = LV_MIN(width_limit, height_limit);
     int start_x = (LV_HOR_RES_MAX - (4 * btn_size + 3 * gap)) / 2;
 
     for (int i = 0; i < 20; i++)
@@ -209,7 +211,7 @@ static void calc_ui_init(lv_obj_t *parent)
             strcmp(btn_map[i], "*") == 0 || strcmp(btn_map[i], "-") == 0 ||
             strcmp(btn_map[i], "+") == 0)
         {
-            lv_obj_set_style_bg_color(btn, lv_color_hex(0x8B4CC2), 0);
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0xA45BE0), 0);
         }
         else if (strcmp(btn_map[i], "AC") == 0 || strcmp(btn_map[i], "DEL") == 0)
         {
@@ -232,7 +234,6 @@ static void calc_ui_init(lv_obj_t *parent)
 
 static void on_start(void)
 {
-    cust_trans_anim_config(CUST_ANIM_TYPE_3, NULL);
     expr_buf[0] = '0';
     expr_buf[1] = '\0';
     num1 = 0;
