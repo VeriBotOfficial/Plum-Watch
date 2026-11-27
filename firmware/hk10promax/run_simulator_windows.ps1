@@ -84,9 +84,15 @@ try {
     $ExportScript = Join-Path $SdkRoot "export.ps1"
     if (Test-Path -LiteralPath $ExportScript) {
         Write-Host "[SiFli] Activating SDK environment..."
-        & $ExportScript -t gcc
-        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
-            throw "SiFli SDK environment activation failed with exit code $LASTEXITCODE."
+        Push-Location $SdkRoot
+        try {
+            & $ExportScript -t gcc
+            if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+                throw "SiFli SDK environment activation failed with exit code $LASTEXITCODE."
+            }
+        }
+        finally {
+            Pop-Location
         }
     }
     else {
