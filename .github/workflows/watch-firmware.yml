@@ -1,0 +1,52 @@
+name: Build Watch Firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      add_disk:
+        description: Include the optional filesystem disk image
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: watch-firmware-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build eh-lb525 watch firmware
+    runs-on: [self-hosted, Windows, X64]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build watch firmware
+        shell: powershell
+        run: |
+          if (-not $env:SIFLI_SDK) {
+            throw "Set SIFLI_SDK in the self-hosted runner environment."
+          }
+          $arguments = @()
+          if ("${{ inputs.add_disk }}" -eq "true") {
+            $arguments += "-AddDisk"
+          }
+          & .\firmware\hk10promax\build_firmware_windows.ps1 @arguments
+          if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+            throw "Watch firmware build failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Upload watch firmware outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: plum-watch-eh-lb525-firmware
+          path: |
+            firmware/hk10promax/project/build*/**
+            firmware/hk10promax/project/*.bin
+            firmware/hk10promax/project/*.hex
+            firmware/hk10promax/project/*.ftab
+          if-no-files-found: error
+          retention-days: 14

@@ -1,6 +1,7 @@
 param(
     [string]$SdkPath,
-    [int]$Jobs = [Environment]::ProcessorCount
+    [int]$Jobs = [Environment]::ProcessorCount,
+    [switch]$BuildOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -159,8 +160,13 @@ try {
         throw "Build completed, but the simulator executable was not found at $Simulator."
     }
 
-    Write-Host "[SiFli] Launching simulator..."
-    Start-Process -FilePath $Simulator -WorkingDirectory (Split-Path $Simulator) -Wait
+    if ($BuildOnly) {
+        Write-Host "[SiFli] Simulator build completed: $Simulator"
+    }
+    else {
+        Write-Host "[SiFli] Launching simulator..."
+        Start-Process -FilePath $Simulator -WorkingDirectory (Split-Path $Simulator) -Wait
+    }
 }
 catch {
     Write-Host "[Simulator] $($_.Exception.Message)" -ForegroundColor Red
