@@ -27,9 +27,15 @@ app_objs = SConscript(os.path.join(cwd, 'gui_apps/SConscript'), variant_dir="gui
 
 src.extend(app_objs)
 
-# #Add applications utils
-src.extend(SConscript(os.path.join(cwd, 'main/SConscript'), variant_dir="app_utils", duplicate=0))
-src.extend(SConscript(os.path.join(cwd, 'fs/SConscript'), variant_dir="fs", duplicate=0))
+# Add applications utils.
+# The PC simulator supplies its own startup and has no physical flash device.
+# Do not compile the firmware-only startup or flash filesystem there: those
+# sources include SoC flash/IO driver headers that are intentionally absent
+# from the pc_hcpu board. Keep them in the hardware firmware build.
+if not GetDepend('BSP_USING_PC_SIMULATOR'):
+    src.extend(SConscript(os.path.join(cwd, 'main/SConscript'), variant_dir="app_utils", duplicate=0))
+    src.extend(SConscript(os.path.join(cwd, 'fs/SConscript'), variant_dir="fs", duplicate=0))
+
 src.extend(SConscript(os.path.join(cwd, 'flashdb/SConscript'), variant_dir="flashdb", duplicate=0))
 src.extend(SConscript(os.path.join(cwd, 'perf/SConscript'), variant_dir="perf", duplicate=0))
 src.extend(SConscript(os.path.join(cwd, 'utils/SConscript'), variant_dir="utils", duplicate=0))
