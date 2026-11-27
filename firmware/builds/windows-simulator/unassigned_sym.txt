@@ -1,0 +1,6 @@
+RT_MAIN_THREAD_STACK_SIZE (defined at C:\Users\runneradmin\SiFli-SDK//rtos/rtthread/components/Kconfig:13) was assigned the value '4096' but got the value ''. Check these unsatisfied dependencies: RT_USING_USER_MAIN (=n). 
+RT_MAIN_THREAD_PRIORITY (defined at C:\Users\runneradmin\SiFli-SDK//rtos/rtthread/components/Kconfig:16) was assigned the value '19' but got the value ''. Check these unsatisfied dependencies: RT_USING_USER_MAIN (=n). 
+RT_USING_MTD_DHARA (defined at C:\Users\runneradmin\SiFli-SDK//rtos/rtthread/components/drivers/Kconfig:136) was assigned the value 'y' but got the value 'n'. Check these unsatisfied dependencies: RT_USING_MTD_NAND (=n). 
+BUTTON_MAX_NUM (defined at C:\Users\runneradmin\SiFli-SDK//middleware/Kconfig:286) was assigned the value '3' but got the value ''. Check these unsatisfied dependencies: USING_BUTTON_LIB (=n). 
+LXT_DISABLE (defined at C:\Users\runneradmin\SiFli-SDK//customer/boards/Kconfig_soc:53) was assigned the value 'y' but got the value 'n'. Check these unsatisfied dependencies: (!BSP_USING_PC_SIMULATOR) (=n). 
+DRV_EPIC_NEW_API (defined at C:\Users\runneradmin\SiFli-SDK//customer/boards/Kconfig_drv:1463) was assigned the value 'y' but got the value 'n'. Check these unsatisfied dependencies: BSP_USING_EPIC (=n). 

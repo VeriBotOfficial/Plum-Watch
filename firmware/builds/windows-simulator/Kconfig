@@ -1,0 +1,4 @@
+source "$SIFLI_SDK/Kconfig.v2"
+source "$SIFLI_SDK/customer/boards/Kconfig.v2"
+source "C:/Users/runneradmin/SiFli-SDK/customer/boards/pc/hcpu/Kconfig.board"
+source "Z:/firmware/hk10promax/project/Kconfig.proj"
