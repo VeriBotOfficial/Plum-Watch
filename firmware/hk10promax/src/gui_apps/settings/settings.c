@@ -11,10 +11,10 @@
 
 LV_IMG_DECLARE(img_settings);
 #define APP_ID "Settings"
-#define SETTINGS_BG 0x101114
-#define SETTINGS_CARD 0x1B1D22
+#define SETTINGS_BG 0x000000
+#define SETTINGS_CARD 0x222326
 #define SETTINGS_TEXT 0xF3F3F5
-#define SETTINGS_MUTED 0x92959D
+#define SETTINGS_MUTED 0x9A9BA0
 
 static rt_device_t settings_lcd;
 
@@ -59,7 +59,7 @@ static lv_obj_t *settings_card(lv_obj_t *parent, lv_coord_t height)
     lv_obj_set_style_bg_color(card, lv_color_hex(SETTINGS_CARD), 0);
     lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(card, 0, 0);
-    lv_obj_set_style_radius(card, 18, 0);
+    lv_obj_set_style_radius(card, 22, 0);
     lv_obj_set_style_pad_all(card, 14, 0);
     lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
     return card;
@@ -86,7 +86,13 @@ static void settings_ui_init(lv_obj_t *parent)
     lv_obj_t *title = lv_label_create(root);
     lv_label_set_text(title, "Settings");
     lv_obj_set_style_text_color(title, lv_color_hex(SETTINGS_TEXT), 0);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+
+    lv_obj_t *clock = lv_label_create(root);
+    lv_label_set_text(clock, "10:09");
+    lv_obj_set_style_text_color(clock, lv_color_hex(SETTINGS_TEXT), 0);
+    lv_obj_set_style_text_font(clock, &lv_font_montserrat_14, 0);
+    lv_obj_align(clock, LV_ALIGN_TOP_RIGHT, -2, 2);
 
     settings_section(root, "DISPLAY");
     lv_obj_t *display_card = settings_card(root, 112);
