@@ -1,6 +1,6 @@
 #include <rtthread.h>
 #include <dfs_fs.h>
-#include <SDL2/SDL.h>
+#include <windows.h>
 #include "gui_app_fwk.h"
 #include "littlevgl2rtt.h"
 #include "lv_ex_data.h"
@@ -93,18 +93,23 @@ int rt_wdt_init(void)
 static struct rt_thread watch_thread;
 static volatile int pc_escape_requested;
 
-static int pc_simulator_event_watch(void *userdata, SDL_Event *event)
+static void pc_poll_escape_key(void)
 {
-    (void)userdata;
+    static int was_down;
+    HWND foreground = GetForegroundWindow();
+    DWORD foreground_process = 0;
 
-    if (event && event->type == SDL_KEYDOWN &&
-        event->key.keysym.sym == SDLK_ESCAPE && event->key.repeat == 0)
-    {
-        /* The SDL thread only signals; GUI navigation stays on the LVGL thread. */
+    if (foreground)
+        GetWindowThreadProcessId(foreground, &foreground_process);
+
+    /* Ignore key presses when another application owns the foreground. */
+    int is_down = foreground_process == GetCurrentProcessId() &&
+                  (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+
+    if (is_down && !was_down)
         pc_escape_requested = 1;
-    }
 
-    return 1;
+    was_down = is_down;
 }
 
 static void pc_handle_escape(void)
@@ -137,15 +142,14 @@ static void app_watch_entry(void *parameter)
     gui_app_init();
     gui_app_run(WATCHFACE_APP_NAME);
 
-    /* Observe SDL globally so Escape works from every simulator GUI app. */
-    SDL_AddEventWatch(pc_simulator_event_watch, NULL);
-
     lv_disp_trig_activity(NULL);
     boot_splash_show();
     lvsf_gesture_init(lv_layer_top());
 
     while (1)
     {
+        pc_poll_escape_key();
+
         if (pc_escape_requested)
         {
             pc_escape_requested = 0;
