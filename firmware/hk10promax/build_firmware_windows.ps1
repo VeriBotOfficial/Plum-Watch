@@ -5,7 +5,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$FirmwareRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\hk10promax")).Path
+$FirmwareRoot = (Resolve-Path $PSScriptRoot).Path
 $ProjectDir = Join-Path $FirmwareRoot "project"
 
 if (-not $SdkPath) {
