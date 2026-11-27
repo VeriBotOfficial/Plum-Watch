@@ -693,21 +693,23 @@ static void icon_event_callback(lv_event_t *e)
     {
         // rt_kprintf("app mainmenu icon clickd\n");
 
-        lv_obj_add_flag(app_mainmenu_ctx.pg_obj, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_scroll_to_view(obj, LV_ANIM_ON);
-        app_mainmenu_ctx.anim_obj = obj;
-
-        // There is no scroll animation if the clicked icon was just at center
-        // of pg_obj
-        if (NULL == lv_anim_get(app_mainmenu_ctx.pg_obj, NULL))
+        /*
+         * Start the app expansion from the icon's current on-screen position.
+         * This removes the old two-stage interaction (scroll to centre, then
+         * launch) and gives a continuous icon-to-app transition.
+         */
+        char *cmd = (char *)lv_obj_get_user_data(obj);
+        if (cmd)
         {
-            // Send SCROLL_END msg manually
-#ifndef DISABLE_LVGL_V8
-            lv_event_send(app_mainmenu_ctx.pg_obj, LV_EVENT_SCROLL_END, NULL);
-#else
-            lv_obj_send_event(app_mainmenu_ctx.pg_obj, LV_EVENT_SCROLL_END,
-                              NULL);
-#endif
+            lv_area_t icon_coords;
+            lv_point_t pivot;
+            lv_obj_get_coords(obj, &icon_coords);
+            pivot.x = (icon_coords.x1 + icon_coords.x2) / 2;
+            pivot.y = (icon_coords.y1 + icon_coords.y2) / 2;
+
+            app_mainmenu_ctx.anim_obj = NULL;
+            cust_trans_anim_config(CUST_ANIM_TYPE_3, &pivot);
+            gui_app_run(cmd);
         }
     }
     else if (LV_EVENT_DELETE == event)
@@ -869,16 +871,21 @@ static inline int16_t reorder_clock_icon(int16_t idx, int16_t clock_idx,
 {
     uint16_t col, row;
 
-    // Fix 1st icon for clock
-    if (0 == strcmp("clock", builtin_app->id))
+    /*
+     * Keep Plum's own Watchface app at the honeycomb centre. The SDK's
+     * generic "clock" app is omitted so it cannot occupy or overlap it.
+     */
+    if (0 == strcmp("Watchface", builtin_app->id))
     {
         lv_obj_t *icon;
         layout_get_icon_col_row_by_idx(clock_idx, &col, &row);
-
-        icon = add_app_icon(page, "clock", builtin_app->icon, row, col);
-
+        icon = add_app_icon(page, "Watchface", builtin_app->icon, row, col);
         if (icon)
             lv_obj_move_to_index(icon, 0);
+    }
+    else if (0 == strcmp("clock", builtin_app->id))
+    {
+        /* Replaced by Plum's Watchface app in the centre slot. */
     }
     else if (0 == strcmp(APP_ID, builtin_app->id)) // skip main menu icon
     {}
