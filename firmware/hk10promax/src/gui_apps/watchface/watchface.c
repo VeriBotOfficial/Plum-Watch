@@ -58,12 +58,12 @@ static void watchface_ui_init(lv_obj_t *parent)
 
     date_label = lv_label_create(root);
     lv_obj_set_style_text_color(date_label, lv_color_hex(0xA1A1AA), 0);
-    lv_obj_set_style_text_font(date_label, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_font(date_label, &lv_font_montserrat_16, 0);
     lv_obj_align(date_label, LV_ALIGN_CENTER, 0, -54);
 
     time_label = lv_label_create(root);
     lv_obj_set_style_text_color(time_label, lv_color_hex(0xF4F4F5), 0);
-    lv_obj_set_style_text_font(time_label, &lv_font_montserrat_48, 0);
+    lv_obj_set_style_text_font(time_label, &lv_font_montserrat_36, 0);
     lv_obj_align(time_label, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_t *hint = lv_label_create(root);

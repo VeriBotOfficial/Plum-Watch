@@ -1,4 +1,5 @@
 #include "./datetime_utils.h"
+#include <rtdevice.h>
 
 #define KEY_LAST_DATETIME "last_datetime"
 
@@ -59,9 +60,10 @@ bool datetime_load(void)
     if (sscanf(datetime_str, "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour,
                &minute, &second) == 6)
     {
+#if !defined(BSP_USING_PC_SIMULATOR)
         set_date(year, month, day);
         set_time(hour, minute, second);
-
+#endif
         rt_kprintf("[datetime_utils] Loaded datetime: %s\n", datetime_str);
         return true;
     }

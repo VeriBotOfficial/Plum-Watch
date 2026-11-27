@@ -11,8 +11,10 @@ void load_configurations(rt_device_t lcd)
     // Current date and time
     if (!datetime_load())
     {
+#if !defined(BSP_USING_PC_SIMULATOR)
         set_date(2025, 1, 1);
         set_time(0, 0, 0);
+#endif
         datetime_save_current();
     }
 
