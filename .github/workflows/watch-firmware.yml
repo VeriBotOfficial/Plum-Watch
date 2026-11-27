@@ -19,34 +19,65 @@ concurrency:
 jobs:
   build:
     name: Build eh-lb525 watch firmware
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: windows-2022
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python and uv
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Cache SiFli toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\.sifli
+            ~\.cache\uv
+          key: sifli-v2.4-windows-${{ runner.arch }}-v1
+          restore-keys: |
+            sifli-v2.4-windows-${{ runner.arch }}-
+
+      - name: Install SiFli SDK
+        shell: pwsh
+        run: |
+          $Sdk = Join-Path $env:RUNNER_TEMP "SiFli-SDK"
+          git clone --depth 1 --branch release/v2.4 --recurse-submodules --shallow-submodules https://github.com/OpenSiFli/SiFli-SDK $Sdk
+          if ($LASTEXITCODE -ne 0) { throw "SiFli SDK checkout failed." }
+          $env:SIFLI_SDK = $Sdk
+          Push-Location $Sdk
+          try {
+            & .\install.ps1
+            if ($LASTEXITCODE -ne 0) { throw "SiFli SDK toolchain installation failed." }
+          }
+          finally {
+            Pop-Location
+          }
+          "SIFLI_SDK=$Sdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build watch firmware
-        shell: powershell
+        shell: pwsh
         run: |
-          if (-not $env:SIFLI_SDK) {
-            throw "Set SIFLI_SDK in the self-hosted runner environment."
-          }
           $arguments = @()
-          if ("${{ inputs.add_disk }}" -eq "true") {
-            $arguments += "-AddDisk"
-          }
+          if ("${{ inputs.add_disk }}" -eq "true") { $arguments += "-AddDisk" }
           & .\firmware\hk10promax\build_firmware_windows.ps1 @arguments
           if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
             throw "Watch firmware build failed with exit code $LASTEXITCODE."
           }
 
       - name: Publish watch firmware to firmware folder
-        shell: powershell
+        shell: pwsh
         run: |
           $Project = Join-Path $PWD "firmware\hk10promax\project"
           $Destination = Join-Path $PWD "firmware\builds\watch-firmware"
           $Extensions = @(".bin", ".hex", ".ftab", ".img", ".dfu", ".fls", ".pack", ".zip")
           $BuildDirectories = Get-ChildItem -LiteralPath $Project -Directory | Where-Object {
-            $_.Name -like "build*" -and $_.Name -ne "build_pc_hcpu"
+            $_.Name -like "build*"
           }
           $ProjectRootFiles = Get-ChildItem -LiteralPath $Project -File
           $BuildFiles = $BuildDirectories | ForEach-Object {
@@ -55,30 +86,28 @@ jobs:
           $Outputs = @($ProjectRootFiles) + @($BuildFiles) | Where-Object {
             $Extensions -contains $_.Extension.ToLowerInvariant()
           }
-          if (-not $Outputs) {
-            throw "No watch firmware output files were found in $Project."
-          }
+          if (-not $Outputs) { throw "No watch firmware output files were found in $Project." }
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin $env:GITHUB_REF_NAME
-          git reset --hard "origin/$env:GITHUB_REF_NAME"
           if (Test-Path -LiteralPath $Destination) {
             Remove-Item -LiteralPath $Destination -Recurse -Force
           }
           New-Item -ItemType Directory -Force -Path $Destination | Out-Null
           foreach ($File in $Outputs) {
-            $Relative = $File.FullName.Substring($Project.Length).TrimStart("\", "/")
+            $Relative = $File.FullName.Substring($Project.Length).TrimStart([char[]]@('\\', '/'))
             $Target = Join-Path $Destination $Relative
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Target) | Out-Null
             Copy-Item -LiteralPath $File.FullName -Destination $Target -Force
           }
 
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f firmware/builds/watch-firmware
           if (git diff --cached --quiet) {
             Write-Host "Watch firmware output is unchanged."
           }
           else {
-            git commit -m "[skip ci] Publish watch firmware to firmware"
+            git commit -m "[skip ci] Publish watch firmware"
+            git fetch origin $env:GITHUB_REF_NAME
+            git rebase "origin/$env:GITHUB_REF_NAME"
             git push origin "HEAD:$env:GITHUB_REF_NAME"
           }
