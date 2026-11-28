@@ -21,9 +21,13 @@ The two `lv_obj_align` call sites pass alignment value 1 (top-left) and these of
 
 The Red John profile is keyed to the internal module ID `wf_clock1003` (including its paired resource module), not to the archive name `Red John.zip`. Renaming that ZIP therefore does not disable the clock profile. It renders a static sample time as two rows, using the native glyph canvases. It does not add a colon or resize/crop the assets.
 
+## Analog profiles
+
+The `wf_clock932`, `wf_clock933`, and `wf_clock1004` modules expose the native analog hour, minute, and second hand setters and matching `_h`, `_m`, and `_s` resources. Their resources use the raw format-5 RGB565-plus-alpha encoding handled by `ezip_preview.py`. The catalogue renderer now composes these three verified hand families over their own decoded backgrounds, using the shared 410 × 494 resource pivot and a sample time. It does not reuse the Red John digital layout.
+
 ## Known limitations
 
-Red John's profile must not be reused for any other face. One-row digital and analogue faces still need their own module analysis and renderer profile. Until then, the catalogue deliberately leaves their original background untouched. Pixel-for-pixel comparison against a photograph of each physical watchface is also still needed to validate renderer-specific padding and composition.
+The `wf_clock935` digital-complication module is identified from its imports and resource families, but its exact runtime layout and complication positions have not yet been reconstructed. It therefore remains a background-only preview. Pixel-for-pixel comparison against photographs of the physical watchfaces is still needed to validate renderer-specific padding, pivot offsets, and animation timing.
 
 
 ## Additional native formats
