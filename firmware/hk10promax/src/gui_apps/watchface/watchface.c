@@ -6,7 +6,6 @@
 #include "lvsf.h"
 #include <lv_ext_resource_manager.h>
 #include <rtthread.h>
-#include <dfs_posix.h>
 #include "gui_app_fwk.h"
 #include "littlevgl2rtt.h"
 #include "custom_trans_anim.h"
@@ -62,6 +61,7 @@ static uint8_t background_frame;
 static uint8_t background_frame_count;
 static bool selector_open;
 static char background_path[160];
+static int8_t last_digits[4] = {-1, -1, -1, -1};
 
 static const char *weekdays[] = {
     "SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY",
@@ -166,8 +166,13 @@ static void update_split_digits(const struct tm *now)
         snprintf(path, sizeof(path), "/watchfaces/%s/%s_res_time_num_%02d.bin",
                  packages[active_package].id,
                  packages[active_package].module, values[i] + 1);
-        lv_img_set_src(time_digits[i], path);
+        if (last_digits[i] != values[i])
+        {
+            lv_img_set_src(time_digits[i], path);
+            last_digits[i] = (int8_t)values[i];
+        }
         lv_img_set_zoom(time_digits[i], zoom);
+        lv_img_set_pivot(time_digits[i], 0, 0);
         lv_obj_set_pos(time_digits[i], x_offsets[i], y_offsets[i]);
     }
 }
@@ -190,9 +195,6 @@ static void update_analog_hands(const struct tm *now)
 
     for (int i = 0; i < 3; ++i)
     {
-        char path[160];
-        make_resource_path(path, sizeof(path), suffixes[i]);
-        lv_img_set_src(analog_hands[i], path);
         lv_img_set_zoom(analog_hands[i], zoom);
         lv_img_set_pivot(analog_hands[i], 205, 435);
         lv_img_set_angle(analog_hands[i], angles[i]);
@@ -234,7 +236,7 @@ static void clear_face_objects(void)
     weekday_label = NULL;
     date_label = NULL;
     footer_label = NULL;
-    for (int i = 0; i < 4; ++i) time_digits[i] = NULL;
+    for (int i = 0; i < 4; ++i) { time_digits[i] = NULL; last_digits[i] = -1; }
     for (int i = 0; i < 3; ++i) analog_hands[i] = NULL;
 }
 
@@ -259,6 +261,7 @@ static void build_package_face(void)
         {
             time_digits[i] = lv_img_create(root);
             lv_obj_clear_flag(time_digits[i], LV_OBJ_FLAG_CLICKABLE);
+            last_digits[i] = -1;
         }
     }
     else if (package->type == WF_PACKAGE_ANALOG)
@@ -267,6 +270,8 @@ static void build_package_face(void)
         {
             analog_hands[i] = lv_img_create(root);
             lv_obj_clear_flag(analog_hands[i], LV_OBJ_FLAG_CLICKABLE);
+            make_resource_path(path, sizeof(path), i == 0 ? "h.bin" : (i == 1 ? "m.bin" : "s.bin"));
+            lv_img_set_src(analog_hands[i], path);
         }
     }
 
