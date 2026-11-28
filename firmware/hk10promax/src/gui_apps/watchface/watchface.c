@@ -376,6 +376,26 @@ static void face_transition(void)
     build_package_face();
     if (!background_image) build_fallback_face();
     update_clock_cb(NULL);
+
+    lv_obj_set_style_opa(root, LV_OPA_TRANSP, 0);
+    lv_obj_set_y(root, 10);
+    lv_anim_t fade;
+    lv_anim_init(&fade);
+    lv_anim_set_var(&fade, root);
+    lv_anim_set_exec_cb(&fade, face_opa_exec);
+    lv_anim_set_values(&fade, LV_OPA_TRANSP, LV_OPA_COVER);
+    lv_anim_set_time(&fade, 260);
+    lv_anim_set_path_cb(&fade, lv_anim_path_ease_out);
+    lv_anim_start(&fade);
+
+    lv_anim_t rise;
+    lv_anim_init(&rise);
+    lv_anim_set_var(&rise, root);
+    lv_anim_set_exec_cb(&rise, face_y_exec);
+    lv_anim_set_values(&rise, 10, 0);
+    lv_anim_set_time(&rise, 300);
+    lv_anim_set_path_cb(&rise, lv_anim_path_ease_out);
+    lv_anim_start(&rise);
 }
 
 static void package_button_cb(lv_event_t *event)
@@ -413,6 +433,16 @@ static void add_package_button(lv_obj_t *parent, uint8_t index, lv_coord_t y)
 
     lv_obj_add_event_cb(button, package_button_cb, LV_EVENT_CLICKED,
                         (void *)(uintptr_t)index);
+}
+
+static void face_opa_exec(void *object, int32_t opa)
+{
+    lv_obj_set_style_opa((lv_obj_t *)object, (lv_opa_t)opa, 0);
+}
+
+static void face_y_exec(void *object, int32_t y)
+{
+    lv_obj_set_y((lv_obj_t *)object, (lv_coord_t)y);
 }
 
 static void selector_opa_exec(void *object, int32_t opa)
