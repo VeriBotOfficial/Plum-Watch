@@ -5,10 +5,10 @@
 typedef struct
 {
     lv_i18n_phrase_t WatchfaceString;
-    lv_i18n_phrase_t Calculator;
-    lv_i18n_phrase_t Settings;
-    lv_i18n_phrase_t MainMenuString;
     lv_i18n_phrase_t HeartRateString;
+    lv_i18n_phrase_t Settings;
+    lv_i18n_phrase_t Calculator;
+    lv_i18n_phrase_t MainMenuString;
     lv_i18n_phrase_t Stopwatch;
     lv_i18n_phrase_t HeartRate;
 } lang_translation_t;
