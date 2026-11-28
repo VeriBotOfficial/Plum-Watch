@@ -54,6 +54,7 @@ static lv_obj_t *analog_hands[3];
 static lv_obj_t *weekday_label;
 static lv_obj_t *date_label;
 static lv_obj_t *footer_label;
+static lv_obj_t *fallback_time_label;
 static lv_timer_t *clock_timer;
 static lv_timer_t *background_timer;
 static uint8_t active_package = 3;
@@ -209,6 +210,12 @@ static void update_clock_cb(lv_timer_t *timer)
 
     if (weekday_label)
         lv_label_set_text(weekday_label, weekdays[now->tm_wday % 7]);
+    if (fallback_time_label)
+    {
+        char time_text[8];
+        snprintf(time_text, sizeof(time_text), "%02d:%02d", now->tm_hour, now->tm_min);
+        lv_label_set_text(fallback_time_label, time_text);
+    }
     if (date_label)
     {
         char date[20];
@@ -235,6 +242,7 @@ static void clear_face_objects(void)
     weekday_label = NULL;
     date_label = NULL;
     footer_label = NULL;
+    fallback_time_label = NULL;
     for (int i = 0; i < 4; ++i) { time_digits[i] = NULL; last_digits[i] = -1; }
     for (int i = 0; i < 3; ++i) analog_hands[i] = NULL;
 }
@@ -334,6 +342,7 @@ static void face_transition(void)
     lv_obj_clean(root);
     clear_face_objects();
     build_package_face();
+    if (!background_image) build_fallback_face();
     update_clock_cb(NULL);
 }
 
@@ -441,6 +450,33 @@ static void root_event_cb(lv_event_t *event)
         open_menu_cb(event);
 }
 
+static void build_fallback_face(void)
+{
+    weekday_label = lv_label_create(root);
+    lv_label_set_text(weekday_label, "MONDAY");
+    lv_obj_set_style_text_color(weekday_label, lv_color_hex(WF_ACCENT), 0);
+    lv_obj_set_style_text_font(weekday_label, &lv_font_montserrat_12, 0);
+    lv_obj_align(weekday_label, LV_ALIGN_TOP_MID, 0, 74);
+
+    fallback_time_label = lv_label_create(root);
+    lv_label_set_text(fallback_time_label, "--:--");
+    lv_obj_set_style_text_color(fallback_time_label, lv_color_hex(WF_TEXT), 0);
+    lv_obj_set_style_text_font(fallback_time_label, &lv_font_montserrat_36, 0);
+    lv_obj_align(fallback_time_label, LV_ALIGN_CENTER, 0, -8);
+
+    date_label = lv_label_create(root);
+    lv_label_set_text(date_label, "JAN 01");
+    lv_obj_set_style_text_color(date_label, lv_color_hex(WF_MUTED), 0);
+    lv_obj_set_style_text_font(date_label, &lv_font_montserrat_16, 0);
+    lv_obj_align(date_label, LV_ALIGN_CENTER, 0, 36);
+
+    lv_obj_t *hint = lv_label_create(root);
+    lv_label_set_text(hint, "HOLD TO CHANGE");
+    lv_obj_set_style_text_color(hint, lv_color_hex(0x555963), 0);
+    lv_obj_set_style_text_font(hint, &lv_font_montserrat_12, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -18);
+}
+
 static void watchface_ui_init(lv_obj_t *parent)
 {
     root = lv_obj_create(parent);
@@ -457,13 +493,7 @@ static void watchface_ui_init(lv_obj_t *parent)
 
     build_package_face();
     if (!background_image)
-    {
-        lv_obj_t *fallback = lv_label_create(root);
-        lv_label_set_text(fallback, "Watchface resources unavailable");
-        lv_obj_set_style_text_color(fallback, lv_color_hex(WF_TEXT), 0);
-        lv_obj_set_style_text_font(fallback, &lv_font_montserrat_16, 0);
-        lv_obj_center(fallback);
-    }
+        build_fallback_face();
 }
 
 static void on_start(void)
