@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <math.h>
+#include <stdint.h>
 #include "rtconfig.h"
 #include "lvsf.h"
 #include <lv_ext_resource_manager.h>
@@ -98,8 +100,7 @@ static void update_time_cb(lv_timer_t *timer)
     char seconds_text[4];
 
     snprintf(time_text, sizeof(time_text), "%02d:%02d", local->tm_hour, local->tm_min);
-    snprintf(date_text, sizeof(date_text), "%s %d %s",
-             months[local->tm_mon % 12], local->tm_mday, " ");
+    snprintf(date_text, sizeof(date_text), "%s %d", months[local->tm_mon % 12], local->tm_mday);
     snprintf(seconds_text, sizeof(seconds_text), "%02d", local->tm_sec);
 
     if (time_label) lv_label_set_text(time_label, time_text);
@@ -161,16 +162,21 @@ static void add_style_button(lv_obj_t *parent, const char *name, const char *des
     lv_obj_t *title = lv_label_create(button);
     lv_label_set_text(title, name);
     lv_obj_set_style_text_color(title, lv_color_hex(WF_TEXT), 0);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
     lv_obj_align(title, LV_ALIGN_LEFT_MID, 12, -7);
 
     lv_obj_t *detail = lv_label_create(button);
     lv_label_set_text(detail, description);
     lv_obj_set_style_text_color(detail, lv_color_hex(WF_MUTED), 0);
-    lv_obj_set_style_text_font(detail, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(detail, &lv_font_montserrat_12, 0);
     lv_obj_align(detail, LV_ALIGN_LEFT_MID, 12, 11);
 
     lv_obj_add_event_cb(button, style_button_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)style);
+}
+
+static void selector_opa_exec(void *obj, int32_t opa)
+{
+    lv_obj_set_style_opa((lv_obj_t *)obj, (lv_opa_t)opa, 0);
 }
 
 static void show_selector(void)
@@ -213,7 +219,7 @@ static void show_selector(void)
     lv_anim_t anim;
     lv_anim_init(&anim);
     lv_anim_set_var(&anim, selector);
-    lv_anim_set_exec_cb(&anim, (lv_anim_exec_xcb_t)lv_obj_set_style_opa);
+    lv_anim_set_exec_cb(&anim, selector_opa_exec);
     lv_anim_set_values(&anim, LV_OPA_TRANSP, LV_OPA_COVER);
     lv_anim_set_time(&anim, 220);
     lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
@@ -231,7 +237,10 @@ static void root_event_cb(lv_event_t *e)
 
 void watchface_build_ui(void)
 {
-    root = lv_obj_create(lv_scr_act());
+    if (!root)
+        root = lv_obj_create(lv_scr_act());
+    else
+        lv_obj_clean(root);
     lv_obj_set_size(root, LV_HOR_RES_MAX, LV_VER_RES_MAX);
     lv_obj_set_pos(root, 0, 0);
     lv_obj_set_style_bg_color(root, lv_color_hex(WF_BG), 0);
@@ -240,8 +249,11 @@ void watchface_build_ui(void)
     lv_obj_set_style_radius(root, 0, 0);
     lv_obj_set_style_pad_all(root, 0, 0);
     lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(root, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(root, root_event_cb, LV_EVENT_ALL, NULL);
+    if (!lv_obj_has_flag(root, LV_OBJ_FLAG_CLICKABLE))
+    {
+        lv_obj_add_flag(root, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(root, root_event_cb, LV_EVENT_ALL, NULL);
+    }
 
     if (active_style == WF_STYLE_ANALOG)
     {
@@ -305,7 +317,7 @@ void watchface_build_ui(void)
         time_label = lv_label_create(root);
         lv_label_set_text(time_label, "09:41");
         lv_obj_set_style_text_color(time_label, lv_color_hex(WF_TEXT), 0);
-        lv_obj_set_style_text_font(time_label, active_style == WF_STYLE_MINIMAL ? &lv_font_montserrat_36 : &lv_font_montserrat_48, 0);
+        lv_obj_set_style_text_font(time_label, active_style == WF_STYLE_MINIMAL ? &lv_font_montserrat_36 : &lv_font_montserrat_36, 0);
         lv_obj_align(time_label, LV_ALIGN_CENTER, 0, active_style == WF_STYLE_MINIMAL ? -4 : 0);
 
         seconds_label = lv_label_create(root);
