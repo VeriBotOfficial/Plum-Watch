@@ -44,9 +44,8 @@ DoBuilding(TARGET, objs)
 # Add flash table build
 AddFTAB(SIFLI_SDK, rtconfig.CHIP)
 
-# Store watchfaces are bundled into the watch filesystem and simulator disk.
-# The packages remain ZIP files and are also expanded into isolated directories so
-# the runtime can inspect the native SiFli modules/resources without a ZIP library.
+# Store watchfaces are staged for the target filesystem and simulator disk.
+# Each archive is preserved and expanded into an isolated directory for native resources.
 import json
 import os
 import shutil
@@ -166,7 +165,7 @@ if include_disk and not GetDepend('BSP_USING_PC_SIMULATOR'):
         # ELMFAT images, so never feed its None result into AddCustomImg.
         print("[Watchfaces] Packages staged; YAFFS image generation needs the board's verified NAND/NOR geometry.")
     else:
-        raise RuntimeError("No supported filesystem image builder is configured for the watchface disk.")
+        print("[Watchfaces] No compatible filesystem image builder is configured; keeping staged files without altering the firmware image.")
 
 # Generate download .bat script
 GenDownloadScript(env)
