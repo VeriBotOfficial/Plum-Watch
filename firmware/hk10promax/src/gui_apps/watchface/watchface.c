@@ -64,6 +64,7 @@ static bool selector_open;
 static char background_path[160];
 static char digit_paths[4][160];
 static char hand_paths[3][160];
+static char resource_root[128];
 
 static void build_fallback_face(void);
 static int8_t last_digits[4] = {-1, -1, -1, -1};
@@ -95,11 +96,28 @@ static uint16_t resource_zoom(void)
     return (uint16_t)zoom;
 }
 
+static void resolve_resource_root(void)
+{
+    const watchface_package_t *package = &packages[active_package];
+    char candidate[160];
+
+    snprintf(resource_root, sizeof(resource_root), "/watchfaces/%s/installer", package->id);
+    snprintf(candidate, sizeof(candidate), "%s/%s_res_bg0.bin", resource_root, package->module);
+    if (path_exists(candidate)) return;
+    snprintf(candidate, sizeof(candidate), "%s/%s_res_bg.bin", resource_root, package->module);
+    if (path_exists(candidate)) return;
+    snprintf(candidate, sizeof(candidate), "%s/%s_res_bg1.bin", resource_root, package->module);
+    if (path_exists(candidate)) return;
+
+    /* A face installed over BLE is stored in the watch's active installer path. */
+    snprintf(resource_root, sizeof(resource_root), "/dyn/dynamic_app/watchface/installer");
+}
+
 static void make_resource_path(char *out, size_t capacity, const char *suffix)
 {
     const watchface_package_t *package = &packages[active_package];
-    snprintf(out, capacity, "/watchfaces/%s/installer/%s_res_%s",
-             package->id, package->module, suffix);
+    snprintf(out, capacity, "%s/%s_res_%s",
+             resource_root, package->module, suffix);
 }
 
 static bool set_background_frame(uint8_t frame)
@@ -170,9 +188,8 @@ static void update_split_digits(const struct tm *now)
     for (int i = 0; i < 4; ++i)
     {
         /* SiFli time_num resources are one-based: 01 is digit zero. */
-        snprintf(path, sizeof(path), "/watchfaces/%s/installer/%s_res_time_num_%02d.bin",
-                 packages[active_package].id,
-                 packages[active_package].module, values[i] + 1);
+        snprintf(path, sizeof(path), "%s/%s_res_time_num_%02d.bin",
+                 resource_root, packages[active_package].module, values[i] + 1);
         if (last_digits[i] != values[i])
         {
             strncpy(digit_paths[i], path, sizeof(digit_paths[i]) - 1);
@@ -258,6 +275,7 @@ static void clear_face_objects(void)
 static bool package_resources_ready(void)
 {
     char path[160];
+    resolve_resource_root();
     const watchface_package_t *package = &packages[active_package];
 
     if (package->type == WF_PACKAGE_SPLIT_DIGITAL)
@@ -265,8 +283,8 @@ static bool package_resources_ready(void)
         for (int digit = 1; digit <= 10; ++digit)
         {
             snprintf(path, sizeof(path),
-                     "/watchfaces/%s/installer/%s_res_time_num_%02d.bin",
-                     package->id, package->module, digit);
+                     "%s/%s_res_time_num_%02d.bin",
+                     resource_root, package->module, digit);
             if (!path_exists(path)) return false;
         }
     }
