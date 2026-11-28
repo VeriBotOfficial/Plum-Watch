@@ -86,22 +86,14 @@ static void settings_clock_update(lv_timer_t *timer)
 static void settings_animate_in(lv_obj_t *obj)
 {
     lv_anim_t anim;
-    lv_anim_init(&anim);
-    lv_anim_set_var(&anim, obj);
-    lv_anim_set_values(&anim, 14, 0);
-    lv_anim_set_time(&anim, 190);
-    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
-    lv_anim_set_exec_cb(&anim, (lv_anim_exec_xcb_t)lv_obj_set_x);
-    lv_anim_start(&anim);
-
     lv_obj_set_style_opa(obj, LV_OPA_TRANSP, 0);
     lv_anim_init(&anim);
     lv_anim_set_var(&anim, obj);
     lv_anim_set_values(&anim, LV_OPA_TRANSP, LV_OPA_COVER);
-    lv_anim_set_time(&anim, 190);
+    lv_anim_set_time(&anim, 150);
     lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
     lv_anim_set_exec_cb(&anim, settings_opa_anim);
-    lv_anim_set_delay(&anim, 10);
+    lv_anim_set_delay(&anim, 8);
     lv_anim_start(&anim);
 }
 
@@ -113,8 +105,8 @@ static lv_obj_t *settings_card(lv_obj_t *parent, lv_coord_t height)
     lv_obj_set_style_bg_color(card, lv_color_hex(SETTINGS_CARD), 0);
     lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(card, 0, 0);
-    lv_obj_set_style_radius(card, 19, 0);
-    lv_obj_set_style_pad_all(card, 14, 0);
+    lv_obj_set_style_radius(card, 18, 0);
+    lv_obj_set_style_pad_all(card, 12, 0);
     lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
     return card;
 }
@@ -165,9 +157,10 @@ static void settings_back_event(lv_event_t *e)
 
 static void settings_add_menu_row(const char *title, const char *subtitle, int page, uint32_t accent)
 {
+    (void)subtitle;
     lv_obj_t *row = lv_btn_create(settings_content);
     lv_obj_set_width(row, LV_PCT(100));
-    lv_obj_set_height(row, 68);
+    lv_obj_set_height(row, 64);
     lv_obj_set_style_bg_color(row, lv_color_hex(SETTINGS_CARD), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(row, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_bg_color(row, lv_color_hex(0x303238), LV_PART_MAIN | LV_STATE_PRESSED);
@@ -181,38 +174,40 @@ static void settings_add_menu_row(const char *title, const char *subtitle, int p
     lv_obj_set_size(icon, 34, 34);
     lv_obj_set_style_radius(icon, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(icon, lv_color_hex(accent), 0);
-    lv_obj_set_style_bg_opa(icon, LV_OPA_30, 0);
+    lv_obj_set_style_bg_opa(icon, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(icon, 0, 0);
     lv_obj_align(icon, LV_ALIGN_LEFT_MID, 12, 0);
     lv_obj_clear_flag(icon, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *dot = lv_obj_create(icon);
-    lv_obj_set_size(dot, 10, 10);
-    lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(dot, lv_color_hex(accent), 0);
-    lv_obj_set_style_border_width(dot, 0, 0);
-    lv_obj_center(dot);
+    const char *symbol = "•";
+    switch (page)
+    {
+    case SETTINGS_PAGE_GENERAL: symbol = "G"; break;
+    case SETTINGS_PAGE_DISPLAY: symbol = "D"; break;
+    case SETTINGS_PAGE_TIME: symbol = "T"; break;
+    case SETTINGS_PAGE_STORAGE: symbol = "S"; break;
+    case SETTINGS_PAGE_ABOUT: symbol = "i"; break;
+    default: break;
+    }
+    lv_obj_t *glyph = lv_label_create(icon);
+    lv_label_set_text(glyph, symbol);
+    lv_obj_set_style_text_color(glyph, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_font(glyph, &lv_font_montserrat_16, 0);
+    lv_obj_center(glyph);
 
     lv_obj_t *name = lv_label_create(row);
     lv_label_set_text(name, title);
     lv_obj_set_style_text_color(name, lv_color_hex(SETTINGS_TEXT), 0);
     lv_obj_set_style_text_font(name, &lv_font_montserrat_16, 0);
-    lv_obj_align(name, LV_ALIGN_LEFT_MID, 56, subtitle ? -9 : 0);
-
-    if (subtitle)
-    {
-        lv_obj_t *detail = lv_label_create(row);
-        lv_label_set_text(detail, subtitle);
-        lv_obj_set_style_text_color(detail, lv_color_hex(SETTINGS_MUTED), 0);
-        lv_obj_set_style_text_font(detail, &lv_font_montserrat_12, 0);
-        lv_obj_align(detail, LV_ALIGN_LEFT_MID, 56, 13);
-    }
+    lv_obj_align(name, LV_ALIGN_LEFT_MID, 58, 0);
 
     lv_obj_t *chevron = lv_label_create(row);
     lv_label_set_text(chevron, LV_SYMBOL_RIGHT);
-    lv_obj_set_style_text_color(chevron, lv_color_hex(SETTINGS_MUTED), 0);
+    lv_obj_set_style_text_color(chevron, lv_color_hex(0x77787D), 0);
     lv_obj_set_style_text_font(chevron, &lv_font_montserrat_14, 0);
     lv_obj_align(chevron, LV_ALIGN_RIGHT_MID, -14, 0);
+
+    settings_animate_in(row);
 }
 
 static void settings_add_section(const char *text)
@@ -227,10 +222,16 @@ static void settings_add_section(const char *text)
 
 static void settings_add_info(const char *title, const char *value, lv_coord_t height)
 {
-    lv_obj_t *card = settings_card(settings_content, height);
-    settings_label(card, title, 0, 0, &lv_font_montserrat_14, SETTINGS_MUTED);
-    settings_label(card, value, 0, 25, &lv_font_montserrat_16, SETTINGS_TEXT);
-    settings_animate_in(card);
+    (void)height;
+    lv_obj_t *row = settings_card(settings_content, 58);
+    settings_label(row, title, 0, 0, &lv_font_montserrat_14, SETTINGS_TEXT);
+
+    lv_obj_t *detail = lv_label_create(row);
+    lv_label_set_text(detail, value);
+    lv_obj_set_style_text_color(detail, lv_color_hex(SETTINGS_MUTED), 0);
+    lv_obj_set_style_text_font(detail, &lv_font_montserrat_14, 0);
+    lv_obj_align(detail, LV_ALIGN_RIGHT_MID, 0, 0);
+    settings_animate_in(row);
 }
 
 static void settings_show_page(int page)
@@ -263,22 +264,17 @@ static void settings_show_page(int page)
 
     if (page == SETTINGS_PAGE_HOME)
     {
-        settings_add_section("PREFERENCES");
-        settings_add_menu_row("General", "Device and system", SETTINGS_PAGE_GENERAL, 0x8E8E93);
-        settings_add_menu_row("Display", "Brightness and screen", SETTINGS_PAGE_DISPLAY, 0xA45BE0);
-        settings_add_menu_row("Time Format", settings_24_hour ? "24-hour clock" : "12-hour clock", SETTINGS_PAGE_TIME, 0x1688F8);
-        settings_add_section("SYSTEM");
-        settings_add_menu_row("Storage", "Memory usage", SETTINGS_PAGE_STORAGE, 0x30C78A);
-        settings_add_menu_row("About", "Watch and firmware", SETTINGS_PAGE_ABOUT, 0xF0A33A);
+        settings_add_menu_row("General", RT_NULL, SETTINGS_PAGE_GENERAL, 0x8E8E93);
+        settings_add_menu_row("Display", RT_NULL, SETTINGS_PAGE_DISPLAY, 0xA45BE0);
+        settings_add_menu_row("Time Format", RT_NULL, SETTINGS_PAGE_TIME, 0x1688F8);
+        settings_add_menu_row("Storage", RT_NULL, SETTINGS_PAGE_STORAGE, 0x30C78A);
+        settings_add_menu_row("About", RT_NULL, SETTINGS_PAGE_ABOUT, 0xF0A33A);
     }
     else if (page == SETTINGS_PAGE_GENERAL)
     {
-        settings_add_section("DEVICE");
-        settings_add_info("Model", "HK 10 Pro Max+", 72);
-        settings_add_info("Platform", "SiFli SF32LB525", 72);
-        settings_add_section("QUICK OPTIONS");
-        settings_add_menu_row("Time Format", settings_24_hour ? "24-hour clock" : "12-hour clock",
-                              SETTINGS_PAGE_TIME, 0x1688F8);
+        settings_add_info("Model", "HK 10 Pro Max+", 58);
+        settings_add_info("Platform", "SiFli SF32LB525", 58);
+        settings_add_menu_row("Time Format", RT_NULL, SETTINGS_PAGE_TIME, 0x1688F8);
     }
     else if (page == SETTINGS_PAGE_DISPLAY)
     {
@@ -314,7 +310,6 @@ static void settings_show_page(int page)
         lv_obj_add_event_cb(slider, settings_brightness_event, LV_EVENT_VALUE_CHANGED, value);
         lv_obj_add_event_cb(slider, settings_brightness_event, LV_EVENT_RELEASED, value);
         settings_animate_in(card);
-        settings_add_info("Screen control", "Changes apply immediately", 72);
     }
     else if (page == SETTINGS_PAGE_TIME)
     {
@@ -330,7 +325,6 @@ static void settings_show_page(int page)
         if (settings_24_hour) lv_obj_add_state(sw, LV_STATE_CHECKED);
         lv_obj_add_event_cb(sw, settings_switch_event, LV_EVENT_VALUE_CHANGED, NULL);
         settings_animate_in(card);
-        settings_add_info("Current format", settings_24_hour ? "24-hour" : "12-hour", 72);
     }
     else if (page == SETTINGS_PAGE_STORAGE)
     {
@@ -351,7 +345,7 @@ static void settings_show_page(int page)
         settings_add_info("Chipset", "SiFli SF32LB525 family", 72);
     }
 
-    lv_obj_scroll_to_y(settings_content, 0, LV_ANIM_ON);
+    lv_obj_scroll_to_y(settings_content, 0, LV_ANIM_OFF);
 }
 
 static void settings_ui_init(lv_obj_t *parent)
@@ -377,8 +371,11 @@ static void settings_ui_init(lv_obj_t *parent)
     lv_obj_align(header, LV_ALIGN_TOP_MID, 0, 0);
 
     settings_back_button = lv_btn_create(header);
-    lv_obj_set_size(settings_back_button, 30, 30);
-    lv_obj_set_style_bg_opa(settings_back_button, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_size(settings_back_button, 32, 32);
+    lv_obj_set_style_bg_color(settings_back_button, lv_color_hex(SETTINGS_CARD), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(settings_back_button, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_radius(settings_back_button, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(settings_back_button, lv_color_hex(0x303238), LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_set_style_shadow_width(settings_back_button, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(settings_back_button, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(settings_back_button, 0, LV_PART_MAIN);
@@ -408,11 +405,12 @@ static void settings_ui_init(lv_obj_t *parent)
     lv_obj_set_style_bg_opa(settings_content, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(settings_content, 0, 0);
     lv_obj_set_style_pad_all(settings_content, 0, 0);
-    lv_obj_set_style_pad_row(settings_content, 10, 0);
+    lv_obj_set_style_pad_row(settings_content, 9, 0);
     lv_obj_set_flex_flow(settings_content, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(settings_content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
     lv_obj_set_scrollbar_mode(settings_content, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_add_flag(settings_content, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(settings_content, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_MOMENTUM);
+    lv_obj_set_scroll_dir(settings_content, LV_DIR_VER);
     lv_obj_align(settings_content, LV_ALIGN_BOTTOM_MID, 0, 0);
 
     settings_show_page(SETTINGS_PAGE_HOME);
