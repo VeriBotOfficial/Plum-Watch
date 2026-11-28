@@ -20,9 +20,32 @@ LV_IMG_DECLARE(img_settings);
 #define SETTINGS_CARD 0x222326
 #define SETTINGS_TEXT 0xF3F3F5
 #define SETTINGS_MUTED 0x9A9BA0
+#define SETTINGS_ACCENT 0x1688F8
+
+enum
+{
+    SETTINGS_PAGE_HOME = 0,
+    SETTINGS_PAGE_GENERAL,
+    SETTINGS_PAGE_DISPLAY,
+    SETTINGS_PAGE_TIME,
+    SETTINGS_PAGE_STORAGE,
+    SETTINGS_PAGE_ABOUT
+};
 
 static rt_device_t settings_lcd;
 static lv_timer_t *settings_clock_timer;
+static lv_obj_t *settings_content;
+static lv_obj_t *settings_header_title;
+static lv_obj_t *settings_back_button;
+static int settings_current_page;
+static int settings_24_hour = 1;
+
+static void settings_show_page(int page);
+
+static void settings_opa_anim(void *var, int32_t value)
+{
+    lv_obj_set_style_opa((lv_obj_t *)var, (lv_opa_t)value, 0);
+}
 
 static void settings_apply_brightness(int value, bool persist)
 {
@@ -34,7 +57,87 @@ static void settings_apply_brightness(int value, bool persist)
         kv_set_int("lcd_brightness", value);
 }
 
-static void brightness_event_cb(lv_event_t *e)
+static void settings_clock_update(lv_timer_t *timer)
+{
+    if (!timer || !timer->user_data) return;
+    char text[8];
+    int hour = 0, minute = 0;
+#if defined(BSP_USING_PC_SIMULATOR)
+    SYSTEMTIME local;
+    GetLocalTime(&local);
+    hour = (int)local.wHour;
+    minute = (int)local.wMinute;
+#else
+    time_t now = time(RT_NULL);
+    struct tm *local = localtime(&now);
+    if (!local) return;
+    hour = local->tm_hour;
+    minute = local->tm_min;
+#endif
+    if (!settings_24_hour)
+    {
+        hour %= 12;
+        if (hour == 0) hour = 12;
+    }
+    snprintf(text, sizeof(text), "%02d:%02d", hour, minute);
+    lv_label_set_text((lv_obj_t *)timer->user_data, text);
+}
+
+static void settings_animate_in(lv_obj_t *obj)
+{
+    lv_anim_t anim;
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, obj);
+    lv_anim_set_values(&anim, 14, 0);
+    lv_anim_set_time(&anim, 190);
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&anim, (lv_anim_exec_xcb_t)lv_obj_set_x);
+    lv_anim_start(&anim);
+
+    lv_obj_set_style_opa(obj, LV_OPA_TRANSP, 0);
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, obj);
+    lv_anim_set_values(&anim, LV_OPA_TRANSP, LV_OPA_COVER);
+    lv_anim_set_time(&anim, 190);
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&anim, settings_opa_anim);
+    lv_anim_set_delay(&anim, 10);
+    lv_anim_start(&anim);
+}
+
+static lv_obj_t *settings_card(lv_obj_t *parent, lv_coord_t height)
+{
+    lv_obj_t *card = lv_obj_create(parent);
+    lv_obj_set_width(card, LV_PCT(100));
+    lv_obj_set_height(card, height);
+    lv_obj_set_style_bg_color(card, lv_color_hex(SETTINGS_CARD), 0);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(card, 0, 0);
+    lv_obj_set_style_radius(card, 19, 0);
+    lv_obj_set_style_pad_all(card, 14, 0);
+    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    return card;
+}
+
+static void settings_label(lv_obj_t *parent, const char *text, lv_coord_t x, lv_coord_t y,
+                           const lv_font_t *font, uint32_t color)
+{
+    lv_obj_t *label = lv_label_create(parent);
+    lv_label_set_text(label, text);
+    lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
+    lv_obj_set_style_text_font(label, font, 0);
+    lv_obj_set_pos(label, x, y);
+}
+
+static void settings_switch_event(lv_event_t *e)
+{
+    lv_obj_t *sw = lv_event_get_target(e);
+    settings_24_hour = lv_obj_has_state(sw, LV_STATE_CHECKED) ? 1 : 0;
+    kv_set_int("time_format_24h", settings_24_hour);
+    settings_clock_update(settings_clock_timer);
+}
+
+static void settings_brightness_event(lv_event_t *e)
 {
     lv_obj_t *slider = lv_event_get_target(e);
     int value = lv_slider_get_value(slider);
@@ -48,76 +151,249 @@ static void brightness_event_cb(lv_event_t *e)
     }
 }
 
-static void settings_clock_update(lv_timer_t *timer)
+static void settings_open_page(lv_event_t *e)
 {
-    if (!timer || !timer->user_data) return;
-    char text[8];
-#if defined(BSP_USING_PC_SIMULATOR)
-    SYSTEMTIME local;
-    GetLocalTime(&local);
-    snprintf(text, sizeof(text), "%02u:%02u", (unsigned int)local.wHour, (unsigned int)local.wMinute);
-#else
-    time_t now = time(RT_NULL);
-    struct tm *local = localtime(&now);
-    if (!local) return;
-    snprintf(text, sizeof(text), "%02d:%02d", local->tm_hour, local->tm_min);
-#endif
-    lv_label_set_text((lv_obj_t *)timer->user_data, text);
+    int page = (int)(rt_ubase_t)lv_event_get_user_data(e);
+    settings_show_page(page);
 }
 
-static void settings_section(lv_obj_t *parent, const char *name)
+static void settings_back_event(lv_event_t *e)
 {
-    lv_obj_t *label = lv_label_create(parent);
-    lv_label_set_text(label, name);
+    (void)e;
+    settings_show_page(SETTINGS_PAGE_HOME);
+}
+
+static void settings_add_menu_row(const char *title, const char *subtitle, int page, uint32_t accent)
+{
+    lv_obj_t *row = lv_btn_create(settings_content);
+    lv_obj_set_width(row, LV_PCT(100));
+    lv_obj_set_height(row, 68);
+    lv_obj_set_style_bg_color(row, lv_color_hex(SETTINGS_CARD), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(row, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(row, lv_color_hex(0x303238), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_radius(row, 18, LV_PART_MAIN);
+    lv_obj_set_style_border_width(row, 0, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(row, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(row, 0, LV_PART_MAIN);
+    lv_obj_add_event_cb(row, settings_open_page, LV_EVENT_CLICKED, (void *)(rt_ubase_t)page);
+
+    lv_obj_t *icon = lv_obj_create(row);
+    lv_obj_set_size(icon, 34, 34);
+    lv_obj_set_style_radius(icon, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(icon, lv_color_hex(accent), 0);
+    lv_obj_set_style_bg_opa(icon, LV_OPA_30, 0);
+    lv_obj_set_style_border_width(icon, 0, 0);
+    lv_obj_align(icon, LV_ALIGN_LEFT_MID, 12, 0);
+    lv_obj_clear_flag(icon, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *dot = lv_obj_create(icon);
+    lv_obj_set_size(dot, 10, 10);
+    lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(dot, lv_color_hex(accent), 0);
+    lv_obj_set_style_border_width(dot, 0, 0);
+    lv_obj_center(dot);
+
+    lv_obj_t *name = lv_label_create(row);
+    lv_label_set_text(name, title);
+    lv_obj_set_style_text_color(name, lv_color_hex(SETTINGS_TEXT), 0);
+    lv_obj_set_style_text_font(name, &lv_font_montserrat_16, 0);
+    lv_obj_align(name, LV_ALIGN_LEFT_MID, 56, subtitle ? -9 : 0);
+
+    if (subtitle)
+    {
+        lv_obj_t *detail = lv_label_create(row);
+        lv_label_set_text(detail, subtitle);
+        lv_obj_set_style_text_color(detail, lv_color_hex(SETTINGS_MUTED), 0);
+        lv_obj_set_style_text_font(detail, &lv_font_montserrat_12, 0);
+        lv_obj_align(detail, LV_ALIGN_LEFT_MID, 56, 13);
+    }
+
+    lv_obj_t *chevron = lv_label_create(row);
+    lv_label_set_text(chevron, LV_SYMBOL_RIGHT);
+    lv_obj_set_style_text_color(chevron, lv_color_hex(SETTINGS_MUTED), 0);
+    lv_obj_set_style_text_font(chevron, &lv_font_montserrat_14, 0);
+    lv_obj_align(chevron, LV_ALIGN_RIGHT_MID, -14, 0);
+}
+
+static void settings_add_section(const char *text)
+{
+    lv_obj_t *label = lv_label_create(settings_content);
+    lv_label_set_text(label, text);
     lv_obj_set_style_text_color(label, lv_color_hex(SETTINGS_MUTED), 0);
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
-    lv_obj_set_width(label, LV_HOR_RES_MAX - 40);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_letter_space(label, 1, 0);
+    lv_obj_set_width(label, LV_PCT(100));
 }
 
-static lv_obj_t *settings_card(lv_obj_t *parent, lv_coord_t height)
+static void settings_add_info(const char *title, const char *value, lv_coord_t height)
 {
-    lv_obj_t *card = lv_obj_create(parent);
-    lv_obj_set_width(card, LV_HOR_RES_MAX - 36);
-    lv_obj_set_height(card, height);
-    lv_obj_set_style_bg_color(card, lv_color_hex(SETTINGS_CARD), 0);
-    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(card, 0, 0);
-    lv_obj_set_style_radius(card, 22, 0);
-    lv_obj_set_style_pad_all(card, 14, 0);
-    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
-    return card;
+    lv_obj_t *card = settings_card(settings_content, height);
+    settings_label(card, title, 0, 0, &lv_font_montserrat_14, SETTINGS_MUTED);
+    settings_label(card, value, 0, 25, &lv_font_montserrat_16, SETTINGS_TEXT);
+    settings_animate_in(card);
+}
+
+static void settings_show_page(int page)
+{
+    if (!settings_content) return;
+    settings_current_page = page;
+    lv_obj_clean(settings_content);
+
+    if (settings_back_button)
+    {
+        if (page == SETTINGS_PAGE_HOME)
+            lv_obj_add_flag(settings_back_button, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_clear_flag(settings_back_button, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    const char *title = "Settings";
+    switch (page)
+    {
+    case SETTINGS_PAGE_GENERAL: title = "General"; break;
+    case SETTINGS_PAGE_DISPLAY: title = "Display"; break;
+    case SETTINGS_PAGE_TIME: title = "Time Format"; break;
+    case SETTINGS_PAGE_STORAGE: title = "Storage"; break;
+    case SETTINGS_PAGE_ABOUT: title = "About"; break;
+    default: break;
+    }
+    lv_label_set_text(settings_header_title, title);
+    lv_obj_align(settings_header_title, LV_ALIGN_LEFT_MID,
+                  page == SETTINGS_PAGE_HOME ? 0 : 40, 0);
+
+    if (page == SETTINGS_PAGE_HOME)
+    {
+        settings_add_section("PREFERENCES");
+        settings_add_menu_row("General", "Device and system", SETTINGS_PAGE_GENERAL, 0x8E8E93);
+        settings_add_menu_row("Display", "Brightness and screen", SETTINGS_PAGE_DISPLAY, 0xA45BE0);
+        settings_add_menu_row("Time Format", settings_24_hour ? "24-hour clock" : "12-hour clock", SETTINGS_PAGE_TIME, 0x1688F8);
+        settings_add_section("SYSTEM");
+        settings_add_menu_row("Storage", "Memory usage", SETTINGS_PAGE_STORAGE, 0x30C78A);
+        settings_add_menu_row("About", "Watch and firmware", SETTINGS_PAGE_ABOUT, 0xF0A33A);
+    }
+    else if (page == SETTINGS_PAGE_GENERAL)
+    {
+        settings_add_section("DEVICE");
+        settings_add_info("Model", "HK 10 Pro Max+", 72);
+        settings_add_info("Platform", "SiFli SF32LB525", 72);
+        settings_add_section("QUICK OPTIONS");
+        settings_add_menu_row("Time Format", settings_24_hour ? "24-hour clock" : "12-hour clock",
+                              SETTINGS_PAGE_TIME, 0x1688F8);
+    }
+    else if (page == SETTINGS_PAGE_DISPLAY)
+    {
+        int brightness = kv_get_int("lcd_brightness", 100);
+        if (brightness < 10 || brightness > 100) brightness = 100;
+        lv_obj_t *card = settings_card(settings_content, 112);
+        lv_obj_t *name = lv_label_create(card);
+        lv_label_set_text(name, "Brightness");
+        lv_obj_set_style_text_color(name, lv_color_hex(SETTINGS_TEXT), 0);
+        lv_obj_set_style_text_font(name, &lv_font_montserrat_16, 0);
+        lv_obj_align(name, LV_ALIGN_TOP_LEFT, 0, 0);
+
+        lv_obj_t *value = lv_label_create(card);
+        char text[8];
+        snprintf(text, sizeof(text), "%d%%", brightness);
+        lv_label_set_text(value, text);
+        lv_obj_set_style_text_color(value, lv_color_hex(SETTINGS_MUTED), 0);
+        lv_obj_set_style_text_font(value, &lv_font_montserrat_14, 0);
+        lv_obj_align(value, LV_ALIGN_TOP_RIGHT, 0, 0);
+
+        lv_obj_t *slider = lv_slider_create(card);
+        lv_obj_set_width(slider, LV_PCT(100));
+        lv_obj_align(slider, LV_ALIGN_BOTTOM_MID, 0, -3);
+        lv_slider_set_range(slider, 10, 100);
+        lv_slider_set_value(slider, brightness, LV_ANIM_OFF);
+        lv_obj_set_style_bg_color(slider, lv_color_hex(0x353840), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(slider, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_radius(slider, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(slider, lv_color_hex(SETTINGS_ACCENT), LV_PART_INDICATOR);
+        lv_obj_set_style_radius(slider, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
+        lv_obj_set_style_bg_color(slider, lv_color_hex(SETTINGS_TEXT), LV_PART_KNOB);
+        lv_obj_set_style_pad_all(slider, 3, LV_PART_KNOB);
+        lv_obj_add_event_cb(slider, settings_brightness_event, LV_EVENT_VALUE_CHANGED, value);
+        lv_obj_add_event_cb(slider, settings_brightness_event, LV_EVENT_RELEASED, value);
+        settings_animate_in(card);
+        settings_add_info("Screen control", "Changes apply immediately", 72);
+    }
+    else if (page == SETTINGS_PAGE_TIME)
+    {
+        lv_obj_t *card = settings_card(settings_content, 78);
+        lv_obj_t *name = lv_label_create(card);
+        lv_label_set_text(name, "24-hour clock");
+        lv_obj_set_style_text_color(name, lv_color_hex(SETTINGS_TEXT), 0);
+        lv_obj_set_style_text_font(name, &lv_font_montserrat_16, 0);
+        lv_obj_align(name, LV_ALIGN_LEFT_MID, 0, 0);
+
+        lv_obj_t *sw = lv_switch_create(card);
+        lv_obj_align(sw, LV_ALIGN_RIGHT_MID, 0, 0);
+        if (settings_24_hour) lv_obj_add_state(sw, LV_STATE_CHECKED);
+        lv_obj_add_event_cb(sw, settings_switch_event, LV_EVENT_VALUE_CHANGED, NULL);
+        settings_animate_in(card);
+        settings_add_info("Current format", settings_24_hour ? "24-hour" : "12-hour", 72);
+    }
+    else if (page == SETTINGS_PAGE_STORAGE)
+    {
+        rt_uint32_t total = 0, used = 0, max_used = 0;
+        char info[64];
+        rt_memory_info(&total, &used, &max_used);
+        snprintf(info, sizeof(info), "%lu KB used", (unsigned long)(used / 1024));
+        settings_add_info("Memory in use", info, 72);
+        snprintf(info, sizeof(info), "%lu KB total", (unsigned long)(total / 1024));
+        settings_add_info("Available memory", info, 72);
+        snprintf(info, sizeof(info), "%lu KB peak", (unsigned long)(max_used / 1024));
+        settings_add_info("Peak usage", info, 72);
+    }
+    else if (page == SETTINGS_PAGE_ABOUT)
+    {
+        settings_add_info("Plum Watch", "Custom watch firmware", 72);
+        settings_add_info("Device", "HK 10 Pro Max+", 72);
+        settings_add_info("Chipset", "SiFli SF32LB525 family", 72);
+    }
+
+    lv_obj_scroll_to_y(settings_content, 0, LV_ANIM_ON);
 }
 
 static void settings_ui_init(lv_obj_t *parent)
 {
-    char info[96];
-    rt_uint32_t total = 0, used = 0, max_used = 0;
-    int brightness = kv_get_int("lcd_brightness", 100);
     settings_lcd = rt_device_find("lcd");
+    settings_24_hour = kv_get_int("time_format_24h", 1) ? 1 : 0;
 
     lv_obj_t *root = lv_obj_create(parent);
     lv_obj_set_size(root, LV_HOR_RES_MAX, LV_VER_RES_MAX);
     lv_obj_set_style_bg_color(root, lv_color_hex(SETTINGS_BG), 0);
     lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(root, 0, 0);
-    lv_obj_set_style_pad_all(root, 18, 0);
-    lv_obj_set_style_pad_row(root, 13, 0);
-    lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(root, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-    lv_obj_set_scrollbar_mode(root, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_pad_all(root, 16, 0);
+    lv_obj_set_style_pad_row(root, 10, 0);
+    lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *header = lv_obj_create(root);
-    lv_obj_set_size(header, LV_HOR_RES_MAX - 36, 38);
+    lv_obj_set_size(header, LV_PCT(100), 38);
     lv_obj_set_style_bg_opa(header, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(header, 0, 0);
     lv_obj_set_style_pad_all(header, 0, 0);
     lv_obj_clear_flag(header, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_align(header, LV_ALIGN_TOP_MID, 0, 0);
 
-    lv_obj_t *title = lv_label_create(header);
-    lv_label_set_text(title, "Settings");
-    lv_obj_set_style_text_color(title, lv_color_hex(SETTINGS_TEXT), 0);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-    lv_obj_align(title, LV_ALIGN_LEFT_MID, 0, 0);
+    settings_back_button = lv_btn_create(header);
+    lv_obj_set_size(settings_back_button, 30, 30);
+    lv_obj_set_style_bg_opa(settings_back_button, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(settings_back_button, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(settings_back_button, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(settings_back_button, 0, LV_PART_MAIN);
+    lv_obj_add_event_cb(settings_back_button, settings_back_event, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *back = lv_label_create(settings_back_button);
+    lv_label_set_text(back, LV_SYMBOL_LEFT);
+    lv_obj_set_style_text_color(back, lv_color_hex(SETTINGS_ACCENT), 0);
+    lv_obj_center(back);
+    lv_obj_add_flag(settings_back_button, LV_OBJ_FLAG_HIDDEN);
+
+    settings_header_title = lv_label_create(header);
+    lv_label_set_text(settings_header_title, "Settings");
+    lv_obj_set_style_text_color(settings_header_title, lv_color_hex(SETTINGS_ACCENT), 0);
+    lv_obj_set_style_text_font(settings_header_title, &lv_font_montserrat_20, 0);
+    lv_obj_align(settings_header_title, LV_ALIGN_LEFT_MID, 0, 0);
 
     lv_obj_t *clock = lv_label_create(header);
     lv_obj_set_style_text_color(clock, lv_color_hex(SETTINGS_TEXT), 0);
@@ -127,78 +403,52 @@ static void settings_ui_init(lv_obj_t *parent)
     settings_clock_timer = lv_timer_create(settings_clock_update, 60000, clock);
     settings_clock_update(settings_clock_timer);
 
-    settings_section(root, "DISPLAY");
-    lv_obj_t *display_card = settings_card(root, 112);
-    lv_obj_t *brightness_title = lv_label_create(display_card);
-    lv_label_set_text(brightness_title, "Brightness");
-    lv_obj_set_style_text_color(brightness_title, lv_color_hex(SETTINGS_TEXT), 0);
-    lv_obj_set_style_text_font(brightness_title, &lv_font_montserrat_16, 0);
-    lv_obj_align(brightness_title, LV_ALIGN_TOP_LEFT, 0, 0);
+    settings_content = lv_obj_create(root);
+    lv_obj_set_size(settings_content, LV_PCT(100), LV_VER_RES_MAX - 76);
+    lv_obj_set_style_bg_opa(settings_content, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(settings_content, 0, 0);
+    lv_obj_set_style_pad_all(settings_content, 0, 0);
+    lv_obj_set_style_pad_row(settings_content, 10, 0);
+    lv_obj_set_flex_flow(settings_content, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(settings_content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
+    lv_obj_set_scrollbar_mode(settings_content, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_add_flag(settings_content, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_align(settings_content, LV_ALIGN_BOTTOM_MID, 0, 0);
 
-    lv_obj_t *brightness_value = lv_label_create(display_card);
-    char brightness_text[8];
-    snprintf(brightness_text, sizeof(brightness_text), "%d%%", brightness);
-    lv_label_set_text(brightness_value, brightness_text);
-    lv_obj_set_style_text_color(brightness_value, lv_color_hex(SETTINGS_MUTED), 0);
-    lv_obj_set_style_text_font(brightness_value, &lv_font_montserrat_14, 0);
-    lv_obj_align(brightness_value, LV_ALIGN_TOP_RIGHT, 0, 0);
-
-    lv_obj_t *slider = lv_slider_create(display_card);
-    lv_obj_set_width(slider, LV_HOR_RES_MAX - 92);
-    lv_obj_align(slider, LV_ALIGN_BOTTOM_MID, 0, -2);
-    lv_slider_set_range(slider, 10, 100);
-    lv_slider_set_value(slider, brightness, LV_ANIM_OFF);
-    lv_obj_set_style_bg_color(slider, lv_color_hex(0x353840), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(slider, lv_color_hex(0xA45BE0), LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(slider, lv_color_hex(0xF3F3F5), LV_PART_KNOB);
-    lv_obj_add_event_cb(slider, brightness_event_cb, LV_EVENT_VALUE_CHANGED, brightness_value);
-    lv_obj_add_event_cb(slider, brightness_event_cb, LV_EVENT_RELEASED, brightness_value);
-
-    settings_section(root, "ABOUT");
-    lv_obj_t *about_card = settings_card(root, 126);
-    lv_obj_t *model = lv_label_create(about_card);
-    lv_label_set_text(model, "HK 10 Pro Max+");
-    lv_obj_set_style_text_color(model, lv_color_hex(SETTINGS_TEXT), 0);
-    lv_obj_set_style_text_font(model, &lv_font_montserrat_16, 0);
-    lv_obj_align(model, LV_ALIGN_TOP_LEFT, 0, 0);
-
-    lv_obj_t *target = lv_label_create(about_card);
-    lv_label_set_text(target, "SiFli SF32LB525 family");
-    lv_obj_set_style_text_color(target, lv_color_hex(SETTINGS_MUTED), 0);
-    lv_obj_set_style_text_font(target, &lv_font_montserrat_14, 0);
-    lv_obj_align(target, LV_ALIGN_TOP_LEFT, 0, 28);
-
-    rt_memory_info(&total, &used, &max_used);
-    snprintf(info, sizeof(info), "RAM in use  %lu / %lu KB",
-             (unsigned long)(used / 1024), (unsigned long)(total / 1024));
-    lv_obj_t *memory = lv_label_create(about_card);
-    lv_label_set_text(memory, info);
-    lv_obj_set_style_text_color(memory, lv_color_hex(SETTINGS_MUTED), 0);
-    lv_obj_set_style_text_font(memory, &lv_font_montserrat_12, 0);
-    lv_obj_align(memory, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-
-    settings_apply_brightness(brightness, false);
+    settings_show_page(SETTINGS_PAGE_HOME);
+    settings_apply_brightness(kv_get_int("lcd_brightness", 100), false);
 }
 
 static void on_start(void)
 {
+    settings_content = RT_NULL;
+    settings_back_button = RT_NULL;
+    settings_header_title = RT_NULL;
     settings_ui_init(lv_scr_act());
 }
 
 static void msg_handler(gui_app_msg_type_t msg, void *param)
 {
+    (void)param;
     if (msg == GUI_APP_MSG_ONSTART)
         on_start();
-    else if (msg == GUI_APP_MSG_ONSTOP && settings_clock_timer)
+    else if (msg == GUI_APP_MSG_ONSTOP)
     {
-        lv_timer_del(settings_clock_timer);
-        settings_clock_timer = NULL;
+        if (settings_clock_timer)
+        {
+            lv_timer_del(settings_clock_timer);
+            settings_clock_timer = NULL;
+        }
         settings_lcd = RT_NULL;
+        settings_content = RT_NULL;
+        settings_back_button = RT_NULL;
+        settings_header_title = RT_NULL;
     }
 }
 
 static int app_main(intent_t i)
 {
+    (void)i;
     gui_app_regist_msg_handler(APP_ID, msg_handler);
     return 0;
 }
