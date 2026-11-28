@@ -10,6 +10,9 @@
 #include <lv_ext_resource_manager.h>
 #include <rtthread.h>
 #include <rtdevice.h>
+#if !defined(BSP_USING_PC_SIMULATOR)
+#include <drivers/sensor.h>
+#endif
 #include "gui_app_fwk.h"
 #include "littlevgl2rtt.h"
 #include "custom_trans_anim.h"
