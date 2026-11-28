@@ -11,7 +11,7 @@
 #include <rtthread.h>
 #include <rtdevice.h>
 #if !defined(BSP_USING_PC_SIMULATOR)
-#include <drivers/sensor.h>
+#include <sensor.h>
 #endif
 #include "gui_app_fwk.h"
 #include "littlevgl2rtt.h"
