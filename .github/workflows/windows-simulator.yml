@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: windows-simulator-${{ github.ref }}
+  group: firmware-artifact-publishing-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
