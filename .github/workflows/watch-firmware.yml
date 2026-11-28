@@ -51,44 +51,37 @@ jobs:
           if ($revision -notmatch '^[0-9a-f]{40}$') { throw "Invalid SiFli SDK revision: $revision" }
           "revision=$revision" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-      - name: Cache SiFli SDK and toolchain
+      - name: Check out SiFli SDK
+        run: |
+          $Sdk = Join-Path $env:USERPROFILE "SiFli-SDK"
+          git clone --depth 1 --no-checkout https://github.com/OpenSiFli/SiFli-SDK $Sdk
+          if ($LASTEXITCODE -ne 0) { throw "SiFli SDK clone failed." }
+          git -C $Sdk fetch --depth 1 origin "${{ steps.sdk.outputs.revision }}"
+          if ($LASTEXITCODE -ne 0) { throw "SiFli SDK revision fetch failed." }
+          git -C $Sdk checkout --detach "${{ steps.sdk.outputs.revision }}"
+          if ($LASTEXITCODE -ne 0) { throw "SiFli SDK checkout failed." }
+          git -C $Sdk submodule update --init --recursive --depth 1
+          if ($LASTEXITCODE -ne 0) { throw "SiFli SDK submodule setup failed." }
+
+      - name: Cache SiFli toolchain
         id: sifli-cache
         uses: actions/cache/restore@v4
         with:
-          path: |
-            ~\SiFli-SDK
-            ~\.sifli
-          key: sifli-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
-          restore-keys: |
-            sifli-v2.4-windows-${{ runner.arch }}-
+          path: ~\.sifli
+          key: sifli-tools-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
 
-      - name: Install SiFli SDK
+      - name: Install SiFli SDK tools
         id: install-sdk
         run: |
           $Sdk = Join-Path $env:USERPROFILE "SiFli-SDK"
+          $Tools = Join-Path $env:USERPROFILE ".sifli"
           if ("${{ steps.sifli-cache.outputs.cache-hit }}" -eq "true") {
-            if (-not (Test-Path -LiteralPath (Join-Path $Sdk "export.ps1"))) {
-              throw "The restored SiFli SDK cache is incomplete."
+            if (-not (Test-Path -LiteralPath (Join-Path $Tools "tools"))) {
+              throw "The restored SiFli toolchain cache is incomplete."
             }
-            $CachedRevision = (& git -C $Sdk rev-parse HEAD).Trim()
-            if ($LASTEXITCODE -ne 0 -or $CachedRevision -ne "${{ steps.sdk.outputs.revision }}") {
-              throw "The restored SiFli SDK cache does not match the resolved SDK revision."
-            }
-            Write-Host "[SiFli] Reusing cached SDK and installed toolchain."
+            Write-Host "[SiFli] Reusing cached toolchain; SDK source was checked out separately."
           }
           else {
-            if (Test-Path -LiteralPath $Sdk) {
-              Remove-Item -LiteralPath $Sdk -Recurse -Force
-            }
-            git clone --depth 1 --no-checkout https://github.com/OpenSiFli/SiFli-SDK $Sdk
-            if ($LASTEXITCODE -ne 0) { throw "SiFli SDK checkout failed." }
-            git -C $Sdk fetch --depth 1 origin "${{ steps.sdk.outputs.revision }}"
-            if ($LASTEXITCODE -ne 0) { throw "SiFli SDK revision fetch failed." }
-            git -C $Sdk checkout --detach "${{ steps.sdk.outputs.revision }}"
-            if ($LASTEXITCODE -ne 0) { throw "SiFli SDK checkout failed." }
-            git -C $Sdk submodule update --init --recursive --depth 1
-            if ($LASTEXITCODE -ne 0) { throw "SiFli SDK submodule setup failed." }
-
             $env:SIFLI_SDK = $Sdk
             Push-Location $Sdk
             try {
@@ -102,14 +95,12 @@ jobs:
           $env:SIFLI_SDK = $Sdk
           "SIFLI_SDK=$Sdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Save SiFli SDK and toolchain cache
-        if: steps.install-sdk.outcome == 'success'
+      - name: Save SiFli toolchain cache
+        if: steps.install-sdk.outcome == 'success' && steps.sifli-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: |
-            ~\SiFli-SDK
-            ~\.sifli
-          key: sifli-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
+          path: ~\.sifli
+          key: sifli-tools-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
 
       - name: Build watch firmware
         run: |
