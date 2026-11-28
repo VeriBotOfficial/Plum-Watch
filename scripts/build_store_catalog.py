@@ -199,9 +199,13 @@ def _render_split_digital(background: Image.Image, assets: dict[str, Image.Image
     return canvas, False
 
 
-def _render_analog(background: Image.Image, assets: dict[str, Image.Image]) -> tuple[Image.Image, bool]:
-    """Compose a sample analog time using native hand resources and a shared dial pivot."""
-    hands = [_find_asset(assets, "_" + suffix) for suffix in ("h", "m", "s")]
+def _render_analog(background: Image.Image, assets: dict[str, Image.Image], module_id: str) -> tuple[Image.Image, bool]:
+    """Compose a sample analog time using this module's own native hand resources."""
+    hands = [
+        next((image for name, image in assets.items()
+              if name.startswith(module_id) and name.endswith("_" + suffix)), None)
+        for suffix in ("h", "m", "s")
+    ]
     if any(hand is None for hand in hands):
         return background.convert("RGBA"), False
     canvas = background.convert("RGBA")
@@ -234,7 +238,7 @@ def _render_watchface_frame(background: Image.Image, assets: dict[str, Image.Ima
         ""
     )
     if model["kind"] == "analog" and module_id in {"wf_clock932", "wf_clock933", "wf_clock1004"}:
-        return _render_analog(background, assets)
+        return _render_analog(background, assets, module_id)
     if model["kind"] == "digital_split" and module_id in {"wf_clock1000", "wf_clock1003"}:
         return _render_split_digital(background, assets, module_id)
     return background.convert("RGBA"), False
