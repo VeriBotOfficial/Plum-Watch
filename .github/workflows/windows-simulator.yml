@@ -65,7 +65,8 @@ jobs:
             ~\.sifli\tools
             ~\.sifli\python_env
             ~\.sifli\sifli-sdk-env.json
-          key: sifli-tools-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
+            ~\.sifli\sdk.constraints.v2.4.txt
+          key: sifli-tools-v3-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
 
       - name: Install SiFli SDK tools
         id: install-sdk
@@ -100,7 +101,8 @@ jobs:
             ~\.sifli\tools
             ~\.sifli\python_env
             ~\.sifli\sifli-sdk-env.json
-          key: sifli-tools-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
+            ~\.sifli\sdk.constraints.v2.4.txt
+          key: sifli-tools-v3-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
 
       - name: Build Windows simulator
         run: |
