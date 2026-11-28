@@ -206,7 +206,7 @@ static void show_selector(void)
     lv_obj_t *hint = lv_label_create(selector);
     lv_label_set_text(hint, "Tap a style to apply");
     lv_obj_set_style_text_color(hint, lv_color_hex(WF_MUTED), 0);
-    lv_obj_set_style_text_font(hint, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(hint, &lv_font_montserrat_12, 0);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -28);
 
     lv_anim_t anim;
@@ -290,7 +290,7 @@ void watchface_build_ui(void)
         date_label = lv_label_create(root);
         lv_label_set_text(date_label, "JAN 01");
         lv_obj_set_style_text_color(date_label, lv_color_hex(WF_TEXT), 0);
-        lv_obj_set_style_text_font(date_label, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(date_label, &lv_font_montserrat_16, 0);
         lv_obj_align(date_label, LV_ALIGN_BOTTOM_MID, 0, -36);
     }
     else
@@ -304,7 +304,7 @@ void watchface_build_ui(void)
         date_label = lv_label_create(root);
         lv_label_set_text(date_label, "JAN 01");
         lv_obj_set_style_text_color(date_label, lv_color_hex(WF_MUTED), 0);
-        lv_obj_set_style_text_font(date_label, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(date_label, &lv_font_montserrat_16, 0);
         lv_obj_align(date_label, LV_ALIGN_CENTER, 0, active_style == WF_STYLE_MINIMAL ? -48 : -58);
 
         time_label = lv_label_create(root);
@@ -316,7 +316,7 @@ void watchface_build_ui(void)
         seconds_label = lv_label_create(root);
         lv_label_set_text(seconds_label, "00");
         lv_obj_set_style_text_color(seconds_label, lv_color_hex(WF_MUTED), 0);
-        lv_obj_set_style_text_font(seconds_label, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(seconds_label, &lv_font_montserrat_16, 0);
         lv_obj_align(seconds_label, LV_ALIGN_CENTER, 0, active_style == WF_STYLE_MINIMAL ? 34 : 42);
 
         lv_obj_t *rule = lv_obj_create(root);
@@ -330,14 +330,14 @@ void watchface_build_ui(void)
         lv_obj_t *footer = lv_label_create(root);
         lv_label_set_text(footer, "PLUM");
         lv_obj_set_style_text_color(footer, lv_color_hex(0x777B86), 0);
-        lv_obj_set_style_text_font(footer, &lv_font_montserrat_10, 0);
+        lv_obj_set_style_text_font(footer, &lv_font_montserrat_12, 0);
         lv_obj_align(footer, LV_ALIGN_BOTTOM_MID, 0, -42);
     }
 
     lv_obj_t *hint = lv_label_create(root);
     lv_label_set_text(hint, "HOLD TO CHANGE");
     lv_obj_set_style_text_color(hint, lv_color_hex(0x555963), 0);
-    lv_obj_set_style_text_font(hint, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(hint, &lv_font_montserrat_12, 0);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -14);
     lv_obj_clear_flag(hint, LV_OBJ_FLAG_CLICKABLE);
 }
