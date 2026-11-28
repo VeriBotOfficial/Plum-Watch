@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "watchfaces": [
+    {
+      "id": "21540_4_dial",
+      "name": "21540_4_dial",
+      "archive": "/watchfaces/21540_4_dial.zip",
+      "directory": "/watchfaces/21540_4_dial/",
+      "fileCount": 31,
+      "expandedBytes": 187592,
+      "rendering": {
+        "type": "analog",
+        "modules": [
+          "wf_clock932"
+        ],
+        "features": [
+          "analog_hands"
+        ]
+      }
+    },
+    {
+      "id": "21541_4_dial",
+      "name": "21541_4_dial",
+      "archive": "/watchfaces/21541_4_dial.zip",
+      "directory": "/watchfaces/21541_4_dial/",
+      "fileCount": 31,
+      "expandedBytes": 187960,
+      "rendering": {
+        "type": "analog",
+        "modules": [
+          "wf_clock933"
+        ],
+        "features": [
+          "analog_hands"
+        ]
+      }
+    },
+    {
+      "id": "21543_4_dial",
+      "name": "21543_4_dial",
+      "archive": "/watchfaces/21543_4_dial.zip",
+      "directory": "/watchfaces/21543_4_dial/",
+      "fileCount": 92,
+      "expandedBytes": 209664,
+      "rendering": {
+        "type": "digital_complications",
+        "modules": [
+          "wf_clock935"
+        ],
+        "features": [
+          "date_digits",
+          "time_digits"
+        ]
+      }
+    },
+    {
+      "id": "21553_4_dial",
+      "name": "Blue Liquid",
+      "archive": "/watchfaces/21553_4_dial.zip",
+      "directory": "/watchfaces/21553_4_dial/",
+      "fileCount": 29,
+      "expandedBytes": 1004064,
+      "rendering": {
+        "type": "digital_split",
+        "modules": [
+          "wf_clock1000"
+        ],
+        "features": [
+          "animated_backgrounds",
+          "time_num"
+        ]
+      }
+    },
+    {
+      "id": "21563_4_dial",
+      "name": "21563_4_dial",
+      "archive": "/watchfaces/21563_4_dial.zip",
+      "directory": "/watchfaces/21563_4_dial/",
+      "fileCount": 23,
+      "expandedBytes": 147096,
+      "rendering": {
+        "type": "analog",
+        "modules": [
+          "wf_clock1004"
+        ],
+        "features": [
+          "analog_hands"
+        ]
+      }
+    },
+    {
+      "id": "blue-liquid",
+      "name": "Black Liquid",
+      "archive": "/watchfaces/blue-liquid.zip",
+      "directory": "/watchfaces/blue-liquid/",
+      "fileCount": 29,
+      "expandedBytes": 1006724,
+      "rendering": {
+        "type": "digital_split",
+        "modules": [
+          "wf_clock1003"
+        ],
+        "features": [
+          "animated_backgrounds",
+          "time_num"
+        ]
+      }
+    }
+  ]
+}
