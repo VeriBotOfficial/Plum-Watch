@@ -44,41 +44,127 @@ DoBuilding(TARGET, objs)
 # Add flash table build
 AddFTAB(SIFLI_SDK, rtconfig.CHIP)
 
-# Optionally add filesystem image when --add-disk is passed
+# Store watchfaces are bundled into the watch filesystem and simulator disk.
+# The packages remain ZIP files and are also expanded into isolated directories so
+# the runtime can inspect the native SiFli modules/resources without a ZIP library.
+import json
 import os
+import shutil
+import zipfile
+from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlparse
 
-if GetOption('add_disk'):
-    disk_path = os.path.abspath("../disk")
-    print("[DEBUG] Disk folder absolute path:", disk_path)
+project_dir = Path(os.getcwd())
+repo_root = project_dir.parents[2]
+disk_path = (project_dir / ".." / "disk").resolve()
+watchfaces_source = repo_root / "store" / "watchfaces"
+catalogue_path = repo_root / "store" / "index.json"
+watchfaces_disk = disk_path / "watchfaces"
 
-    if not os.path.exists(disk_path):
-        print(f"[WARNING] Disk folder does not exist: {disk_path}")
-        print("[INFO] Skipping filesystem image generation.")
-    else:
-        # Recursively gather all files
-        all_files = []
-        for root, dirs, files in os.walk(disk_path):
-            for f in files:
-                full_path = os.path.join(root, f)
-                all_files.append(full_path)
+if not catalogue_path.is_file():
+    raise RuntimeError("Store catalogue is missing; cannot bundle watchfaces.")
 
-        if not all_files:
-            print("[WARNING] Disk folder contains no files. Skipping filesystem image generation.")
+catalogue = json.loads(catalogue_path.read_text(encoding="utf-8"))
+watchface_entries = catalogue.get("watchfaces", [])
+if not isinstance(watchface_entries, list):
+    raise RuntimeError("Store catalogue has an invalid watchfaces list.")
+
+if watchfaces_disk.exists():
+    shutil.rmtree(watchfaces_disk)
+watchfaces_disk.mkdir(parents=True, exist_ok=True)
+
+bundled_faces = []
+for face in watchface_entries:
+    if not isinstance(face, dict):
+        raise RuntimeError("Invalid watchface entry in Store catalogue.")
+    face_id = str(face.get("id", ""))
+    archive_url = str(face.get("archiveUrl", ""))
+    if not face_id or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" for ch in face_id):
+        raise RuntimeError(f"Unsafe watchface ID in Store catalogue: {face_id!r}")
+    archive_name = unquote(Path(urlparse(archive_url).path).name)
+    if not archive_name.lower().endswith(".zip"):
+        raise RuntimeError(f"Invalid archive URL for watchface {face_id}.")
+    archive_path = watchfaces_source / archive_name
+    if not archive_path.is_file():
+        raise RuntimeError(f"Store watchface archive is missing: {archive_path}")
+
+    destination = watchfaces_disk / face_id
+    destination.mkdir(parents=True, exist_ok=True)
+    copied_archive = watchfaces_disk / (face_id + ".zip")
+    shutil.copy2(archive_path, copied_archive)
+
+    expanded_bytes = 0
+    file_count = 0
+    with zipfile.ZipFile(archive_path, "r") as archive:
+        members = archive.infolist()
+        if not members or len(members) > 1024:
+            raise RuntimeError(f"Watchface {face_id} has an invalid file count.")
+        for member in members:
+            normalized = member.filename.replace("\\", "/")
+            relative = PurePosixPath(normalized)
+            if relative.is_absolute() or not relative.parts or any(part in ("", ".", "..") for part in relative.parts) or ":" in normalized:
+                raise RuntimeError(f"Unsafe path in {archive_name}: {member.filename!r}")
+            if member.is_dir():
+                (destination / Path(*relative.parts)).mkdir(parents=True, exist_ok=True)
+                continue
+            expanded_bytes += member.file_size
+            file_count += 1
+            if expanded_bytes > 64 * 1024 * 1024 or file_count > 512:
+                raise RuntimeError(f"Watchface {face_id} exceeds package limits.")
+            target = destination.joinpath(*relative.parts)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(member, "r") as source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+    bundled_faces.append({
+        "id": face_id,
+        "name": str(face.get("name") or face_id),
+        "archive": "/watchfaces/" + face_id + ".zip",
+        "directory": "/watchfaces/" + face_id + "/",
+        "fileCount": file_count,
+        "expandedBytes": expanded_bytes,
+        "rendering": face.get("rendering", {}),
+    })
+
+(watchfaces_disk / "index.json").write_text(
+    json.dumps({"schemaVersion": 1, "watchfaces": bundled_faces}, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+
+print(f"[Watchfaces] Bundled {len(bundled_faces)} Store packages ({sum(f['expandedBytes'] for f in bundled_faces):,} expanded bytes).")
+
+if GetDepend('BSP_USING_PC_SIMULATOR'):
+    simulator_disk = project_dir / "build_pc_hcpu" / "disk" / "watchfaces"
+    if simulator_disk.exists():
+        shutil.rmtree(simulator_disk)
+    simulator_disk.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(watchfaces_disk, simulator_disk)
+    print(f"[Watchfaces] Simulator disk prepared at {simulator_disk}")
+
+# Include the watchface library in the physical filesystem image by default.
+# --add-disk remains supported for other optional disk content.
+include_disk = GetOption('add_disk') or bool(bundled_faces)
+if include_disk and not GetDepend('BSP_USING_PC_SIMULATOR'):
+    if not disk_path.exists():
+        raise RuntimeError(f"Filesystem disk folder does not exist: {disk_path}")
+    all_files = [
+        os.path.join(root, filename)
+        for root, _, files in os.walk(str(disk_path))
+        for filename in files
+    ]
+    if not all_files:
+        raise RuntimeError("Filesystem image was requested but the disk folder is empty.")
+    print(f"[SConscript] Generating filesystem image with {len(all_files)} files...")
+    fs_bins = []
+    for file_path in all_files:
+        bin_file = FileSystemBuild(file_path, env)
+        if bin_file:
+            fs_bins.append(bin_file)
         else:
-            print("[SConscript] --add-disk flag detected, generating filesystem image recursively...")
-            fs_bins = []
-            for f in all_files:
-                bin_file = FileSystemBuild(f, env)
-                if bin_file:
-                    fs_bins.append(bin_file)
-                else:
-                    print(f"[WARNING] FileSystemBuild ignored file: {f}")
-
-            if fs_bins:
-                AddCustomImg("fs_root", bin=fs_bins)
-                print(f"[INFO] Filesystem image added successfully with {len(fs_bins)} files.")
-            else:
-                print("[ERROR] No files were added. Check file types and env configuration.")
+            raise RuntimeError(f"FileSystemBuild could not package: {file_path}")
+    if not fs_bins:
+        raise RuntimeError("Filesystem image generation produced no files.")
+    AddCustomImg("fs_root", bin=fs_bins)
+    print(f"[INFO] Filesystem image added successfully with {len(fs_bins)} files.")
 
 # Generate download .bat script
 GenDownloadScript(env)
