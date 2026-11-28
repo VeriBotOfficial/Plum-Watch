@@ -120,11 +120,11 @@ static bool set_background_frame(uint8_t frame)
 
     if (background_image)
     {
-        lv_img_set_src(background_image, path);
-        lv_img_set_zoom(background_image, resource_zoom());
-        lv_obj_center(background_image);
         strncpy(background_path, path, sizeof(background_path) - 1);
         background_path[sizeof(background_path) - 1] = '\0';
+        lv_img_set_src(background_image, background_path);
+        lv_img_set_zoom(background_image, resource_zoom());
+        lv_obj_center(background_image);
     }
     return true;
 }
