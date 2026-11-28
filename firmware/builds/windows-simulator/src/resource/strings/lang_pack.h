@@ -4,13 +4,13 @@
 
 typedef struct
 {
-    lv_i18n_phrase_t HeartRateString;
     lv_i18n_phrase_t Calculator;
     lv_i18n_phrase_t Settings;
-    lv_i18n_phrase_t WatchfaceString;
-    lv_i18n_phrase_t MainMenuString;
-    lv_i18n_phrase_t Stopwatch;
     lv_i18n_phrase_t HeartRate;
+    lv_i18n_phrase_t Stopwatch;
+    lv_i18n_phrase_t HeartRateString;
+    lv_i18n_phrase_t MainMenuString;
+    lv_i18n_phrase_t WatchfaceString;
 } lang_translation_t;
 
 extern const lv_i18n_lang_t * const lv_i18n_lang_pack[];
