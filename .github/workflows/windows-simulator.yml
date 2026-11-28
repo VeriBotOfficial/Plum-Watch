@@ -96,7 +96,10 @@ jobs:
         if: steps.install-sdk.outcome == 'success' && steps.sifli-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ~\.sifli
+          path: |
+            ~\.sifli\tools
+            ~\.sifli\python_env
+            ~\.sifli\sifli-sdk-env.json
           key: sifli-tools-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
 
       - name: Build Windows simulator
