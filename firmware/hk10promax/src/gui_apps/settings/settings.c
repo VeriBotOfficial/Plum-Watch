@@ -321,6 +321,7 @@ static void settings_show_page(int page)
         lv_obj_align(name, LV_ALIGN_LEFT_MID, 0, 0);
 
         lv_obj_t *sw = lv_switch_create(card);
+        lv_obj_set_style_anim_time(sw, 160, LV_PART_MAIN);
         lv_obj_align(sw, LV_ALIGN_RIGHT_MID, 0, 0);
         if (settings_24_hour) lv_obj_add_state(sw, LV_STATE_CHECKED);
         lv_obj_add_event_cb(sw, settings_switch_event, LV_EVENT_VALUE_CHANGED, NULL);
