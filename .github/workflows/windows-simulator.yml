@@ -61,7 +61,10 @@ jobs:
         id: sifli-cache
         uses: actions/cache/restore@v4
         with:
-          path: ~\.sifli
+          path: |
+            ~\.sifli\tools
+            ~\.sifli\python_env
+            ~\.sifli\sifli-sdk-env.json
           key: sifli-tools-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
 
       - name: Install SiFli SDK tools
@@ -70,7 +73,7 @@ jobs:
           $Sdk = Join-Path $env:USERPROFILE "SiFli-SDK"
           $Tools = Join-Path $env:USERPROFILE ".sifli"
           if ("${{ steps.sifli-cache.outputs.cache-hit }}" -eq "true") {
-            if (-not (Test-Path -LiteralPath (Join-Path $Tools "tools"))) {
+            if (-not (Test-Path -LiteralPath (Join-Path $Tools "tools")) -or -not (Test-Path -LiteralPath (Join-Path $Tools "python_env"))) {
               throw "The restored SiFli toolchain cache is incomplete."
             }
             Write-Host "[SiFli] Reusing cached toolchain; SDK source was checked out separately."
