@@ -53,7 +53,6 @@ static lv_obj_t *time_digits[4];
 static lv_obj_t *analog_hands[3];
 static lv_obj_t *weekday_label;
 static lv_obj_t *date_label;
-static lv_obj_t *footer_label;
 static lv_obj_t *fallback_time_label;
 static lv_timer_t *clock_timer;
 static lv_timer_t *background_timer;
@@ -266,7 +265,6 @@ static void clear_face_objects(void)
     background_image = NULL;
     weekday_label = NULL;
     date_label = NULL;
-    footer_label = NULL;
     fallback_time_label = NULL;
     for (int i = 0; i < 4; ++i) { time_digits[i] = NULL; last_digits[i] = -1; }
     for (int i = 0; i < 3; ++i) analog_hands[i] = NULL;
@@ -334,24 +332,6 @@ static void build_package_face(void)
             lv_img_set_src(analog_hands[i], hand_paths[i]);
         }
     }
-
-    weekday_label = lv_label_create(root);
-    lv_label_set_text(weekday_label, "MONDAY");
-    lv_obj_set_style_text_color(weekday_label, lv_color_hex(WF_TEXT), 0);
-    lv_obj_set_style_text_font(weekday_label, &lv_font_montserrat_12, 0);
-    lv_obj_align(weekday_label, LV_ALIGN_TOP_MID, 0, 12);
-
-    date_label = lv_label_create(root);
-    lv_label_set_text(date_label, "JAN 01");
-    lv_obj_set_style_text_color(date_label, lv_color_hex(WF_TEXT), 0);
-    lv_obj_set_style_text_font(date_label, &lv_font_montserrat_16, 0);
-    lv_obj_align(date_label, LV_ALIGN_BOTTOM_MID, 0, -18);
-
-    footer_label = lv_label_create(root);
-    lv_label_set_text(footer_label, package->name);
-    lv_obj_set_style_text_color(footer_label, lv_color_hex(WF_MUTED), 0);
-    lv_obj_set_style_text_font(footer_label, &lv_font_montserrat_12, 0);
-    lv_obj_align(footer_label, LV_ALIGN_BOTTOM_MID, 0, -40);
 
     if (package->type == WF_PACKAGE_SPLIT_DIGITAL)
     {
