@@ -87,7 +87,9 @@ static bool path_exists(const char *path)
 
 static uint16_t resource_zoom(void)
 {
-    uint32_t zoom = ((uint32_t)LV_MIN(LV_HOR_RES_MAX, LV_VER_RES_MAX) * 256U) / 494U;
+    uint32_t width_zoom = ((uint32_t)LV_HOR_RES_MAX * 256U) / 410U;
+    uint32_t height_zoom = ((uint32_t)LV_VER_RES_MAX * 256U) / 494U;
+    uint32_t zoom = LV_MIN(width_zoom, height_zoom);
     if (zoom > 256U) zoom = 256U;
     if (zoom < 96U) zoom = 96U;
     return (uint16_t)zoom;
