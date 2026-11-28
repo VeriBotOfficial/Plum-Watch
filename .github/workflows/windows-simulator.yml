@@ -45,7 +45,15 @@ jobs:
           if ($revision -notmatch '^[0-9a-f]{40}$') { throw "Invalid SiFli SDK revision: $revision" }
           "revision=$revision" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
+      - name: Restore SiFli SDK source
+        id: sifli-sdk-source-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~\\SiFli-SDK
+          key: sifli-sdk-source-v1-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
+
       - name: Check out SiFli SDK
+        if: steps.sifli-sdk-source-cache.outputs.cache-hit != 'true'
         run: |
           $Sdk = Join-Path $env:USERPROFILE "SiFli-SDK"
           git clone --depth 1 --no-checkout https://github.com/OpenSiFli/SiFli-SDK $Sdk
@@ -56,6 +64,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "SiFli SDK checkout failed." }
           git -C $Sdk submodule update --init --recursive --depth 1
           if ($LASTEXITCODE -ne 0) { throw "SiFli SDK submodule setup failed." }
+
+      - name: Save SiFli SDK source cache
+        if: steps.sifli-sdk-source-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~\\SiFli-SDK
+          key: sifli-sdk-source-v1-v2.4-windows-${{ runner.arch }}-${{ steps.sdk.outputs.revision }}
 
       - name: Cache SiFli toolchain
         id: sifli-cache
