@@ -227,13 +227,14 @@ def _render_analog(background: Image.Image, assets: dict[str, Image.Image]) -> t
 
 
 def _render_watchface_frame(background: Image.Image, assets: dict[str, Image.Image], model: dict) -> tuple[Image.Image, bool]:
-    # Only the two individually verified liquid dials receive a clock overlay.
-    # Other faces remain faithful background-only previews until their own
-    # module layout has been reconstructed and validated.
+    # Resolve the layout from the internal module ID and its verified resource
+    # family. Never infer a clock layout from a ZIP filename or background.
     module_id = next(
         (name for name in model["modules"] if name.startswith("wf_clock") and not name.endswith("_res")),
         ""
     )
+    if model["kind"] == "analog" and module_id in {"wf_clock932", "wf_clock933", "wf_clock1004"}:
+        return _render_analog(background, assets)
     if model["kind"] == "digital_split" and module_id in {"wf_clock1000", "wf_clock1003"}:
         return _render_split_digital(background, assets, module_id)
     return background.convert("RGBA"), False
