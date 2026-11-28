@@ -91,7 +91,7 @@ static uint16_t resource_zoom(void)
 static void make_resource_path(char *out, size_t capacity, const char *suffix)
 {
     const watchface_package_t *package = &packages[active_package];
-    snprintf(out, capacity, "/watchfaces/%s/%s_res_%s",
+    snprintf(out, capacity, "/watchfaces/%s/installer/%s_res_%s",
              package->id, package->module, suffix);
 }
 
@@ -163,7 +163,7 @@ static void update_split_digits(const struct tm *now)
     for (int i = 0; i < 4; ++i)
     {
         /* SiFli time_num resources are one-based: 01 is digit zero. */
-        snprintf(path, sizeof(path), "/watchfaces/%s/%s_res_time_num_%02d.bin",
+        snprintf(path, sizeof(path), "/watchfaces/%s/installer/%s_res_time_num_%02d.bin",
                  packages[active_package].id,
                  packages[active_package].module, values[i] + 1);
         if (last_digits[i] != values[i])
@@ -186,7 +186,6 @@ static void update_analog_hands(const struct tm *now)
         (int16_t)(now->tm_min * 60 + now->tm_sec),
         (int16_t)(now->tm_sec * 60)
     };
-    const char *suffixes[3] = {"h.bin", "m.bin", "s.bin"};
     const uint16_t zoom = resource_zoom();
     const lv_coord_t center_x = LV_HOR_RES_MAX / 2;
     const lv_coord_t center_y = LV_VER_RES_MAX / 2;
