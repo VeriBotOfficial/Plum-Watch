@@ -10,9 +10,6 @@
 #include <lv_ext_resource_manager.h>
 #include <rtthread.h>
 #include <rtdevice.h>
-#if !defined(BSP_USING_PC_SIMULATOR)
-#include <sensor.h>
-#endif
 #include "gui_app_fwk.h"
 #include "littlevgl2rtt.h"
 #include "custom_trans_anim.h"
@@ -22,6 +19,21 @@ LV_IMG_DECLARE(img_red_heart);
 #define HR_BG 0x09090B
 #define HR_CARD 0x1B1D22
 #define HR_MUTED 0x92959D
+
+#if !defined(BSP_USING_PC_SIMULATOR)
+/* Match RT-Thread's sensor data ABI without requiring the optional sensor
+ * component's private include directory in this application. */
+struct hr_sensor_data
+{
+    rt_uint32_t timestamp;
+    rt_uint8_t type;
+    union
+    {
+        rt_int32_t hr;
+        rt_uint8_t reserved[24];
+    } data;
+};
+#endif
 
 static rt_device_t hr_device;
 static lv_obj_t *bpm_label;
@@ -82,7 +94,7 @@ static void measure_timer_cb(lv_timer_t *timer)
     if (measuring && status_label)
         lv_label_set_text(status_label, "Sensor unavailable in simulator");
 #else
-    struct rt_sensor_data data;
+    struct hr_sensor_data data;
     if (!measuring || !hr_device) return;
     memset(&data, 0, sizeof(data));
     if (rt_device_read(hr_device, 0, &data, 1) == 0)
