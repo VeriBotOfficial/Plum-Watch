@@ -253,11 +253,38 @@ static void clear_face_objects(void)
     for (int i = 0; i < 3; ++i) analog_hands[i] = NULL;
 }
 
+static bool package_resources_ready(void)
+{
+    char path[160];
+    const watchface_package_t *package = &packages[active_package];
+
+    if (package->type == WF_PACKAGE_SPLIT_DIGITAL)
+    {
+        for (int digit = 1; digit <= 10; ++digit)
+        {
+            snprintf(path, sizeof(path),
+                     "/watchfaces/%s/installer/%s_res_time_num_%02d.bin",
+                     package->id, package->module, digit);
+            if (!path_exists(path)) return false;
+        }
+    }
+    else if (package->type == WF_PACKAGE_ANALOG)
+    {
+        const char *hands[] = {"h.bin", "m.bin", "s.bin"};
+        for (int i = 0; i < 3; ++i)
+        {
+            make_resource_path(path, sizeof(path), hands[i]);
+            if (!path_exists(path)) return false;
+        }
+    }
+    return true;
+}
+
 static void build_package_face(void)
 {
     const watchface_package_t *package = &packages[active_package];
     char path[160];
-    uint16_t zoom = resource_zoom();
+    if (!package_resources_ready()) return;
 
     background_image = lv_img_create(root);
     if (!set_background_frame(0))
@@ -334,7 +361,6 @@ static void build_package_face(void)
         if (background_timer) lv_timer_del(background_timer);
         background_timer = lv_timer_create(background_frame_cb, 180, NULL);
     }
-    (void)zoom;
 }
 
 static void face_transition(void)
