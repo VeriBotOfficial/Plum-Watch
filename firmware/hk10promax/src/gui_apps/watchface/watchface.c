@@ -62,6 +62,10 @@ static uint8_t background_frame;
 static uint8_t background_frame_count;
 static bool selector_open;
 static char background_path[160];
+static char digit_paths[4][160];
+static char hand_paths[3][160];
+
+static void build_fallback_face(void);
 static int8_t last_digits[4] = {-1, -1, -1, -1};
 
 static const char *weekdays[] = {
@@ -169,7 +173,9 @@ static void update_split_digits(const struct tm *now)
                  packages[active_package].module, values[i] + 1);
         if (last_digits[i] != values[i])
         {
-            lv_img_set_src(time_digits[i], path);
+            strncpy(digit_paths[i], path, sizeof(digit_paths[i]) - 1);
+            digit_paths[i][sizeof(digit_paths[i]) - 1] = '\\0';
+            lv_img_set_src(time_digits[i], digit_paths[i]);
             last_digits[i] = (int8_t)values[i];
         }
         lv_img_set_zoom(time_digits[i], zoom);
@@ -277,8 +283,8 @@ static void build_package_face(void)
         {
             analog_hands[i] = lv_img_create(root);
             lv_obj_clear_flag(analog_hands[i], LV_OBJ_FLAG_CLICKABLE);
-            make_resource_path(path, sizeof(path), i == 0 ? "h.bin" : (i == 1 ? "m.bin" : "s.bin"));
-            lv_img_set_src(analog_hands[i], path);
+            make_resource_path(hand_paths[i], sizeof(hand_paths[i]), i == 0 ? "h.bin" : (i == 1 ? "m.bin" : "s.bin"));
+            lv_img_set_src(analog_hands[i], hand_paths[i]);
         }
     }
 
