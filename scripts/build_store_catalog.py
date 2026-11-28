@@ -203,7 +203,7 @@ def _render_analog(background: Image.Image, assets: dict[str, Image.Image], modu
     """Compose a sample analog time using this module's own native hand resources."""
     hands = [
         next((image for name, image in assets.items()
-              if name.startswith(module_id) and name.endswith("_" + suffix)), None)
+              if module_id in name and name.endswith("_" + suffix)), None)
         for suffix in ("h", "m", "s")
     ]
     if any(hand is None for hand in hands):
