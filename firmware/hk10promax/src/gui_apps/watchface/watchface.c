@@ -66,6 +66,8 @@ static char hand_paths[3][160];
 static char resource_root[128];
 
 static void build_fallback_face(void);
+static void face_opa_exec(void *object, int32_t opa);
+static void face_y_exec(void *object, int32_t y);
 static int8_t last_digits[4] = {-1, -1, -1, -1};
 
 static const char *weekdays[] = {
@@ -192,7 +194,7 @@ static void update_split_digits(const struct tm *now)
         if (last_digits[i] != values[i])
         {
             strncpy(digit_paths[i], path, sizeof(digit_paths[i]) - 1);
-            digit_paths[i][sizeof(digit_paths[i]) - 1] = '\\0';
+            digit_paths[i][sizeof(digit_paths[i]) - 1] = '\0';
             lv_img_set_src(time_digits[i], digit_paths[i]);
             last_digits[i] = (int8_t)values[i];
         }
