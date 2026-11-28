@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
-#include <math.h>
 #include <stdint.h>
 #include "rtconfig.h"
 #include "lvsf.h"
@@ -19,7 +18,6 @@ LV_IMG_DECLARE(img_clock);
 #define WF_MUTED 0x858A96
 #define WF_TEXT 0xF4F5F7
 #define WF_ACCENT 0xB78AFF
-#define WF_STYLE_COUNT 3
 
 typedef enum
 {
@@ -63,16 +61,12 @@ static void update_analog(const struct tm *now)
 {
     if (!analog_hour || !analog_minute || !analog_second) return;
 
-    const float pi = 3.14159265358979323846f;
     const lv_coord_t cx = LV_HOR_RES_MAX / 2;
     const lv_coord_t cy = LV_VER_RES_MAX / 2 + 4;
-    float seconds = (float)now->tm_sec;
-    float minutes = (float)now->tm_min + seconds / 60.0f;
-    float hours = (float)(now->tm_hour % 12) + minutes / 60.0f;
-    float angles[3] = {
-        hours * 30.0f - 90.0f,
-        minutes * 6.0f - 90.0f,
-        seconds * 6.0f - 90.0f
+    int16_t angles[3] = {
+        (int16_t)((now->tm_hour % 12) * 30 + now->tm_min / 2 - 90),
+        (int16_t)(now->tm_min * 6 + now->tm_sec / 10 - 90),
+        (int16_t)(now->tm_sec * 6 - 90)
     };
     lv_coord_t lengths[3] = {LV_MIN(LV_HOR_RES_MAX, LV_VER_RES_MAX) / 6,
                              LV_MIN(LV_HOR_RES_MAX, LV_VER_RES_MAX) / 4,
@@ -82,9 +76,8 @@ static void update_analog(const struct tm *now)
 
     for (int i = 0; i < 3; ++i)
     {
-        float radians = angles[i] * pi / 180.0f;
-        lv_coord_t x = cx + (lv_coord_t)(cosf(radians) * lengths[i]);
-        lv_coord_t y = cy + (lv_coord_t)(sinf(radians) * lengths[i]);
+        lv_coord_t x = cx + (lv_trigo_cos(angles[i]) * lengths[i] >> LV_TRIGO_SHIFT);
+        lv_coord_t y = cy + (lv_trigo_sin(angles[i]) * lengths[i] >> LV_TRIGO_SHIFT);
         set_line(lines[i], points[i], cx, cy, x, y);
     }
 }
@@ -203,7 +196,7 @@ static void show_selector(void)
     lv_obj_t *heading = lv_label_create(selector);
     lv_label_set_text(heading, "Watch face");
     lv_obj_set_style_text_color(heading, lv_color_hex(WF_TEXT), 0);
-    lv_obj_set_style_text_font(heading, &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_font(heading, &lv_font_montserrat_20, 0);
     lv_obj_align(heading, LV_ALIGN_TOP_MID, 0, 58);
 
     add_style_button(selector, "Editorial", "Large time, date and clean spacing", WF_STYLE_EDITORIAL, 112);
